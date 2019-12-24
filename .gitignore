@@ -33,3 +33,10 @@
 
 # visual studio code files
 .vscode/
+
+# Visual Studio files
+*.VC.db
+Debug
+Release
+x64
+
