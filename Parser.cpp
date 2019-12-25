@@ -1,89 +1,5 @@
 #include "Parser.h"
 #include <iostream>
-#if 0
-void Parser::initFrame(StackFrame & f, vector<int> nts) {
-	f.nts = nts;
-	f.v = &gr.root;
-	unordered_set<int> ss;
-	f.leftrec.clear();
-	for (size_t i = 0; i < nts.size(); i++) {
-		for (int x : gr.ntFirstMap[nts[i]]) {
-			f.leftrec.add(x);
-			if (f.nts.add(x))
-				nts.push_back(x);
-		}
-	}
-}
-
-const NTTreeNode * Lexer::startsC(const NTTreeNode * x, NTSet & s) {
-	auto *curr = x;
-	const NTTreeNode *res = 0;
-	const NTSet *filter = 0;
-	int p = pos;
-	while (w[p]) {//!curr->next.empty()) {
-		auto it = curr->charedges.find(w[p]);
-		if (it == curr->charedges.end() || !it->second.filter.intersects(s))break;
-		curr = &it->second.end;
-		if (!curr->ntEdges.empty() || !curr->termEdges.empty()) {
-			res = curr;
-			filter = &it->second.filter;
-		}
-	}
-	if (res)filter->filter(s);
-	return res;
-}
-
-void Parser::parse(ParseState & st, const char * word) {
-	lex.setstr(word);
-	st.st.resize(1);
-	initFrame(st[0], { gr.start });
-	st[0].fr[gr.start]("")=0; // zero string as end of root nonterminal
-	while (*lex) {
-		StackFrame& t = st.top();
-		// Сворачиваем фрейм, если некуда идти дальше с данным множеством нетерминалов
-		if (!t.v->next.intersects(t.nts)) {
-			if (reduce())continue;
-			else break; // Если не удалось свернуть, то не можем дальше продолжать разбор
-		}
-		/*Сначала пытаемся прочитать какой-нибудь терминал t из множества Follow0(v).
-		Если получилось, то переходим по t в новую вершину u и записываем её в верхний фрейм*/
-		if (auto *v = lex.startsC(t.v, t.nts)) {
-			t.v = v;
-			continue;
-		}
-
-		// Сворачиваем фрейм, если некуда идти дальше с данным множеством нетерминалов по нетерминальному ребру
-		if (!t.v->nextnt.intersects(t.nts)) {
-			if(reduce())continue;
-			else break; // Если не удалось свернуть, то не можем дальше продолжать разбор
-		}
-		/* Если вершина v является финальной, то пытаемся прочитать терминал t
-		из множества FollowR в режиме предпросмотра(оставляем его впереди) */
-		if (t.v->finalNT.intersects(t.nts)) {
-			const NTTreeNode *v = 0;
-			int l0 = -1, nt0=-1, pos=-1, pos0=-1;
-			bool umbig = false;
-			for (int nt : t.nts) {
-				auto it = st.followR.find(nt);
-				if (it == st.followR.end())continue;
-				if (int *lvl = lex.starts(it->second,&pos)) {
-					if (*lvl > l0) { // Выбираем свёртку наименьшего числа фреймов (до фрейма с наибольшим индексом lvl в стеке)
-						l0 = *lvl;
-						nt0 = nt;
-						pos0 = pos;
-						umbig = false; 
-					} else if(*lvl==l0) {
-						umbig = true;
-					}
-				}
-			}
-			if (umbig)error("reduce-reduce conflict");
-			if (nt0 >= 0)reduceN(nt0);
-		}
-		t.v->charedges.count(*lex);
-	}
-}
-#endif
 const bool debug_pr = false;
 ParseNode termnode(const Token& t) {
 	ParseNode res;
@@ -331,11 +247,19 @@ void GrammarState::error(const string & err) {
 	cerr << "Error at line "<< lex.curr.cpos.line<<':'<< lex.curr.cpos.col<<" : " << err << "\n";
 	_err.push_back(make_pair(lex.curr.cpos, err));
 }
-
+/*
 void GrammarState::addToken(const string & term, const string & re) {
 	if(debug_pr)
 		std::cout << "!!! Add token : " << term << " = " << re << "\n";
 	lex.addNCToken(ts[term], regex(re));
+}*/
+
+void GrammarState::addLexerRule(const string & term, const string & rhs, bool tok) {
+	if (debug_pr)
+		std::cout << "!!! Add lexer rule : " << term << " <- " << rhs << "\n";
+	//lex.addNCToken(ts[term], regex(re));
+	int n = tok ? ts[term] : 0;
+	lex.addPEGRule(term, rhs, n);
 }
 
 bool GrammarState::addRule(const string & lhs, const vector<string>& rhs) {

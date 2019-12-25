@@ -5,7 +5,7 @@ void PackratParser::add_rule(const string & nt, const PEGExpr & e) {
 	int a = _en[nt];
 	if (a >= len(rules))rules.resize(a + 1);
 	e.id = _een[&e];
-	rules[a] = e;
+	rules[a] /= e;
 }
 
 void PackratParser::setText(const string & t) {
@@ -77,9 +77,12 @@ int PackratParser::parse(int nt, int pos) {
 	return a = (r ? r : -1);
 }
 
-bool PackratParser::parse(int nt, int pos, string * res) {
+bool PackratParser::parse(int nt, int pos, int &end, string * res) {
 	int a = parse(nt, pos+1);
-	if (res && a > pos)*res = text.substr(pos, a - 1 - pos);
+	if (res && a > pos) {
+		*res = text.substr(pos, a - 1 - pos);
+		end = a - 1;
+	}
 	return a > pos;
 }
 
@@ -211,7 +214,6 @@ PEGExpr readpostfixexpr(PackratParser*p, const char *&s, const char *&errpos, st
 	return t;
 }
 
-
 PEGExpr readconcatexpr(PackratParser*p, const char *&s, const char *&errpos, string *err, char end) {
 	PEGExpr res = readpostfixexpr(p, s, errpos, err);
 	if (errpos)return res;
@@ -243,11 +245,11 @@ PEGExpr readexpr(PackratParser*p, const char *&s, const char *&errpos, string *e
 	return res;
 }
 
-PEGExpr readexpr(PackratParser*p, const string & s, int *errpos, string * err) {
+PEGExpr readParsingExpr(PackratParser*p, const string & s, int *errpos, string * err) {
 	const char * ep=0, *ps = s.c_str();
 	PEGExpr r = readexpr(p, ps, ep, err);
 	if (ep) {
-		if (errpos)*errpos = ep - s.c_str();
+		if (errpos)*errpos = int(ep - s.c_str());
 		return{};
 	}
 	if (errpos)*errpos = -1;

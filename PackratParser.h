@@ -88,36 +88,34 @@ struct PEGExpr {
 		return true;
 	}
 };
-PEGExpr operator!(PEGExpr &&e) {
+inline PEGExpr operator!(PEGExpr &&e) {
 	return PEGExpr(PEGExpr::NegLookahead, { move(e) });
 }
-PEGExpr lookahead(PEGExpr &&e) {
+inline PEGExpr lookahead(PEGExpr &&e) {
 	return PEGExpr(PEGExpr::PosLookahead, { move(e) });
 }
-PEGExpr many(PEGExpr && e) {
+inline PEGExpr many(PEGExpr && e) {
 	return PEGExpr(PEGExpr::Many, { move(e) });
 }
 
-PEGExpr many1(PEGExpr && e) {
+inline PEGExpr many1(PEGExpr && e) {
 	return PEGExpr(PEGExpr::Many1, { move(e) });
 }
 
-PEGExpr maybe(PEGExpr && e) {
+inline PEGExpr maybe(PEGExpr && e) {
 	return PEGExpr(PEGExpr::Opt, { move(e) });
 }
 
-PEGExpr pstr(const string &s) {
+inline PEGExpr pstr(const string &s) {
 	return PEGExpr(s);
 }
 
-PEGExpr pnonterm(int n) {
+inline PEGExpr pnonterm(int n) {
 	PEGExpr res;
 	res.type = PEGExpr::NonTerminal;
 	res.num = n;
 	return res;
 }
-
-PEGExpr readexpr(PackratParser*p, const string & s, int *errpos, string * err);
 
 struct PackratParser {
 	vector<int*> _manypos;
@@ -164,5 +162,7 @@ struct PackratParser {
 	void setText(const string &t);
 	int parse(const PEGExpr&e, int pos);
 	int parse(int nt, int pos);
-	bool parse(int nt, int pos, string *res);
+	bool parse(int nt, int pos, int &end, string *res);
 };
+
+PEGExpr readParsingExpr(PackratParser*p, const string & s, int *errpos, string * err);

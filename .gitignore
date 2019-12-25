@@ -36,7 +36,9 @@
 
 # Visual Studio files
 *.VC.db
+*.VC.opendb
 Debug
 Release
 x64
+.vs
 

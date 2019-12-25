@@ -2,6 +2,7 @@
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
+#include <functional>
 #include <set>
 #include <vector>
 #include <cctype>
@@ -9,7 +10,7 @@
 #include <memory>
 #include <string>
 #include "Exception.h"
-#include "Lexer.h"
+#include "PEGLexer.h"
 
 using namespace std;
 /*
@@ -285,12 +286,16 @@ struct RuleElem {
 	bool term;
 	bool save;
 };
+struct GrammarState;
+typedef function<ParseNode(GrammarState *g, vector<ParseNode>&&)> SemanticAction;
 
 struct CFGRule {
 	int A;
 	vector<RuleElem> rhs; 
 	int used;
+	SemanticAction action;
 };
+
 
 struct GrammarState {
 	//unordered_map<int, vector<int>> ntFirstMap; // ѕо входному нетерминалу возвращает список всех нетерминалов, с которых данный нетерминал может начинатьс€
@@ -305,21 +310,22 @@ struct GrammarState {
 	int start;
 	bool finish = false;
 	TF tf;
-	Lexer lex;
+	PEGLexer lex;
 	int syntaxDefNT=0;
 	int tokenNT=0;
 	vector<pair<Pos, string>> _err;
 	void error(const string &err);
 
-	void addToken(const string& term, const string& re);
+	void addLexerRule(const string& term, const string& re, bool tok=false);
+	void addToken(const string& term, const string& re) { addLexerRule(term, re, true); }
 	bool addRule(const string &lhs, const vector<string> &rhs);
 	bool addRule(const CFGRule &r);
 
 	bool addToken(const ParseNode *tokenDef);
 	bool addRule(const ParseNode *ruleDef);
 	GrammarState() {
-		ts[""];
-		nts[""];
+		ts[""];  // –езервируем нулевой номер терминала, чтобы все терминалы имели ненулевой номер.
+		nts[""]; // –езервируем нулевой номер нетерминала, чтобы все нетерминалы имели ненулевой номер.
 	}
 	ParseNode reduce(const ParseNode *pn, const NTTreeNode *v, int nt, int nt1) {
 		int r = v->rule(nt), sz = len(rules[r].rhs);
@@ -425,15 +431,3 @@ struct ParserError {
 	Location loc;
 	string err;
 };
-#if 0
-class Parser {
-public:
-	NTTree gr;
-	Lexer lex;
-	void error(const std::string &s);
-	bool reduce();        // —вЄртка по нетерминалам, дл€ которых данна€ вершина €вл€етс€ финальной
-	bool reduceN(int nt); // —вЄртка по данному нетерминалу
-	void initFrame(StackFrame& f, vector<int> nts);
-	void parse(ParseState&st, const char *word);
-};
-#endif

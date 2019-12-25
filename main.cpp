@@ -73,9 +73,16 @@ struct Timer {
 int main(int argc, char*argv[]) {
 	GrammarState st;
 	st.setNtNames("text", "new_token", "new_rule");
-	st.addToken("ident", ("\\b[_[:alpha:]]\\w*\\b"));
-	st.addToken("token_def", ("\\(\\?\\:[^#\\n]*\\)(?=\\s*($|#))"));
-	st.addToken("sq_string", ("'(?:[^'\\\\]|\\\\.)*'"));
+	st.addLexerRule("ws", "([ \t\n\r] / comment)*");
+	st.addLexerRule("comment", "'#' [^\n]*");
+	st.addToken("ident", "[_a-zA-Z][_a-zA-Z0-9]*");
+	st.addLexerRule("peg_concat_expr", "ws (([&!] ws)* ws ('(' peg_expr ws ')' / '[' ('\\\\]' / [^\\]\\n])* ']' / sq_string / dq_string / ident) (ws [*+?])*)+");
+	st.addLexerRule("peg_expr", "ws peg_concat_expr (ws '/' ws peg_concat_expr)*");
+	st.addToken("sq_string", ("'\\'' '\\\\' [^\\n] / [^\\n'] '\\''"));
+	st.addToken("dq_string", ("(ws '\"' '\\\\' [^\\n] / [^\\n\"] '\"')+"));
+	//st.addToken("ident", ("\\b[_[:alpha:]]\\w*\\b"));
+	//st.addToken("token_def", ("\\(\\?\\:[^#\\n]*\\)(?=\\s*($|#))"));
+	//st.addToken("sq_string", ("'(?:[^'\\\\]|\\\\.)*'"));
 	addRule(st, "rule_symbol -> ident"); 
 	addRule(st, "rule_symbol -> sq_string");
 	addRule(st, "rule_rhs -> rule_symbol");
