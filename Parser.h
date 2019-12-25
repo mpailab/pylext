@@ -280,23 +280,6 @@ struct NTTree {
 	int start;
 };
 
-template<class T>
-struct Enumerator {
-	std::unordered_map<T, int> _m;
-	vector<T> _i;
-	const T& operator[](int i)const { return _i[i]; }
-	int operator[](const T& x) {
-		auto p = _m.insert(make_pair(x, (int)_i.size()));
-		if (p.second)_i.push_back(x);
-		return p.first->second;
-	}
-	int num(const T& x) const {
-		auto it = _m.find(x);
-		if (it == _m.end())return -1;
-		return it->second;
-	}
-};
-
 struct RuleElem {
 	int num;
 	bool term;
@@ -316,8 +299,8 @@ struct GrammarState {
 	//vector<NTSet> ntFirstMap;              // ѕо нетерминалу возвращает множество нетерминалов, с которых данный нетерминал может начинатьс€
 	vector<vector<NTTreeNode*>> ntRules;   //  аждому нетерминалу сопоставл€етс€ список финальных вершин, соответствующих правилам дл€ данного нетерминала
 	NTTreeNode root;        //  орнева€ вершина дерева правил
-	Enumerator<string> nts; // Ќумераци€ нетерминалов
-	Enumerator<string> ts;  // Ќумераци€ терминалов
+	Enumerator<string, unordered_map> nts; // Ќумераци€ нетерминалов
+	Enumerator<string, unordered_map> ts;  // Ќумераци€ терминалов
 	vector<CFGRule> rules;
 	int start;
 	bool finish = false;
