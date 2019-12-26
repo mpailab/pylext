@@ -108,12 +108,12 @@ struct NTSetV {
 		}
 	};
 	bool intersects(const NTSetV& y) const {
-		for (int i = 0, sz = (int)mask.size(); i < sz; i++)
+		for (int i = 0, sz = (int)std::min(y.mask.size(),mask.size()); i < sz; i++)
 			if (mask[i] & y.mask[i])return true;
 		return false;
 	}
 	bool intersects(const NTSetV& y, int *B) const {
-		for (int i = 0, sz = (int)mask.size(); i < sz; i++)
+		for (int i = 0, sz = (int)std::min(y.mask.size(), mask.size()); i < sz; i++)
 			if (mask[i] & y.mask[i]) {
 				*B = (i << 6) + (int)_tzcnt_u64(mask[i] & y.mask[i]);
 				return true;

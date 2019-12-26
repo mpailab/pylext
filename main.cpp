@@ -94,13 +94,13 @@ int main(int argc, char*argv[]) {
 		addRule(st, "rule_rhs -> rule_symbol");
 		addRule(st, "rule_rhs -> rule_rhs rule_symbol");
 
-		addRule(st, "new_syntax -> '%' 'syntax' ':' ident '->' rule_rhs", [](GrammarState*g, ParseNode&n) { g->addRule(&n); });
+		addRule(st, "new_syntax -> '%' 'syntax' ':' ident '->' rule_rhs ';'", [](GrammarState*g, ParseNode&n) { g->addRule(&n); });
 	
-		addRule(st, "new_syntax -> '%' 'token' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
-		addRule(st, "new_syntax -> '%' 'token' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
+		addRule(st, "new_syntax -> '%' 'token' ':' ident '=' peg_expr_def ';'", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
+		addRule(st, "new_syntax -> '%' 'token' ':' ident '/=' peg_expr_def ';'", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
 
-		addRule(st, "new_syntax -> '%' 'pexpr' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
-		addRule(st, "new_syntax -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
+		addRule(st, "new_syntax -> '%' 'pexpr' ':' ident '=' peg_expr_def ';'", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
+		addRule(st, "new_syntax -> '%' 'pexpr' ':' ident '/=' peg_expr_def ';'", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
 
 		addRule(st, "text -> new_syntax text", [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); });
 		//addRule(st, "text -> new_rule text", [](GrammarState*, ParseNode&n) {n = move(n[1]); });

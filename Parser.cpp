@@ -225,7 +225,7 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 			g.lex.go_next();
 		} else {
 			bool r = reduce(g, ss, sp, t.type);
-			if (!r) throw SyntaxError("Cannot shift or reduce : unexpected terminal");
+			if (!r) throw SyntaxError("Cannot shift or reduce : unexpected terminal `"+t.str()+"` at "+t.loc.beg.str());
 			if (debug_pr) {
 				std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
 			}
