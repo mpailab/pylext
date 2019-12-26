@@ -240,7 +240,7 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 		throw SyntaxError("Unexpected end of file");
 	Assert(ss.s.size() == 2);
 	Assert(sp.s.size() == 1);
-	return sp.s[0];
+	return move(sp.s[0]);
 }
 
 void GrammarState::error(const string & err) {

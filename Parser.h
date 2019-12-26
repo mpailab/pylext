@@ -32,6 +32,12 @@ struct ParseNode {
 	}
 	ParseNode& operator[](size_t i) { return ch[int(i)<0 ? i+ch.size() : i]; }
 	const ParseNode& operator[](size_t i)const { return ch[int(i)<0 ? i + ch.size() : i]; }
+	ParseNode() = default;
+	ParseNode(const ParseNode&) = delete;
+	ParseNode& operator=(const ParseNode&) = delete;
+
+	ParseNode(ParseNode&&) = default;
+	ParseNode& operator=(ParseNode&&) = default;
 };
 
 
@@ -329,7 +335,7 @@ struct GrammarState {
 		ts[""];  // Резервируем нулевой номер терминала, чтобы все терминалы имели ненулевой номер.
 		nts[""]; // Резервируем нулевой номер нетерминала, чтобы все нетерминалы имели ненулевой номер.
 	}
-	ParseNode reduce(const ParseNode *pn, const NTTreeNode *v, int nt, int nt1) {
+	ParseNode reduce(ParseNode *pn, const NTTreeNode *v, int nt, int nt1) {
 		int r = v->rule(nt), sz = len(rules[r].rhs);
 		ParseNode res;
 		res.rule = r;

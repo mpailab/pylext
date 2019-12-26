@@ -145,6 +145,10 @@ inline PEGExpr pnonterm(int n, const string&text = "") {
 	res.num = n;
 	return res;
 }
+template<class T>
+inline size_t get_hash(const T& x) {
+	return hash<T>()(x);
+}
 
 struct PackratParser {
 	int errpos;
@@ -171,7 +175,7 @@ struct PackratParser {
 			size_t h = std::hash<int>()(e->type);
 			switch (e->type) {
 			case PEGExpr::Terminal:
-				return h ^ e->t_mask.hash();
+				return h ^ get_hash(e->t_mask);
 			case PEGExpr::String:
 				return h^std::hash<string>()(e->s);
 			case PEGExpr::NonTerminal:
