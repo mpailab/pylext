@@ -1,17 +1,18 @@
 #pragma once
-#include <unordered_map>
+//#include <unordered_map>
 #include <vector>
+#include <utility>
 
 template<class T, template<class ...> class Set, class ... Args>
 struct Enumerator {
 	Set<T, int, Args...> _m;
 	std::vector<T> _i;
 	Enumerator() = default;
-	template<class T1, class ... T>
-	Enumerator(const T1 &x1, const T& ... x) :_m(x1,x...) {}
+	template<class T1, class ... Ts>
+	Enumerator(const T1 &x1, const Ts& ... x) :_m(x1,x...) {}
 	const T& operator[](int i)const { return _i[i]; }
 	int operator[](const T& x) {
-		auto p = _m.insert(make_pair(x, (int)_i.size()));
+		auto p = _m.insert(std::make_pair(x, (int)_i.size()));
 		if (p.second)_i.push_back(x);
 		return p.first->second;
 	}

@@ -2,6 +2,7 @@
 #include <vector>
 #include <memory>
 #include <bitset>
+#include <unordered_map>
 #include "common.h"
 using namespace std;
 
