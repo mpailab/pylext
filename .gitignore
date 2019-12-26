@@ -41,4 +41,7 @@ Debug
 Release
 x64
 .vs
+*.vspx
+*.psess
+*.user
 

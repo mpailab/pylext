@@ -262,7 +262,7 @@ void GrammarState::addLexerRule(const string & term, const string & rhs, bool to
 	lex.addPEGRule(term, rhs, n);
 }
 
-bool GrammarState::addRule(const string & lhs, const vector<string>& rhs) {
+bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, SemanticAction act) {
 	if (debug_pr) {
 		std::cout << "!!! Add rule  : " << lhs << " = ";
 		for (auto&x : rhs)std::cout << " " << x;
@@ -270,6 +270,7 @@ bool GrammarState::addRule(const string & lhs, const vector<string>& rhs) {
 	}
 	CFGRule rule;
 	rule.A = nts[lhs];
+	rule.action = act;
 	for (auto &x : rhs) {
 		if (x[0] == '\'') {
 			if (ts.num(x) < 0) {
@@ -357,7 +358,7 @@ bool GrammarState::addRule(const CFGRule & rule) {
 	return true;
 }
 
-bool GrammarState::addToken(const ParseNode * tokenDef) {
+bool GrammarState::addLexerRule(const ParseNode * tokenDef, bool tok) {
 	if (tokenDef->ch.size() != 2) {
 		error("token definition must have 2 nodes");
 		return false;
@@ -366,7 +367,7 @@ bool GrammarState::addToken(const ParseNode * tokenDef) {
 		error("token definition cannot contain nonterminals");
 		return false;
 	}
-	addToken(tokenDef->ch[0].term, (tokenDef->ch[1].term));
+	addLexerRule(tokenDef->ch[0].term, (tokenDef->ch[1].term), tok);
 	return true;
 }
 

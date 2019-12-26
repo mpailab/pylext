@@ -30,6 +30,8 @@ struct ParseNode {
 	bool isTerminal()const {
 		return rule < 0;
 	}
+	ParseNode& operator[](size_t i) { return ch[int(i)<0 ? i+ch.size() : i]; }
+	const ParseNode& operator[](size_t i)const { return ch[int(i)<0 ? i + ch.size() : i]; }
 };
 
 
@@ -287,7 +289,7 @@ struct RuleElem {
 	bool save;
 };
 struct GrammarState;
-typedef function<ParseNode(GrammarState *g, vector<ParseNode>&&)> SemanticAction;
+typedef function<void(GrammarState *g, ParseNode&)> SemanticAction;
 
 struct CFGRule {
 	int A;
@@ -318,10 +320,10 @@ struct GrammarState {
 
 	void addLexerRule(const string& term, const string& re, bool tok=false);
 	void addToken(const string& term, const string& re) { addLexerRule(term, re, true); }
-	bool addRule(const string &lhs, const vector<string> &rhs);
+	bool addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction());
 	bool addRule(const CFGRule &r);
 
-	bool addToken(const ParseNode *tokenDef);
+	bool addLexerRule(const ParseNode *tokenDef, bool tok);
 	bool addRule(const ParseNode *ruleDef);
 	GrammarState() {
 		ts[""];  // Резервируем нулевой номер терминала, чтобы все терминалы имели ненулевой номер.
@@ -336,10 +338,12 @@ struct GrammarState {
 		for (int i = 0; i < sz; i++)
 			if (rules[r].rhs[i].save)
 				res.ch.emplace_back(move(pn[i]));
-		res.loc.beg = pn[0].loc.beg; 
+		res.loc.beg = pn[0].loc.beg;
 		res.loc.end = pn[sz - 1].loc.end;
-		if (nt == tokenNT)addToken(&res);
-		else if (nt == syntaxDefNT)addRule(&res);
+		if (rules[r].action)
+			rules[r].action(this, res);
+		//if (nt == tokenNT)addToken(&res);
+		//else if (nt == syntaxDefNT)addRule(&res);
 		return std::move(res);
 	}
 	void setNtNames(const string&start, const string& token, const string &syntax) {

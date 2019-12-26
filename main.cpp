@@ -3,7 +3,7 @@
 #include "Parser.h"
 using namespace std;
 
-bool addRule(GrammarState &gr, const string &s) {
+bool addRule(GrammarState &gr, const string &s, SemanticAction act=SemanticAction()) {
 	int pos = 0, i=0;
 	string A;
 	vector<string> rhs;
@@ -33,7 +33,7 @@ bool addRule(GrammarState &gr, const string &s) {
 			pos = q;
 		} else throw Exception("Error : unexpected symbol '"s + s[pos] + "'");
 	}
-	gr.addRule(A, rhs);
+	gr.addRule(A, rhs, act);
 	return true;
 }
 
@@ -71,39 +71,49 @@ struct Timer {
 };
 
 int main(int argc, char*argv[]) {
-	GrammarState st;
-	st.setNtNames("text", "new_token", "new_rule");
-	st.addLexerRule("ws", "([ \t\n\r] / comment)*");
-	st.addLexerRule("comment", "'#' [^\n]*");
-	st.addToken("ident", "[_a-zA-Z][_a-zA-Z0-9]*");
-	st.addLexerRule("peg_concat_expr", "ws (([&!] ws)* ws ('(' peg_expr ws ')' / '[' ('\\\\]' / [^\\]\\n])* ']' / sq_string / dq_string / ident) (ws [*+?])*)+");
-	st.addLexerRule("peg_expr", "ws peg_concat_expr (ws '/' ws peg_concat_expr)*");
-	st.addToken("sq_string", ("'\\'' '\\\\' [^\\n] / [^\\n'] '\\''"));
-	st.addToken("dq_string", ("(ws '\"' '\\\\' [^\\n] / [^\\n\"] '\"')+"));
-	//st.addToken("ident", ("\\b[_[:alpha:]]\\w*\\b"));
-	//st.addToken("token_def", ("\\(\\?\\:[^#\\n]*\\)(?=\\s*($|#))"));
-	//st.addToken("sq_string", ("'(?:[^'\\\\]|\\\\.)*'"));
-	addRule(st, "rule_symbol -> ident"); 
-	addRule(st, "rule_symbol -> sq_string");
-	addRule(st, "rule_rhs -> rule_symbol");
-	addRule(st, "rule_rhs -> rule_rhs rule_symbol");
-	addRule(st, "new_rule -> '%' 'syntax' ':' ident '->' rule_rhs");
-	addRule(st, "new_token -> '%' 'token' ':' ident '->' token_def");
-	addRule(st, "text -> new_token text");
-	addRule(st, "text -> new_rule text");
-
-	cout << "Const rules:\n";
-	st.print_rules(cout);
-	cout << "\n";
-
-	string text;
-	for (int i = 1; i < argc; i++) {
-		text += loadfile(argv[i]);
-	}
-	Timer tm("Parsing");
 #ifndef _DEBUG
 	try {
 #endif
+		GrammarState st;
+		st.setNtNames("text", "new_token", "new_rule");
+		st.addLexerRule("ws", "([ \\t\\n\\r] / comment)*");
+		st.addLexerRule("comment", "'#' [^\\n]*");
+		st.addToken("ident", "[_a-zA-Z][_a-zA-Z0-9]*");
+		st.addLexerRule("peg_concat_expr", "ws (([&!] ws)* ws ('(' peg_expr ws ')' / '[' ('\\\\]' / [^\\]\\n])* ']' / sq_string / dq_string / ident) (ws [*+?])*)+");
+		st.addLexerRule("peg_expr", "ws peg_concat_expr (ws '/' ws peg_concat_expr)*");
+		st.addToken("sq_string", ("'\\'' ('\\\\' [^\\n] / [^\\n'])* '\\''"));
+		st.addToken("dq_string", ("(ws '\"' ('\\\\' [^\\n] / [^\\n\"])* '\"')+"));
+		st.addToken("peg_expr_def", "'`' ws peg_expr ws '`'");
+		//st.addToken("ident", ("\\b[_[:alpha:]]\\w*\\b"));
+		//st.addToken("token_def", ("\\(\\?\\:[^#\\n]*\\)(?=\\s*($|#))"));
+		//st.addToken("sq_string", ("'(?:[^'\\\\]|\\\\.)*'"));
+		addRule(st, "string -> sq_string");
+		addRule(st, "string -> dq_string");
+		addRule(st, "rule_symbol -> ident"); 
+		addRule(st, "rule_symbol -> sq_string");
+		addRule(st, "rule_rhs -> rule_symbol");
+		addRule(st, "rule_rhs -> rule_rhs rule_symbol");
+
+		addRule(st, "new_syntax -> '%' 'syntax' ':' ident '->' rule_rhs", [](GrammarState*g, ParseNode&n) { g->addRule(&n); });
+	
+		addRule(st, "new_syntax -> '%' 'token' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
+		addRule(st, "new_syntax -> '%' 'token' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
+
+		addRule(st, "new_syntax -> '%' 'pexpr' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
+		addRule(st, "new_syntax -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
+
+		addRule(st, "text -> new_syntax text", [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); });
+		//addRule(st, "text -> new_rule text", [](GrammarState*, ParseNode&n) {n = move(n[1]); });
+
+		cout << "Const rules:\n";
+		st.print_rules(cout);
+		cout << "\n";
+
+		string text;
+		for (int i = 1; i < argc; i++) {
+			text += loadfile(argv[i]);
+		}
+		Timer tm("Parsing");
 		tm.start();
 		ParseNode res = parse(st, text);
 		tm.stop_pr();

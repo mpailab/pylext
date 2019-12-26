@@ -16,6 +16,9 @@ struct Substr {
 
 struct Pos {
 	int line = 1, col = 1;
+	string str() const {
+		return to_string(line) + ":" + to_string(col);
+	}
 };
 
 struct Location {
@@ -44,7 +47,7 @@ struct PEGLexer {
 	vector<pair<int, string>> addedCTokens;
 
 	PEGLexer() { 
-		_ten[""]; // Резервируем нулевой номер токена, чтобы номер любого токена был отличен от нуля
+		//_ten[""]; // Резервируем нулевой номер токена, чтобы номер любого токена был отличен от нуля
 	}
 
 	struct iterator {
@@ -62,6 +65,15 @@ struct PEGLexer {
 					cpos.line++;
 					cpos.col = 1;
 				} else cpos.col++;
+		}
+		Pos shifted(int p) {
+			Pos c = cpos;
+			for (int q = pos; s[q]&&q<p; q++)
+				if (s[q] == '\n') {
+					c.line++;
+					c.col = 1;
+				} else c.col++;
+			return c;
 		}
 		iterator() = default;
 		iterator(PEGLexer *l) :lex(l), s(l->text.c_str()) {
@@ -94,13 +106,16 @@ struct PEGLexer {
 					} else if (end == imax)m++;
 				}
 				if (best<0) {
-					throw SyntaxError("Unknown token at " + to_string(cpos.line) + ":" + to_string(cpos.col) + " : '" + string(s + bpos, strcspn(s + bpos, "\n")) + "'");
+					Pos ccpos = shifted(lex->packrat.errpos);
+					string msg = "Unknown token at " + to_string(cpos.line) + ":" + to_string(cpos.col) + " : '" + string(s + bpos, strcspn(s + bpos, "\n")) + "',\n"
+						"PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
+					throw SyntaxError(msg);
 				} else if (m > 1) {
 					throw SyntaxError("Lexer conflict: `" + string(s+bpos, imax-bpos) + "` may be 2 different tokens");
 				}
 				auto beg = cpos;
 				shift(end-bpos);
-				curr = { best, { beg,cpos }, Substr{ s + bpos, end-bpos } };
+				curr = { lex->tokens[best].second, { beg,cpos }, Substr{ s + bpos, end-bpos } };
 			}
 		}
 		const Token& operator*()const {
@@ -134,7 +149,9 @@ struct PEGLexer {
 		return Tokens(this, text);
 	}*/
 	void start(const std::string &s = "") {
-		if (s.size())text = s;
+		if (s.size())
+			text = s;
+		packrat.setText(text);
 		curr = begin();
 	}
 	bool go_next() {
@@ -152,7 +169,8 @@ struct PEGLexer {
 		int errpos = -1;
 		string err;
 		PEGExpr e = readParsingExpr(&packrat, rhs, &errpos, &err);
-		if (errpos >= 0)throw SyntaxError("Cannot parse PEG rule `"s + rhs + "` at position "+to_string(errpos)+": "+err);
+		if (errpos >= 0)
+			throw SyntaxError("Cannot parse PEG rule `"s + rhs + "` at position "+to_string(errpos)+": "+err);
 		packrat.add_rule(nt, e);
 		if (ext_num)declareNCToken(nt,ext_num);
 	}

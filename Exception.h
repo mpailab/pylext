@@ -6,8 +6,8 @@ struct Exception :std::exception {
 	std::string msg;
 	const char *str = 0;
 	Exception() noexcept {}
-	Exception(const char* s) noexcept:str(s) {}
-	Exception(std::string s) noexcept : msg(std::move(s)) {}
+	Exception(const char* s) noexcept;
+	Exception(std::string s) noexcept;
 	const char* what()const noexcept override { return str ? str : msg.c_str(); }
 };
 

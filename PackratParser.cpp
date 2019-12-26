@@ -10,10 +10,12 @@ void PackratParser::add_rule(const string & nt, const PEGExpr & e) {
 
 void PackratParser::setText(const string & t) {
 	text = t;
+	acceptedh.clear();
+	manyh.clear();
 	//accepted = vector<vector<int>>(t.size());
 }
 
-int PackratParser::parse(const PEGExpr & e, int pos) {
+int PackratParser::parse0(const PEGExpr & e, int pos) {
 	switch (e.type) {
 	case PEGExpr::OrdAlt:
 		for (auto &e1 : e.subexprs)
@@ -30,9 +32,13 @@ int PackratParser::parse(const PEGExpr & e, int pos) {
 			else return 0;
 		}
 		return pos;
+	case PEGExpr::String:
+		for (int i = 0; i < e.s[i]; i++)
+			if (text[pos + i - 1] != e.s[i])return 0;
+		return pos + len(e.s);
 	case PEGExpr::Many1:
 	case PEGExpr::Many:{
-		_manypos.clear();
+		auto mp = _manypos.size();
 		size_t i;
 		int p0 = pos;
 		auto &e1 = e.subexprs[0];
@@ -46,7 +52,8 @@ int PackratParser::parse(const PEGExpr & e, int pos) {
 				} else pos = a;
 			} else break;
 		}
-		for (int *x : _manypos)*x = pos;
+		for (auto j = mp; j < _manypos.size(); j++)*_manypos[j] = pos;
+		_manypos.resize(mp);
 		return (pos>p0 || e.type==PEGExpr::Many || i>0) ? pos : 0;
 	}
 	case PEGExpr::PosLookahead:
@@ -62,7 +69,11 @@ int PackratParser::parse(const PEGExpr & e, int pos) {
 	}
 	return 0;
 }
-
+int PackratParser::parse(const PEGExpr & e, int pos) {
+	int r = parse0(e, pos);
+	if (!r)err_at(&e, pos-1);
+	return r;
+}
 int PackratParser::parse(int nt, int pos) {
 	int &a = accepted(pos, nt);
 	if (a == -2)throw Exception("Left recursion not allowed in PEG, detected at position "+to_string(pos)+" in nonterminal "+_en[nt]);
@@ -79,8 +90,8 @@ int PackratParser::parse(int nt, int pos) {
 
 bool PackratParser::parse(int nt, int pos, int &end, string * res) {
 	int a = parse(nt, pos+1);
-	if (res && a > pos) {
-		*res = text.substr(pos, a - 1 - pos);
+	if (a > pos) {
+		if(res)*res = text.substr(pos, a - 1 - pos);
 		end = a - 1;
 	}
 	return a > pos;
@@ -103,6 +114,7 @@ PEGExpr readstr(const char *&s, const char *&errpos, string *err) {
 			case 'r':res += '\r'; break;
 			case 'v':res += '\v'; break;
 			case 'a':res += '\a'; break;
+			default: res += *s;
 			}
 		} else if (*s == '\n') {
 			errpos = s;
@@ -110,7 +122,7 @@ PEGExpr readstr(const char *&s, const char *&errpos, string *err) {
 			return{};
 		} else res += *s;
 	}
-	if (!*s) {
+	if (*s != c) {
 		errpos = s;
 		if (err)*err = c + " expected"s;
 		return{};
@@ -119,17 +131,19 @@ PEGExpr readstr(const char *&s, const char *&errpos, string *err) {
 	return PEGExpr(res);
 }
 PEGExpr readsym(const char *&s, const char *&errpos, string *err) {
+	const char *b = s;
 	if (*s != '[') {
 		errpos = s;
 		if (err)*err = "'[' expected";
 		return{};
 	}
+	++s;
 	bitset<256> res;
 	bool val = true;
 	if (*s == '^')res.flip();
 	unsigned char prev, curr;
 	bool rng = false;
-	for (s++; *s&&*s != ']'; s++) {
+	for (; *s&&*s != ']'; s++) {
 		if (*s == '^') { val = false; }
 		if (*s == '-') { rng = true; continue; }
 		if (*s == '\\') {
@@ -170,7 +184,7 @@ PEGExpr readsym(const char *&s, const char *&errpos, string *err) {
 		return{};
 	}
 	s++;
-	return PEGExpr(res);
+	return PEGExpr(res,string(b,s-b));
 }
 
 PEGExpr readexpr(PackratParser*p, const char *&s, const char *&errpos, string *err, char end = 0);
@@ -189,15 +203,15 @@ PEGExpr readatomexpr(PackratParser*p, const char *&s, const char *&errpos, strin
 	case '(':
 		return readexpr(p,++s, errpos, err, ')');	
 	}
-	if (!isalpha(*s)) {
+	if (!isalpha(*s)&&*s!='_') {
 		errpos = s;
 		if (err)*err = "unexpected symbol `"s + *s + "`";
 		return{};
 	}
 	const char *b = s;
-	while (isalnum(*s))s++;
+	while (isalnum(*s)||*s=='_')s++;
 	int id = p->_en[string(b, s - b)];
-	return pnonterm(id);
+	return pnonterm(id, p->_en[id]);
 }
 
 PEGExpr readpostfixexpr(PackratParser*p, const char *&s, const char *&errpos, string *err) {
@@ -225,7 +239,7 @@ PEGExpr readconcatexpr(PackratParser*p, const char *&s, const char *&errpos, str
 			else return{};
 			break;
 		}
-		res /= t;
+		res *= t;
 	}
 	return res;
 }
@@ -234,7 +248,7 @@ PEGExpr readexpr(PackratParser*p, const char *&s, const char *&errpos, string *e
 	PEGExpr res = readconcatexpr(p, s, errpos, err, end);
 	if (errpos)return res;
 	while(*ws(s)=='/') {
-		res /= readconcatexpr(p, s, errpos, err, end);
+		res /= readconcatexpr(p, ws(++s), errpos, err, end);
 		if (errpos)return res;
 	}
 	if (*s != end) {
@@ -242,14 +256,20 @@ PEGExpr readexpr(PackratParser*p, const char *&s, const char *&errpos, string *e
 		if(err)*err = (end ? "'"s + end + "'" : "end of parsing expression"s) + " expected";
 		return{};
 	}
+	if(end)++s;
 	return res;
 }
 
 PEGExpr readParsingExpr(PackratParser*p, const string & s, int *errpos, string * err) {
 	const char * ep=0, *ps = s.c_str();
-	PEGExpr r = readexpr(p, ps, ep, err);
+	PEGExpr r = *ws(ps)=='`' ? readexpr(p, ++ps, ep, err,'`') : readexpr(p, ps, ep, err);
 	if (ep) {
 		if (errpos)*errpos = int(ep - s.c_str());
+		return{};
+	}
+	if (*ws(ps)) {
+		if (errpos)*errpos = int(ps - s.c_str());
+		if (err)*err = "unexpected symbol at the end of parsing expression";
 		return{};
 	}
 	if (errpos)*errpos = -1;
