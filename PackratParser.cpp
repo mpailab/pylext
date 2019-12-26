@@ -15,6 +15,8 @@ void PackratParser::setText(const string & t) {
 	//accepted = vector<vector<int>>(t.size());
 }
 
+static constexpr int iterMemStart = 8; // Начинаем запоминать после 8-го прочитанного элемента 
+
 int PackratParser::parse0(const PEGExpr & e, int pos) {
 	switch (e.type) {
 	case PEGExpr::OrdAlt:
@@ -37,31 +39,67 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 			if (text[pos + i - 1] != e.s[i])return 0;
 		return pos + len(e.s);
 	case PEGExpr::Many1:
-	case PEGExpr::Many:{
-		auto mp = _manypos.size();
-		size_t i;
-		int p0 = pos;
-		auto &e1 = e.subexprs[0];
-		for (i = 0; ; i++) {
-			int &aa = hmany(pos, e1.id);
-			if (aa) { pos = aa; i++;  break; }
-			if (int a = parse(e1, pos)) {
-				_manypos.push_back(&aa);
-				if (a == pos) {
-					i++; break;
-				} else pos = a;
-			} else break;
+	case PEGExpr::Many:
+		if (e.subexprs[0].type == PEGExpr::Terminal) {
+			constexpr int termMemFreq = 4 * iterMemStart;
+			int one = 0, i;
+			int p0 = pos;
+			auto& m = e.subexprs[0].t_mask;
+			for (i = 0; i < termMemFreq; i++, pos++) {
+				if (!m[(unsigned char)text[pos-1]])break;
+			}
+			if (i == termMemFreq) {
+				int id = e.subexprs[0].id;
+				auto mp = _manypos.size();
+				for (;;pos++) {
+					if (!m[(unsigned char)text[pos - 1]]) break;
+					if (!(pos & (termMemFreq - 1))) {
+						int& aa = hmany(pos, id);
+						if (aa) {
+							pos = aa; break;
+						}
+						_manypos.push_back(&aa);
+					}
+				}
+				for (auto j = mp; j < _manypos.size(); j++)*_manypos[j] = pos;
+				hmany((p0 + termMemFreq - 1) & ~(termMemFreq - 1), id) = pos;
+				_manypos.resize(mp);
+			}
+			return (pos > p0 || e.type == PEGExpr::Many || i>0) ? pos : 0;
+		} else {
+			int one = 0, i;
+			int p0 = pos;
+			auto& e1 = e.subexprs[0];
+			for (i = 0; i < iterMemStart; i++) {
+				if (int a = parse(e1, pos)) {
+					one = 1;
+					if (a == pos) break;
+					pos = a;
+				} else break;
+			}
+			if (i == iterMemStart) {
+				auto mp = _manypos.size();
+				for (;;) {
+					int& aa = hmany(pos, e1.id);
+					if (aa) { pos = aa; break; }
+					if (int a = parse(e1, pos)) {
+						_manypos.push_back(&aa);
+						if (a == pos) break;
+						pos = a;
+					} else break;
+				}
+				for (auto j = mp; j < _manypos.size(); j++)*_manypos[j] = pos;
+				hmany(p0, e1.id) = pos;
+				_manypos.resize(mp);
+			}
+			return (pos > p0 || e.type == PEGExpr::Many || one) ? pos : 0;
 		}
-		for (auto j = mp; j < _manypos.size(); j++)*_manypos[j] = pos;
-		_manypos.resize(mp);
-		return (pos>p0 || e.type==PEGExpr::Many || i>0) ? pos : 0;
-	}
 	case PEGExpr::PosLookahead:
 		return parse(e.subexprs[0], pos) ? pos : 0;
 	case PEGExpr::NegLookahead:
 		return parse(e.subexprs[0], pos) ? 0 : pos;
 	case PEGExpr::Terminal:
-		return e.t_mask[text[pos-1]] ? pos + 1 : 0;
+		return e.t_mask[(unsigned char)text[pos-1]] ? pos + 1 : 0;
 	case PEGExpr::NonTerminal:
 		if (int a = parse(e.num, pos)) {		
 			return a < 0 ? 0 : a;

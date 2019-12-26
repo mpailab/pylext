@@ -1,5 +1,7 @@
-#include "Parser.h"
 #include <iostream>
+#include <queue>
+#include "Parser.h"
+
 const bool debug_pr = false;
 ParseNode termnode(const Token& t) {
 	ParseNode res;
@@ -47,13 +49,10 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 
 bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 	LR0State *s = &ss.s.back();
-	struct BElem {
-		int i;
-		const NTTreeNode *v;
-		NTSet M;
-	};
-	dvector<vector<BElem>> B;
-	dvector<NTSet> F;
+
+	g.tmp.clear();
+	auto& B = g.tmp.B;
+	auto& F = g.tmp.F;
 	int mx = 0;
 	for (auto &p : s->v) {
 		NTSet M1;
@@ -93,12 +92,8 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 		}
 		if (A0 >= 0) {
 			int A00 = A0;
-			struct PV {
-				const NTTreeNode *v;
-				int A;
-				int B; // reduction: B -> A -> rule
-			};
-			vector<PV> path;
+
+			auto& path = g.tmp.path;
 			int k;
 			for (int j = i; j > 0; j = k) {
 				const NTTreeNode *u = 0;
@@ -297,7 +292,7 @@ bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, Semant
 		curr->pos = ++pos;
 		if (curr->_frule < 0)curr->_frule = nrule;
 	}
-	if (!curr->finalNT.add(rule.A)) // TODO: сделать запоминание позиции, где добавлено правило
+	if (!curr->finalNT.add_check(rule.A)) // TODO: сделать запоминание позиции, где добавлено правило
 		return false; // Если правило уже было в дереве, то выходим
 	curr->rules[rule.A] = nrule;
 	
@@ -334,7 +329,7 @@ bool GrammarState::addRule(const CFGRule & rule) {
 		curr->pos = ++pos;
 		if (curr->_frule < 0)curr->_frule = nrule;
 	}
-	if (!curr->finalNT.add(rule.A)) // TODO: сделать запоминание позиции, где добавлено правило
+	if (!curr->finalNT.add_check(rule.A)) // TODO: сделать запоминание позиции, где добавлено правило
 		return false; // Если правило уже было в дереве, то выходим
 	curr->rules[rule.A] = nrule;
 
@@ -392,4 +387,15 @@ bool GrammarState::addRule(const ParseNode * ruleDef) {
 	}
 	addRule(ruleDef->ch[0].term, res);
 	return true;
+}
+
+void ParseNode::del() {
+	queue<ParseNode> q;
+	q.push(move(*this));
+	while (!q.empty()) {
+		for (auto& n : q.front().ch)
+			q.push(move(n));
+		q.front().ch.clear();
+		q.pop();
+	}
 }

@@ -11,13 +11,9 @@
 #include <string>
 #include "Exception.h"
 #include "PEGLexer.h"
+#include "NTSet.h"
 
 using namespace std;
-/*
-struct Position {
-	int line;
-	int col;
-};*/
 
 struct ParseNode {
 	int nt;               // Номер терминала или нетерминала
@@ -38,178 +34,13 @@ struct ParseNode {
 
 	ParseNode(ParseNode&&) = default;
 	ParseNode& operator=(ParseNode&&) = default;
+	void del();
+	~ParseNode() {
+		if (ch.size())del();
+	}
 };
 
-
-struct NTSetS { // Множество нетерминалов
-	unordered_set<int> s;
-	typedef unordered_set<int>::const_iterator iterator;
-	typedef int value_type;
-	bool intersects(const NTSetS&y) const{
-		for (int x : y.s)
-			if (s.count(x))return true;
-		return false;
-	}
-	int intersects(const NTSetS&y, int *B) const {
-		int res = 0;
-		for (int x : y.s)
-			if (s.count(x)) {
-				res++;
-				*B = x;
-				if (res >= 2)return res;
-			}
-		return res;
-	}
-	/// Фильтрация множества нетерминалов
-	bool filter(NTSetS &y)const {
-		for (auto it = y.s.begin(); it != y.s.end();) {
-			if (s.count(*it))++it;
-			else it = y.s.erase(it);
-		}
-		return !y.s.empty();
-	}
-	bool has(int x)const {
-		return s.count(x)>0;
-	}
-	bool add(int x) {
-		return s.insert(x).second;
-	}
-	bool empty()const { return s.empty(); }
-	NTSetS&clear() { s.clear(); return *this; }
-	NTSetS() = default;
-	NTSetS(std::initializer_list<int> &l) :s(l) {}
-	NTSetS& operator|=(const NTSetS &s) {
-		for (int i : s.s)
-			add(i);
-		return *this;
-	}
-	NTSetS& operator&=(const NTSetS &ns) {
-		for (auto it = s.begin(); it != s.end(); )
-			if (!ns.has(*it))it = s.erase(it);
-			else ++it;
-		return *this;
-	}
-	NTSetS operator|(const NTSetS &x) const {
-		NTSetS r(*this);
-		return r |= x;
-	}
-	NTSetS operator&(const NTSetS &x) const {
-		NTSetS r(*this);
-		return r &= x;
-	}
-	NTSetS& operator=(const std::initializer_list<int> &l) {
-		s = l;
-		return *this;
-	}
-	NTSetS& operator=(const vector<int> &l) {
-		s.clear();
-		s.insert(l.begin(), l.end());
-		return *this;
-	}
-	iterator begin()const { return s.begin(); }
-	iterator end()const { return s.end(); }
-};
-typedef uint64_t u64;
-#if 0
-struct NTSetV {
-	vector<u64> mask;
-	struct iterator {
-		u64 curr;
-		int pos=0;
-		const u64 *ptr, *end;
-		iterator(const u64*p, size_t l):curr(0),ptr(p),end(p+l) {
-			next();
-		}
-		iterator& next() {
-			while (ptr < end && !*ptr) {
-				pos += 64;
-				++ptr;
-			}
-			if (ptr != end)
-				curr = *ptr;
-			return *this;
-		}
-		iterator& operator++() {
-			if(curr &= (curr - 1))return *this;
-			++ptr;
-			return next();
-		}
-		int operator*() const{
-			return pos + _lzcnt_u64(curr);
-		}
-		bool operator==(const iterator& i)const {
-			return ptr == i.ptr && curr == i.curr;
-		}
-		bool operator!=(const iterator& i)const {
-			return ptr != i.ptr || curr != i.curr;
-		}
-	};
-	bool intersects(const NTSetV&y) const {
-		for (int i = 0, sz = (int)mask.size(); i < sz; i++)
-			if (mask[i] & y.mask[i])return true;
-		return false;
-	}
-	/// Фильтрация множества нетерминалов
-	bool filter(NTSetV &y)const {
-		//y &= *this;
-		int sz = (int)min(y.mask.size(),mask.size());
-		y.mask.resize(sz);
-		u64 r = 0;
-		for (int i = 0; i < sz; i++)
-			r |= y.mask[i] &= mask[i];
-		return r!=0;
-	}
-	bool has(int x)const {
-		return (x>>6)<mask.size() && ((mask[x >> 6] >> (x & 63)) & 1)!=0;
-	}
-	void add(int x) {
-		if (x >= mask.size() * 64)
-			mask.resize((x-1) >> 6 + 1);
-		mask[x >> 6] |= 1ULL << (x & 63);// s.insert(x).second;
-	}
-	bool empty()const {
-		for (auto x : mask)
-			if (x)return false;
-		return true;
-	}
-	NTSetV&clear() { fill(mask.begin(), mask.end(), 0); return *this; }
-	NTSetV() = default;
-	NTSetV(std::initializer_list<int> &l) {}
-	NTSetV& operator|=(const NTSetV &s) {
-		mask.resize(max(mask.size(), s.mask.size()),0ULL);
-		for (int i = 0, sz = (int)s.mask.size(); i < sz; i++)
-			mask[i] |= s.mask[i];
-		return *this;
-	}
-	NTSetV& operator&=(const NTSetV &ns) {
-		ns.filter(*this);
-		return *this;
-	}
-	NTSetV operator|(const NTSetV &x) const {
-		NTSetV r(*this);
-		return r |= x;
-	}
-	NTSetV operator&(const NTSetV &x) const {
-		NTSetV r(*this);
-		return r &= x;
-	}
-	NTSetV& operator=(const std::initializer_list<int> &l) {
-		clear();
-		for (int i : l)
-			add(i);
-		return *this;
-	}
-	NTSetV& operator=(const vector<int> &l) {
-		clear();
-		for (int i : l)
-			add(i);
-		return *this;
-	}
-	iterator begin()const { return iterator(mask.data(), mask.size()); }
-	iterator end()const { return iterator(mask.data()+mask.size(),0); }
-};
-#endif
-typedef NTSetS NTSet;
+typedef NTSetV NTSet;
 
 //struct NTTreeNode;
 template<class Node>
@@ -303,7 +134,34 @@ struct CFGRule {
 	int used;
 	SemanticAction action;
 };
+/*
+template<class Cont>
+concept has_clear = requires(Cont x) {
+	{x.clear()}->void;
+};
+template<class T> requires has_clear<T>
+void clearElem(T& vec) {
+	vec.clear();
+}*/
 
+template<class T>
+struct dvector {
+	vector<T> v;
+	int mx = -1;
+	const T& operator[](size_t i)const {
+		return v[i];
+	}
+	T& operator[](size_t i) {
+		mx = max(mx, (int)i);
+		if (i >= v.size())v.resize(i + 1);
+		return v[i];
+	}
+	int size()const { return (int)v.size(); }
+	void clear() {
+		for (int i = 0; i <= mx; i++)v[i].clear();
+		mx = 0;
+	}
+};
 
 struct GrammarState {
 	//unordered_map<int, vector<int>> ntFirstMap; // По входному нетерминалу возвращает список всех нетерминалов, с которых данный нетерминал может начинаться
@@ -315,6 +173,27 @@ struct GrammarState {
 	Enumerator<string, unordered_map> nts; // Нумерация нетерминалов
 	Enumerator<string, unordered_map> ts;  // Нумерация терминалов
 	vector<CFGRule> rules;
+	struct Temp {
+		struct BElem {
+			int i;
+			const NTTreeNode* v;
+			NTSet M;
+		};
+		struct PV {
+			const NTTreeNode* v;
+			int A;
+			int B; // reduction: B -> A -> rule
+		};
+		dvector<vector<BElem>> B;
+		dvector<NTSet> F;
+		vector<PV> path;
+		void clear() { 
+			B.clear(); 
+			F.clear(); 
+			path.clear();
+		}
+	};
+	Temp tmp;
 	int start;
 	bool finish = false;
 	TF tf;
@@ -402,18 +281,6 @@ struct SStack {
 
 struct PStack {
 	vector<ParseNode> s;
-};
-template<class T>
-struct dvector {
-	vector<T> v;
-	const T& operator[](size_t i)const {
-		return v[i];
-	}
-	T& operator[](size_t i) {
-		if (i >= v.size())v.resize(i + 1);
-		return v[i];
-	}
-	int size()const { return (int)v.size(); }
 };
 
 #define Assert(cond) if(!(cond))throw Exception(#cond " assertion failed ")

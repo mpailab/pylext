@@ -1,0 +1,409 @@
+%syntax: text -> statementList
+%syntax: text -> HashBangLine statementList
+
+%syntax: statement -> eosStatement 
+%syntax: statement -> fullStatement
+
+%syntax: eosStatement -> variableStatement
+%syntax: eosStatement -> importStatement
+%syntax: eosStatement -> exportStatement
+%syntax: eosStatement -> expressionStatement
+
+
+%syntax: fullStatement -> block
+%syntax: fullStatement -> eosStatement ';'
+%syntax: fullStatement -> ';' 
+%syntax: fullStatement -> classDeclaration
+%syntax: fullStatement -> tryStatement
+%syntax: fullStatement -> functionDeclaration
+
+%syntax: block -> '{' '}'
+%syntax: block -> '{' statementList '}'
+
+%syntax: statementList -> eosStatement
+%syntax: statementList -> fullStatement statementList
+
+%syntax: importStatement -> 'import' string
+%syntax: importStatement -> 'import' importDefault importNamespace importFrom
+%syntax: importStatement -> 'import' importDefault moduleItems importFrom
+%syntax: importStatement -> 'import' importNamespace importFrom
+%syntax: importStatement -> 'import' moduleItems importFrom
+
+%syntax: aliasNameList -> aliasName
+%syntax: aliasNameList -> aliasName ',' 
+%syntax: aliasNameList -> aliasName ',' aliasNameList
+%syntax: moduleItems -> '{' '}'
+%syntax: moduleItems -> '{' aliasNameList '}'
+
+%syntax: importDefault -> aliasName ','
+
+%syntax: importNamespace -> '*' 
+%syntax: importNamespace -> '*' 'as' identifierName
+
+%syntax: importFrom -> 'from' string
+
+%syntax: aliasName -> ident
+%syntax: aliasName -> ident 'as' identifierName
+
+%syntax: exportStatement -> 'export' exportFromBlock
+%syntax: exportStatement -> 'export' declaration
+%syntax: exportStatement -> 'export' 'default' singleExpression
+
+%syntax: exportFromBlock -> importNamespace importFrom
+%syntax: exportFromBlock -> moduleItems importFrom
+%syntax: exportFromBlock -> moduleItems 
+
+%syntax: declaration -> variableStatement
+%syntax: declaration -> classDeclaration
+%syntax: declaration -> functionDeclaration
+
+%syntax: variableStatement -> varModifier variableDeclarationList
+
+%syntax: variableDeclarationList -> variableDeclaration 
+%syntax: variableDeclarationList -> variableDeclarationList ',' variableDeclaration
+
+%syntax: variableDeclaration -> assignable
+%syntax: variableDeclaration -> assignable '=' singleExpression
+
+
+%syntax: expressionStatement -> expressionSequence
+
+%syntax: fullStatement -> 'if' '(' expressionSequence ')' fullStatement
+%syntax: fullStatement -> 'if' '(' expressionSequence ')' statement 'else' fullStatement
+
+%syntax: fullStatement -> 'while' '(' expressionSequence ')' fullStatement
+%syntax: optExprSeq -> ';'
+%syntax: optExprSeq -> ';' expressionSequence
+%syntax: fullStatement -> 'for' '(' optExprSeq optExprSeq ')' fullStatement
+%syntax: fullStatement -> 'for' '(' expressionSequence optExprSeq optExprSeq ')' fullStatement
+%syntax: fullStatement -> 'for' '(' variableStatement optExprSeq ')' fullStatement
+%syntax: fullStatement -> 'for' '(' optExprSeq optExprSeq ')' fullStatement
+%syntax: fullStatement -> 'for' '(' singleExpression 'in' expressionSequence ')' fullStatement
+%syntax: fullStatement -> 'for' '(' variableStatement 'in' expressionSequence ')' fullStatement
+%syntax: fullStatement -> 'for' '(' (singleExpression | variableStatement) 'of' expressionSequence ')' fullStatement
+%syntax: fullStatement -> 'for' 'await' '(' (singleExpression | variableStatement) 'of' expressionSequence ')' fullStatement
+
+%syntax: fullStatement -> 'with' '(' expressionSequence ')' fullStatement
+
+%syntax: fullStatement -> ident ':' fullStatement
+
+
+%syntax: eosStatement -> 'if' '(' expressionSequence ')' eosStatement
+%syntax: eosStatement -> 'if' '(' expressionSequence ')' statement 'else' eosStatement
+
+%syntax: eosStatement -> 'do' statement 'while' '(' expressionSequence ')'
+%syntax: eosStatement -> 'while' '(' expressionSequence ')' eosStatement
+%syntax: optExprSeq -> ';'
+%syntax: optExprSeq -> ';' expressionSequence
+%syntax: eosStatement -> 'for' '(' optExprSeq optExprSeq ')' eosStatement
+%syntax: eosStatement -> 'for' '(' expressionSequence optExprSeq optExprSeq ')' eosStatement
+%syntax: eosStatement -> 'for' '(' variableStatement optExprSeq ')' eosStatement
+%syntax: eosStatement -> 'for' '(' optExprSeq optExprSeq ')' eosStatement
+%syntax: eosStatement -> 'for' '(' singleExpression 'in' expressionSequence ')' eosStatement
+%syntax: eosStatement -> 'for' '(' variableStatement 'in' expressionSequence ')' eosStatement
+%syntax: eosStatement -> 'for' '(' (singleExpression | variableStatement) 'of' expressionSequence ')' eosStatement
+%syntax: eosStatement -> 'for' 'await' '(' (singleExpression | variableStatement) 'of' expressionSequence ')' eosStatement
+
+%syntax: eosStatement -> 'with' '(' expressionSequence ')' eosStatement
+
+%syntax: eosStatement -> ident ':' eosStatement
+
+
+%syntax: varModifier -> 'var'
+%syntax: varModifier -> 'let'
+%syntax: varModifier -> 'const'
+
+%syntax: eosStatement -> 'continue'
+%syntax: eosStatement -> 'continue' ident
+
+%syntax: eosStatement -> 'break'
+%syntax: eosStatement -> 'break' ident
+
+%syntax: eosStatement -> 'return'
+%syntax: eosStatement -> 'return' expressionSequence
+
+%syntax: eosStatement -> 'yield' 
+%syntax: eosStatement -> 'yield' expressionSequence
+
+%syntax: fullStatement -> 'switch' '(' expressionSequence ')' caseBlock
+
+%syntax: caseBlock -> '{' '}'
+%syntax: caseBlock -> '{' caseClauses '}'
+
+%syntax: caseClauses -> caseClause
+%syntax: caseClauses -> caseClauses caseClause
+
+%syntax: caseClause -> 'default' ':' statementList
+%syntax: caseClause -> 'default' ':'
+%syntax: caseClause -> 'case' expressionSequence ':' statementList
+%syntax: caseClause -> 'case' expressionSequence ':'
+
+%syntax: eosStatement -> 'throw' expressionSequence
+
+%syntax: tryStatement -> 'try' block catchProduction
+%syntax: tryStatement -> 'try' block catchProduction finallyProduction
+%syntax: tryStatement -> 'try' block finallyProduction
+%syntax:     
+%syntax: catchProduction -> 'catch' '(' assignable ')' block
+%syntax: catchProduction -> 'catch' '(' ')' block
+%syntax: catchProduction -> 'catch'  block
+%syntax: finallyProduction -> 'finally' block
+
+%syntax: eosStatement -> 'debugger'
+
+%syntax: pFormalParameterList -> '(' ')'
+%syntax: pFormalParameterList -> '(' formalParameterList ')'
+
+%syntax: pFunctionBody -> '{' '}'
+%syntax: pFunctionBody -> '{' statementList '}'
+
+%syntax: functionDeclaration -> 'async' 'function' '*' ident pFormalParameterList pFunctionBody
+%syntax: functionDeclaration -> 'async' 'function' ident pFormalParameterList pFunctionBody
+%syntax: functionDeclaration -> 'function' '*' ident pFormalParameterList pFunctionBody
+%syntax: functionDeclaration -> 'function' ident pFormalParameterList pFunctionBody
+
+%syntax: classDeclaration -> 'class' ident classTail
+
+%syntax: classTail -> 'extends' singleExpression '{' classElements '}'
+%syntax: classTail -> 'extends' singleExpression '{' '}'
+%syntax: classTail -> '{' classElements '}'
+%syntax: classTail -> '{' '}'
+
+%syntax: methodAttrs -> 'static'
+%syntax: methodAttrs -> 'async'
+
+%syntax: classElement -> methodAttrs classElement
+%syntax: classElement -> methodDefinition
+%syntax: classElement -> emptyStatement
+%syntax: classElement -> propertyName '=' singleExpression
+%syntax: classElement -> '#' propertyName '=' singleExpression
+
+%syntax: methodDefinition0 -> propertyName pFormalParameterList pFunctionBody
+%syntax: methodDefinition0 -> 'get' propertyName '(' ')' pFunctionBody
+%syntax: methodDefinition0 -> 'set' propertyName pFormalParameterList pFunctionBody
+%syntax: methodDefinition -> '*' '#' methodDefinition0
+%syntax: methodDefinition -> '*' methodDefinition0
+%syntax: methodDefinition -> '#' methodDefinition0
+%syntax: methodDefinition -> methodDefinition0
+
+%syntax: formalParameterList -> lastFormalParameterArg
+%syntax: formalParameterList -> formalParameterArg 
+%syntax: formalParameterList -> formalParameterArg ',' formalParameterList
+
+%syntax: formalParameterArg ->  assignable '=' singleExpression
+%syntax: formalParameterArg ->  assignable
+
+%syntax: lastFormalParameterArg -> '...' singleExpression
+
+%syntax: arrayLiteral -> '[' elementList ']'
+
+%syntax: zptArrayElement -> arrayElement
+%syntax: zptArrayElement -> ',' zptArrayElement
+%syntax: elementList -> zptArrayElement
+%syntax: elementList -> elementList ',' zptArrayElement
+%syntax: elementList -> elementList ','
+
+%syntax: arrayElement -> singleExpression
+%syntax: arrayElement -> '...' singleExpression
+
+%syntax: propertyAssignments -> propertyAssignment 
+%syntax: propertyAssignments -> propertyAssignment ','
+%syntax: propertyAssignments -> propertyAssignment ',' propertyAssignments
+
+%syntax: objectLiteral -> '{' propertyAssignments '}'
+%syntax: objectLiteral -> '{' '}'
+
+%syntax: propertyAssignment -> propertyName ':' singleExpression                                           
+%syntax: propertyAssignment -> '[' singleExpression ']' ':' singleExpression                               
+%syntax: propertyAssignment -> 'async' '*' propertyName pFormalParameterList  pFunctionBody
+%syntax: propertyAssignment -> '*' propertyName pFormalParameterList  pFunctionBody
+%syntax: propertyAssignment -> 'async' propertyName pFormalParameterList  pFunctionBody
+%syntax: propertyAssignment -> propertyName pFormalParameterList  pFunctionBody
+%syntax: propertyAssignment -> 'get' propertyName '(' ')' pFunctionBody
+%syntax: propertyAssignment -> 'set' propertyName '(' formalParameterArg ')' pFunctionBody
+%syntax: propertyAssignment -> singleExpression                                                  
+%syntax: propertyAssignment -> '...' singleExpression                                                  
+
+%syntax: propertyName -> ident
+%syntax: propertyName -> string
+%syntax: propertyName -> numericLiteral
+%syntax: propertyName -> '[' singleExpression ']'
+
+%syntax: argList -> argument
+%syntax: argList -> argument ','
+%syntax: argList -> argList ',' argument
+%syntax: arguments -> '(' ')'
+%syntax: arguments -> '(' argList ')'
+
+%syntax: argument -> singleExpression
+%syntax: argument -> '...' singleExpression
+
+%syntax: expressionSequence ->  singleExpression 
+%syntax: expressionSequence -> expressionSequence ',' singleExpression
+
+%syntax: singleExpression -> anoymousFunction                             
+%syntax: singleExpression -> 'class' Identifier classTail                 
+%syntax: singleExpression -> 'class' classTail                            
+%syntax: singleExpression -> singleExpression '[' expressionSequence ']'  
+%syntax: singleExpression -> singleExpression '?' '.' '#' identifierName  
+%syntax: singleExpression -> singleExpression '?' '.'  identifierName     
+%syntax: singleExpression -> singleExpression '.' '#' identifierName      
+%syntax: singleExpression -> singleExpression '.' identifierName          
+%syntax: singleExpression -> singleExpression arguments                   
+%syntax: singleExpression -> 'new' singleExpression arguments             
+%syntax: singleExpression -> 'new' singleExpression                       
+%syntax: singleExpression -> 'new' '.' ident                              
+%syntax: singleExpression -> singleExpression '++'                     
+%syntax: singleExpression -> singleExpression '--'                     
+%syntax: singleExpression -> 'delete' singleExpression                 
+%syntax: singleExpression -> 'void' singleExpression                   
+%syntax: singleExpression -> 'typeof' singleExpression                 
+%syntax: singleExpression -> '++' singleExpression                     
+%syntax: singleExpression -> '--' singleExpression                     
+%syntax: singleExpression -> '+' singleExpression                      
+%syntax: singleExpression -> '-' singleExpression                      
+%syntax: singleExpression -> '~' singleExpression                      
+%syntax: singleExpression -> '!' singleExpression                      
+%syntax: singleExpression -> 'await' singleExpression                  
+%syntax: singleExpression -> singleExpression '**' singleExpression    
+%syntax: singleExpression -> singleExpression '*' singleExpression     
+%syntax: singleExpression -> singleExpression '/' singleExpression     
+%syntax: singleExpression -> singleExpression '%' singleExpression     
+%syntax: singleExpression -> singleExpression '+' singleExpression     
+%syntax: singleExpression -> singleExpression '-' singleExpression     
+%syntax: singleExpression -> singleExpression '??' singleExpression    
+%syntax: singleExpression -> singleExpression '<<' singleExpression    
+%syntax: singleExpression -> singleExpression '>>' singleExpression    
+%syntax: singleExpression -> singleExpression '>>>' singleExpression   
+%syntax: singleExpression -> singleExpression '<' singleExpression     
+%syntax: singleExpression -> singleExpression '>' singleExpression     
+%syntax: singleExpression -> singleExpression '<=' singleExpression    
+%syntax: singleExpression -> singleExpression '>=' singleExpression    
+%syntax: singleExpression -> singleExpression 'instanceof' singleExpression
+%syntax: singleExpression -> singleExpression 'in' singleExpression      
+%syntax: singleExpression -> singleExpression '==' singleExpression      
+%syntax: singleExpression -> singleExpression '!=' singleExpression      
+%syntax: singleExpression -> singleExpression '===' singleExpression     
+%syntax: singleExpression -> singleExpression '!==' singleExpression     
+%syntax: singleExpression -> singleExpression '&' singleExpression       
+%syntax: singleExpression -> singleExpression '^' singleExpression       
+%syntax: singleExpression -> singleExpression '|' singleExpression       
+%syntax: singleExpression -> singleExpression '&&' singleExpression      
+%syntax: singleExpression -> singleExpression '||' singleExpression      
+%syntax: singleExpression -> singleExpression '?' singleExpression ':' singleExpression
+%syntax: singleExpression -> singleExpression '=' singleExpression                  
+%syntax: singleExpression -> singleExpression assignmentOperator singleExpression   
+%syntax: singleExpression -> 'import' '(' singleExpression ')'                      
+%syntax: singleExpression -> singleExpression TemplateStringLiteral                 
+%syntax: singleExpression -> yieldStatement                                         
+%syntax: singleExpression -> 'this'                                                 
+%syntax: singleExpression -> ident                                                  
+%syntax: singleExpression -> 'super'                                                
+%syntax: singleExpression -> literal                                                
+%syntax: singleExpression -> arrayLiteral                                           
+%syntax: singleExpression -> objectLiteral                                          
+%syntax: singleExpression -> '(' expressionSequence ')'                             
+
+%syntax: assignable -> ident
+%syntax: assignable -> arrayLiteral
+%syntax: assignable -> objectLiteral
+
+%syntax: anoymousFunction -> functionDeclaration
+%syntax: anoymousFunction -> 'async' 'function' '*' pFormalParameterList pFunctionBody
+%syntax: anoymousFunction -> 'async' 'function' pFormalParameterList pFunctionBody
+%syntax: anoymousFunction -> 'function' '*' pFormalParameterList pFunctionBody
+%syntax: anoymousFunction -> 'function' pFormalParameterList pFunctionBody
+%syntax: anoymousFunction -> 'async' arrowFunctionParameters '=>' arrowFunctionBody
+%syntax: anoymousFunction -> arrowFunctionParameters '=>' arrowFunctionBody
+
+%syntax: arrowFunctionParameters -> ident
+%syntax: arrowFunctionParameters -> pFormalParameterList
+
+%syntax: arrowFunctionBody -> singleExpression
+%syntax: arrowFunctionBody -> pFunctionBody
+
+%syntax: assignmentOperator -> '*='
+%syntax: assignmentOperator -> '/='
+%syntax: assignmentOperator -> '%='
+%syntax: assignmentOperator -> '+='
+%syntax: assignmentOperator -> '-='
+%syntax: assignmentOperator -> '<<='
+%syntax: assignmentOperator -> '>>='
+%syntax: assignmentOperator -> '>>>='
+%syntax: assignmentOperator -> '&='
+%syntax: assignmentOperator -> '^='
+%syntax: assignmentOperator -> '|='
+%syntax: assignmentOperator -> '**='
+
+%syntax: literal -> 'null'
+%syntax: literal -> 'true'
+%syntax: literal -> 'false'
+%syntax: literal -> string
+%syntax: literal -> TemplateStringLiteral
+%syntax: literal -> RegularExpressionLiteral
+%syntax: literal -> numericLiteral
+%syntax: literal -> bigintLiteral
+
+%syntax: numericLiteral -> DecimalLiteral
+%syntax: numericLiteral -> HexIntegerLiteral
+%syntax: numericLiteral -> OctalIntegerLiteral
+%syntax: numericLiteral -> OctalIntegerLiteral2
+%syntax: numericLiteral -> BinaryIntegerLiteral
+
+%syntax: bigintLiteral -> BigDecimalIntegerLiteral
+%syntax: bigintLiteral -> BigHexIntegerLiteral
+%syntax: bigintLiteral -> BigOctalIntegerLiteral
+%syntax: bigintLiteral -> BigBinaryIntegerLiteral
+
+%syntax: identifierName -> ident
+%syntax: identifierName -> keyword
+
+%syntax: keyword -> 'null'
+%syntax: keyword -> 'true'
+%syntax: keyword -> 'false'
+%syntax: keyword -> 'break'
+%syntax: keyword -> 'do'
+%syntax: keyword -> 'instanceof'
+%syntax: keyword -> 'typeof'
+%syntax: keyword -> 'case'
+%syntax: keyword -> 'else'
+%syntax: keyword -> 'new'
+%syntax: keyword -> 'var'
+%syntax: keyword -> 'catch'
+%syntax: keyword -> 'finally'
+%syntax: keyword -> 'return'
+%syntax: keyword -> 'void'
+%syntax: keyword -> 'continue'
+%syntax: keyword -> 'for'
+%syntax: keyword -> 'switch'
+%syntax: keyword -> 'while'
+%syntax: keyword -> 'debugger'
+%syntax: keyword -> 'function'
+%syntax: keyword -> 'this'
+%syntax: keyword -> 'with'
+%syntax: keyword -> 'default'
+%syntax: keyword -> 'if'
+%syntax: keyword -> 'throw'
+%syntax: keyword -> 'delete'
+%syntax: keyword -> 'in'
+%syntax: keyword -> 'try'
+%syntax: keyword -> 'class'
+%syntax: keyword -> 'enum'
+%syntax: keyword -> 'extends'
+%syntax: keyword -> 'super'
+%syntax: keyword -> 'const'
+%syntax: keyword -> 'export'
+%syntax: keyword -> 'import'
+%syntax: keyword -> 'implements'
+%syntax: keyword -> 'let'
+%syntax: keyword -> 'private'
+%syntax: keyword -> 'public'
+%syntax: keyword -> 'interface'
+%syntax: keyword -> 'package'
+%syntax: keyword -> 'protected'
+%syntax: keyword -> 'static'
+%syntax: keyword -> 'yield'
+%syntax: keyword -> 'async'
+%syntax: keyword -> 'await'
+%syntax: keyword -> 'from'
+%syntax: keyword -> 'as'
