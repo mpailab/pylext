@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "PackratParser.h"
 #include "Exception.h"
 
@@ -10,6 +11,7 @@ void PackratParser::add_rule(const string & nt, const PEGExpr & e) {
 
 void PackratParser::setText(const string & t) {
 	text = t;
+	lastpos = (int)t.size();
 	acceptedh.clear();
 	manyh.clear();
 	//accepted = vector<vector<int>>(t.size());
@@ -35,8 +37,8 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 		}
 		return pos;
 	case PEGExpr::String:
-		for (int i = 0; i < e.s[i]; i++)
-			if (text[pos + i - 1] != e.s[i])return 0;
+		for (int i = 0; e.s[i]; i++)
+			if (pos+i>lastpos || text[pos + i - 1] != e.s[i])return 0;
 		return pos + len(e.s);
 	case PEGExpr::Many1:
 	case PEGExpr::Many:
@@ -45,13 +47,13 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 			int one = 0, i;
 			int p0 = pos;
 			auto& m = e.subexprs[0].t_mask;
-			for (i = 0; i < termMemFreq; i++, pos++) {
+			for (i = 0; i < termMemFreq && pos <= lastpos; i++, pos++) {
 				if (!m[(unsigned char)text[pos-1]])break;
 			}
 			if (i == termMemFreq) {
 				int id = e.subexprs[0].id;
 				auto mp = _manypos.size();
-				for (;;pos++) {
+				for (; pos<=lastpos; pos++) {
 					if (!m[(unsigned char)text[pos - 1]]) break;
 					if (!(pos & (termMemFreq - 1))) {
 						int& aa = hmany(pos, id);
@@ -99,7 +101,7 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 	case PEGExpr::NegLookahead:
 		return parse(e.subexprs[0], pos) ? 0 : pos;
 	case PEGExpr::Terminal:
-		return e.t_mask[(unsigned char)text[pos-1]] ? pos + 1 : 0;
+		return (pos<=lastpos && e.t_mask[(unsigned char)text[pos-1]]) ? pos + 1 : 0;
 	case PEGExpr::NonTerminal:
 		if (int a = parse(e.num, pos)) {		
 			return a < 0 ? 0 : a;
@@ -178,11 +180,13 @@ PEGExpr readsym(const char *&s, const char *&errpos, string *err) {
 	++s;
 	bitset<256> res;
 	bool val = true;
-	if (*s == '^')res.flip();
+	if (*s == '^') {
+		res.flip();
+	}
 	unsigned char prev, curr;
 	bool rng = false;
 	for (; *s&&*s != ']'; s++) {
-		if (*s == '^') { val = false; }
+		if (*s == '^') { val = false; continue; }
 		if (*s == '-') { rng = true; continue; }
 		if (*s == '\\') {
 			switch (*++s) {

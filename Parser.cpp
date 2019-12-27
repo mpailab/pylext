@@ -1,5 +1,6 @@
 #include <iostream>
 #include <queue>
+#include <sstream>
 #include "Parser.h"
 
 const bool debug_pr = false;
@@ -17,7 +18,7 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 	for (int i = 0; i < sz; i++) {
 		auto &ed = term ? s.v[i].v->termEdges : s.v[i].v->ntEdges;
 		auto it = ed.find(t);
-		if (((it != ed.end()))) {
+		if ((it != ed.end())&&it->second->phi.intersects(s.v[i].M)) {
 			s.v[i].sh = it->second.get();
 			r = true;
 			k++;
@@ -47,6 +48,8 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 	return true;
 }
 
+string prstack(GrammarState& g, SStack& ss, PStack& sp);
+
 bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 	LR0State *s = &ss.s.back();
 
@@ -71,7 +74,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 		s--;
 		if (F[i].empty()) continue;
 		int A0 = -1;
-		for (int A : F[i]) {
+		for (int A : F[i]) { // »щем нетерминал, по которому можно свернуть до данного i-го фрейма
 			for (auto &p : s->v) {
 				auto it = p.v->ntEdges.find(A);
 				if (it == p.v->ntEdges.end() || !it->second->phi.intersects(p.M))continue;
@@ -85,7 +88,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 					}
 					if (!ok)continue;
 				}
-				if (A0 >= 0)throw RRConflict("conflict : 2 different ways to reduce: 1");
+				if (A0 >= 0)throw RRConflict("at " + g.lex.curr.cpos.str() + " conflict : 2 different ways to reduce by " + g.ts[a] + ": may be NT = "+g.nts[A]+" or "+g.nts[A0], prstack(g, ss, sp));
 				A0 = A;
 				break;
 			}
@@ -99,7 +102,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 				const NTTreeNode *u = 0;
 				for (auto &p : B[j]) {
 					if (p.M.has(A0)) {
-						if (u)throw RRConflict("conflict : 2 different ways to reduce: 2");
+						if (u)throw RRConflict("at "+g.lex.curr.cpos.str()+" conflict : 2 different ways to reduce by "+g.ts[a]+" : 2",prstack(g,ss,sp));
 						u = p.v;
 						k = p.i;
 					}
@@ -110,13 +113,13 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 				if (!k) {
 					u1 = u;
 					int r = g.tf.inv[A0].intersects(u->finalNT, &Bb);
-					if(r > 1)throw RRConflict("conflict : 2 different ways to reduce: 3");
+					if(r > 1)throw RRConflict("at " + g.lex.curr.cpos.str() + " conflict : 2 different ways to reduce by " + g.ts[a] + ": 3", prstack(g, ss, sp));
 				} else {
 					auto &tinv = g.tf.inv[A0];
 					for (int A : F[k]) {
 						if ((u0 = u->nextN(A))) {
 							if (int r = tinv.intersects(u0->finalNT, &Bb)) {
-								if (r > 1 || A1 >= 0) throw RRConflict("conflict : 2 different ways to reduce: 4");
+								if (r > 1 || A1 >= 0) throw RRConflict("at "+g.lex.curr.cpos.str()+" conflict : 2 different ways to reduce by "+g.ts[a]+": 4", prstack(g, ss, sp));
 								A1 = A;
 								u1 = u0;
 							}
@@ -175,15 +178,22 @@ ostream & operator<<(ostream &s, Location loc) {
 	return s << "("<<loc.beg.line << ":" << loc.beg.col << ")-(" << loc.end.line << ":" << loc.end.col << ")";
 }
 
-ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st) {
+ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, PStack *ps=0) {
 	os << "{";
 	int i = 0;
 	for (auto &x : st.v) {
 		vector<string> rhs;
 		int k = 0;
 		if (i++)os << ", ";
+		if (ps && x.v->pos) {
+			os << ps->s[ps->s.size() - x.v->pos].loc.beg.str();
+		}
 		for (int j : x.M)
-			os << (k++ ? ',' : '(') << g.nts[j];
+			if(!x.v->phi.has(j))
+				os << (k++ ? ',' : '(') << g.nts[j];
+		os << (k ? "!!!" : "(!!!"); k = 0;
+		for (int j : x.M & x.v->phi)
+			os << (k++ ? "," : "") << g.nts[j];
 		os << ")";
 		if (x.v->pos) {
 			os << " ->";
@@ -202,6 +212,17 @@ ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st) {
 	}
 	return os<<"}";
 }
+
+string prstack(GrammarState&g, SStack&ss, PStack &sp) {
+	stringstream s;
+	for (int i = -10; i < -1; i++) {
+		if ((int)ss.s.size() + i >= 0)
+			printstate(s << "  St[" << (-1 - i) << "] = ", g, ss.s[ss.s.size() + i]) << "\n";
+	}
+	printstate(s << "  Top   = ", g, ss.s.back(), &sp) << "\n";
+	return s.str();
+}
+
 ParseNode parse(GrammarState & g, const std::string& text) {
 	SStack ss;
 	PStack sp;
@@ -225,7 +246,15 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 			g.lex.go_next();
 		} else {
 			bool r = reduce(g, ss, sp, t.type);
-			if (!r) throw SyntaxError("Cannot shift or reduce : unexpected terminal `"+t.str()+"` at "+t.loc.beg.str());
+			if (!r) {
+				stringstream s;
+				for (int i = -4; i <= -1; i++) {
+					if((int)ss.s.size()+i>=0)
+						printstate(s<<"  St["<<(1-i)<<"] = ", g, ss.s[ss.s.size()+i])<<"\n";
+				}
+				printstate(s<<"  Top   = ", g, ss.s.back(), &sp)<<"\n";
+				throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t.type] + " = `" + t.str() + "` at " + t.loc.beg.str(), s.str());
+			}
 			if (debug_pr) {
 				std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
 			}

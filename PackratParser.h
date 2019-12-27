@@ -83,7 +83,7 @@ struct PEGExpr {
 		default:
 			if (subexprs.size() != e.subexprs.size())return false;
 			for (int i = 0; i < (int)subexprs.size(); i++)
-				if (!(subexprs[i] == e.subexprs[1]))
+				if (!(subexprs[i] == e.subexprs[i]))
 					return false;
 		}
 		return true;
@@ -153,6 +153,7 @@ inline size_t get_hash(const T& x) {
 
 struct PackratParser {
 	int errpos;
+	int lastpos=0;
 	vector<const PEGExpr*> errin;
 	void reseterr() { errpos = 0; errin.clear(); }
 	void err_at(const PEGExpr*e, int pos) {

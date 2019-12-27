@@ -45,7 +45,7 @@ struct PEGLexer {
 	//const string& token(int n)const { return _ten[n]; }
 	vector<pair<int, int>> addedNcTokens;
 	vector<pair<int, string>> addedCTokens;
-
+	int ws_token=-1;
 	PEGLexer() { 
 		//_ten[""]; // Резервируем нулевой номер токена, чтобы номер любого токена был отличен от нуля
 	}
@@ -57,6 +57,7 @@ struct PEGLexer {
 		const char *s = 0;
 		Pos cpos;
 		int pos = 0;
+		
 		bool atEnd() const { return !curr.text.b; }
 		Token curr;
 		void shift(int d) {
@@ -82,40 +83,46 @@ struct PEGLexer {
 			readToken();
 		}
 		void readToken() {
-			while (isspace(s[pos]))
-				shift(1);
+			if (lex->ws_token >= 0) {
+				int end = 0;
+				if(lex->packrat.parse(lex->ws_token, pos, end, 0) && end>pos)
+					shift(end - pos);
+			}
+			//while (isspace(s[pos]))
+				//shift(1);
 			if (!s[pos]) {
 				curr = Token{ 0,{ cpos,cpos }, Substr() };
 				return;
 			}
 			int p0 = pos, bpos = pos;
-			if (const int *n = lex->cterms(s, p0)) {
+			const int* n = lex->cterms(s, p0);
+			int m = 0, end = 0;
+			int imax = -1;
+			int best = -1;
+			for (int ni = 0; ni < (int)lex->tokens.size(); ni++) {
+				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
+				if (end > imax) {
+					best = ni;
+					m = 1;
+					imax = end;
+				} else if (end == imax)m++;
+			}
+			if (n && p0 >= imax) {
 				auto beg = cpos;
 				shift(p0 - pos);
 				curr = Token{ *n,{ beg,cpos }, Substr{ s + bpos, p0 - bpos } };
 			} else {
-				int m = 0,  end=0;
-				int imax = -1;
-				int best = -1;
-				for (int ni = 0; ni < (int)lex->tokens.size(); ni++) {
-					if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
-					if (end > imax) {
-						best = ni;
-						m = 1;
-						imax = end;
-					} else if (end == imax)m++;
-				}
-				if (best<0) {
+				if (best < 0) {
 					Pos ccpos = shifted(lex->packrat.errpos);
 					string msg = "Unknown token at " + to_string(cpos.line) + ":" + to_string(cpos.col) + " : '" + string(s + bpos, strcspn(s + bpos, "\n")) + "',\n"
 						"PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
 					throw SyntaxError(msg);
 				} else if (m > 1) {
-					throw SyntaxError("Lexer conflict: `" + string(s+bpos, imax-bpos) + "` may be 2 different tokens");
+					throw SyntaxError("Lexer conflict: `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens");
 				}
 				auto beg = cpos;
-				shift(end-bpos);
-				curr = { lex->tokens[best].second, { beg,cpos }, Substr{ s + bpos, end-bpos } };
+				shift(end - bpos);
+				curr = { lex->tokens[best].second, { beg,cpos }, Substr{ s + bpos, end - bpos } };
 			}
 		}
 		const Token& operator*()const {
@@ -187,6 +194,9 @@ struct PEGLexer {
 		if (!curr.atEnd()) {
 			addedCTokens.push_back(make_pair(curr.pos, x));
 		}
+	}
+	int setWsToken(string tname) {
+		return ws_token = packrat._en[tname];
 	}
 	/*void delTokens(int p, bool remove) {
 		if (addedNcTokens.empty())return;

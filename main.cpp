@@ -66,9 +66,46 @@ struct Timer {
 		return t;
 	}
 	~Timer() {
-		if (_started) stop_pr();
+		if (_started&&name.size()) stop_pr();
 	}
 };
+
+#include <filesystem>
+using namespace filesystem;
+int testDir(GrammarState &g, const string& dir, const string &logfile, const string &failed = "failed.txt") {
+	ofstream log(logfile);
+	ofstream fail(failed);
+	int total = 0, success = 0;
+	for (auto it = directory_iterator(path(dir)); it != directory_iterator(); ++it) {
+		const directory_entry& e = *it;
+		if (!e.is_regular_file())continue;
+		try {
+			total++;
+			string text = loadfile(e.path().string());
+			Timer tm;
+			tm.start();
+			parse(g, text);
+			double t = tm.stop();
+			log  << e.path().filename() << ":\t Success :\t time = " << t << "\n";
+			cout << e.path().filename() << ":\t Success :\t time = " << t << "\n";
+			success++;
+		} catch (SyntaxError & ex) {
+			log << e.path().filename() << ":\t Failed  :\t" << ex.what()<<"\n";
+			cout << e.path().filename() << ":\t Failed  :\t" << ex.what() << "\n";
+			fail << e.path().filename() << ":\t" << ex.what() << "\n" << ex.stack_info << "\n";
+			fail.flush();
+		} catch (Exception & ex) {
+			log << e.path().filename() << ":\t Failed  :\t" << ex.what() << "\n";
+			cout << e.path().filename() << ":\t Failed  :\t" << ex.what() << "\n";
+			fail << e.path().filename() << ":\t" << ex.what() << "\n";
+			fail.flush();
+		}
+		log.flush();
+	}
+	cout << "=========================================\n\n" << success << " / " << total << " (" << success * 100. / total << "%) passed\n"<<(total-success)<<" failed\n\n";
+	return 0;
+}
+
 
 int main(int argc, char*argv[]) {
 #ifndef _DEBUG
@@ -76,10 +113,11 @@ int main(int argc, char*argv[]) {
 #endif
 		GrammarState st;
 		st.setNtNames("text", "new_token", "new_rule");
+		st.setWsToken("ws");
 		st.addLexerRule("ws", "([ \\t\\n\\r] / comment)*");
 		st.addLexerRule("comment", "'#' [^\\n]*");
 		st.addToken("ident", "[_a-zA-Z][_a-zA-Z0-9]*");
-		st.addLexerRule("peg_concat_expr", "ws (([&!] ws)* ws ('(' peg_expr ws ')' / '[' ('\\\\]' / [^\\]\\n])* ']' / sq_string / dq_string / ident) (ws [*+?])*)+");
+		st.addLexerRule("peg_concat_expr", "ws (([&!] ws)* ws ('(' peg_expr ws ')' / '[' ('\\\\' [^\\n] / [^\\]\\n])* ']' / sq_string / dq_string / ident) (ws [*+?])*)+");
 		st.addLexerRule("peg_expr", "ws peg_concat_expr (ws '/' ws peg_concat_expr)*");
 		st.addToken("sq_string", ("'\\'' ('\\\\' [^\\n] / [^\\n'])* '\\''"));
 		st.addToken("dq_string", ("(ws '\"' ('\\\\' [^\\n] / [^\\n\"])* '\"')+"));
@@ -108,16 +146,29 @@ int main(int argc, char*argv[]) {
 		cout << "Const rules:\n";
 		st.print_rules(cout);
 		cout << "\n";
-
-		string text;
+		string text, dir;
+		if (argv[1] == "-d"s || argv[1] == "--dir"s) {
+			if (argc < 3)throw Exception("dir argument expected");
+			dir = argv[2];
+			argv += 2;
+			argc -= 2;
+		}
 		for (int i = 1; i < argc; i++) {
 			text += loadfile(argv[i]);
 		}
-		Timer tm("Parsing");
-		tm.start();
-		ParseNode res = parse(st, text);
-		tm.stop_pr();
-		cout << "Parser finished successfully\n";
+		if (!dir.empty()) {
+			addRule(st, "text -> new_syntax");
+		}
+		if (!text.empty()) {
+			Timer tm("Parsing");
+			tm.start();
+			ParseNode res = parse(st, text);
+			tm.stop_pr();
+			cout << "Parser finished successfully\n";
+		}
+		if (!dir.empty()) {
+			return testDir(st, dir, "log.txt");
+		}
 		//st.print_rules(cout);
 #ifndef _DEBUG
 	} catch (Exception &e) {

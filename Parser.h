@@ -40,7 +40,7 @@ struct ParseNode {
 	}
 };
 
-typedef NTSetV NTSet;
+typedef NTSetS NTSet;
 
 //struct NTTreeNode;
 template<class Node>
@@ -248,6 +248,9 @@ struct GrammarState {
 			tokenNT = nts[token];
 		if (!syntax.empty())
 			syntaxDefNT = nts[syntax];
+	}
+	void setWsToken(const string& ws) {
+		lex.setWsToken(ws);
 	}
 	void print_rules(ostream &s) const{
 		for (auto &r : rules) {
