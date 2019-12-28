@@ -30,6 +30,13 @@ struct Token {
 	Location loc;
 	Substr text;
 	string str()const { return string(text.b, text.len); }
+	string short_str()const { 
+		if (text.len <= 80)return str();
+		int n1 = 0,n2=text.len-1;
+		for (; n1 < 60 && text.b[n1] && text.b[n1] != '\n';)n1++;
+		for (; text.len-n2 < 75-n1 && text.b[n2]!='\n' && text.b[n2];)n2--;
+		return string(text.b, n1)+" <...> "+string(text.b+n2+1,text.len-n2-1); 
+	}
 	Token() {}
 	Token(int t, Location l, Substr s) :type(t), loc(l), text(s) { loc.end.col--; }
 };
@@ -57,9 +64,11 @@ struct PEGLexer {
 		const char *s = 0;
 		Pos cpos;
 		int pos = 0;
+		bool _accepted = true;
+		bool _at_end = true;
 		
-		bool atEnd() const { return !curr.text.b; }
-		Token curr;
+		bool atEnd() const { return _at_end;/* !lex || pos >= (int)lex->text.size();curr.text.b;*/ }
+		vector<Token> curr_t;
 		void shift(int d) {
 			for (; s[pos] && d; d--, pos++)
 				if (s[pos] == '\n') {
@@ -78,11 +87,13 @@ struct PEGLexer {
 		}
 		iterator() = default;
 		iterator(PEGLexer *l) :lex(l), s(l->text.c_str()) {
+			_at_end = false;
 			//for (auto &p : lex->ncterms)
 			//	rit.push_back(regex_iterator<const char*>(s, s + text.size(), *p.first));
 			readToken();
 		}
 		void readToken() {
+			Assert(_accepted);
 			if (lex->ws_token >= 0) {
 				int end = 0;
 				if(lex->packrat.parse(lex->ws_token, pos, end, 0) && end>pos)
@@ -90,8 +101,10 @@ struct PEGLexer {
 			}
 			//while (isspace(s[pos]))
 				//shift(1);
+			curr_t.clear();
 			if (!s[pos]) {
-				curr = Token{ 0,{ cpos,cpos }, Substr() };
+				_at_end = true;
+				//curr = Token{ 0,{ cpos,cpos }, Substr() };
 				return;
 			}
 			int p0 = pos, bpos = pos;
@@ -101,21 +114,29 @@ struct PEGLexer {
 			int best = -1, b1 = -1;
 			for (int ni = 0; ni < (int)lex->tokens.size(); ni++) {
 				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
+				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, shifted(end) }, Substr{ s + bpos, end - bpos } });
 				if (end > imax) {
 					best = ni;
 					m = 1;
 					imax = end;
 				} else if (end == imax) {
-					m++; b1 = ni;
+					m++;
 				}
 			}
-			if (n && p0 >= imax) {
-				auto beg = cpos;
-				shift(p0 - pos);
-				curr = Token{ *n,{ beg,cpos }, Substr{ s + bpos, p0 - bpos } };
-				if (p0 == imax && best >= 0 && m<2)
-					curr.type2 = lex->tokens[best].second;
-			} else {
+			if (curr_t.size() > 1)sort(curr_t.begin(), curr_t.end(), [](const Token& x, const Token& y) {return x.text.len > y.text.len; });
+			if (n){
+				if (p0 >= imax) {
+					auto beg = cpos;
+					//shift(p0 - pos);
+					curr_t.insert(curr_t.begin(), Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos } });
+					//if (p0 == imax && best >= 0 && m<2)
+					//	curr.type2 = lex->tokens[best].second;
+				} else { 
+					curr_t.push_back(Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos } }); 
+					sort(curr_t.begin(), curr_t.end(), [](const Token& x, const Token& y) {return x.text.len > y.text.len; });
+				}
+			} 
+			if(!n || p0 < imax) {
 				if (best < 0) {
 					Pos ccpos = shifted(lex->packrat.errpos);
 					string msg = "Unknown token at " + to_string(cpos.line) + ":" + to_string(cpos.col) + " : '" + string(s + bpos, strcspn(s + bpos, "\n")) + "',\n"
@@ -124,30 +145,42 @@ struct PEGLexer {
 				} else if (m > 1) {
 					throw SyntaxError("Lexer conflict: `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: "+lex->_ten[best]+" or "+lex->_ten[b1]);
 				}
-				auto beg = cpos;
-				shift(end - bpos);
-				curr = { lex->tokens[best].second, { beg,cpos }, Substr{ s + bpos, end - bpos } };
+				//auto beg = cpos;
+				//shift(end - bpos);
+				//curr = { lex->tokens[best].second, { beg,cpos }, Substr{ s + bpos, end - bpos } };
 			}
+			_accepted = false;
 		}
-		const Token& operator*()const {
-			return curr;
+		void acceptToken(const Token& tok) {
+			if (_accepted) {
+				Assert(curr_t[0].type==tok.type && curr_t[0].text.b == tok.text.b && curr_t[0].text.len == tok.text.len);
+				return;
+			}
+			Assert(s + pos == tok.text.b);
+			curr_t.resize(1); curr_t[0] = tok;
+			shift(tok.text.len);
+			_accepted = true;
+		}
+		const vector<Token>& operator*()const {
+			return curr_t;
 		}
 		iterator& operator++() {
 			readToken();
 			return *this;
 		}
 		bool operator==(const iterator& it)const {
-			return curr.text.b == it.curr.text.b;
+			return pos == it.pos;// curr.text.b == it.curr.text.b;
 		}
 		bool operator!=(const iterator& it)const {
-			return curr.text.b == it.curr.text.b;
+			return pos != it.pos;// curr.text.b == it.curr.text.b;
+			//return curr.text.b == it.curr.text.b;
 		}
 	};
 	iterator begin() {
 		return iterator(this);
 	}
 	iterator end()const { return iterator(); }
-	struct Tokens {
+	/*struct Tokens {
 		PEGLexer *lex;
 		const std::string &text;
 		Tokens(PEGLexer *l, const std::string &t) :lex(l), text(t) {}
@@ -155,7 +188,7 @@ struct PEGLexer {
 			return PEGLexer::iterator(lex);
 		}
 		iterator end()const { return iterator(); }
-	};
+	};*/
 	/*Tokens tokens(const std::string &text) {
 		return Tokens(this, text);
 	}*/
@@ -165,6 +198,9 @@ struct PEGLexer {
 		packrat.setText(text);
 		curr = begin();
 	}
+	void acceptToken(const Token& t) {
+		curr.acceptToken(t);
+	}
 	bool go_next() {
 		if (curr.atEnd())return false;
 		++curr;
@@ -173,7 +209,7 @@ struct PEGLexer {
 	bool atEnd() const {
 		return curr.atEnd();
 	}
-	const Token & tok() {
+	const vector<Token> & tok() {
 		return *curr;
 	}
 	void addPEGRule(const string &nt, const string &rhs, int ext_num, bool to_begin = false) {

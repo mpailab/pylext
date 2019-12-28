@@ -240,41 +240,53 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 	s0.v[0].v = &g.root;
 	ss.s.emplace_back(std::move(s0));
 	for(g.lex.start(text); !g.lex.atEnd();) {
-		Token t = g.lex.tok();
-		if (debug_pr) {
-			std::cout << "token of type " << g.ts[t.type] <<": `" << t.str() << "` at " << t.loc << endl;
-		}
-retry:
-		if (shift(g, ss.s.back(), s0, t.type, true)) {
+		for (int ti = 0; ti < len(g.lex.tok()); ti++){
+			auto& t = g.lex.tok()[ti];
 			if (debug_pr) {
-				std::cout << "Shift by " << g.ts[t.type] << ": ";
-				printstate(std::cout, g, s0) << "\n";
+				std::cout << "token of type " << g.ts[t.type] << ": `" << t.str() << "` at " << t.loc << endl;
 			}
-			ss.s.emplace_back(move(s0));
-			sp.s.push_back(termnode(t));
-			g.lex.go_next();
-		} else {
-			bool r = reduce(g, ss, sp, t.type);
-			if (!r) {
-				/*stringstream s;
-				for (int i = -4; i <= -1; i++) {
-					if((int)ss.s.size()+i>=0)
-						printstate(s<<"  St["<<(1-i)<<"] = ", g, ss.s[ss.s.size()+i])<<"\n";
+		//retry:
+			if (shift(g, ss.s.back(), s0, t.type, true)) {
+				if (debug_pr) {
+					std::cout << "Shift by " << g.ts[t.type] << ": ";
+					printstate(std::cout, g, s0) << "\n";
 				}
-				printstate(s<<"  Top   = ", g, ss.s.back(), &sp)<<"\n";*/
-				if (t.type2 >= 0) {
-					t.type = t.type2;
-					t.type2 = -1;
-					if (debug_pr) {
-						std::cout << "Retry with same token of type " << g.ts[t.type] << endl;
+				ss.s.emplace_back(move(s0));
+				sp.s.push_back(termnode(t));
+				g.lex.acceptToken(t);
+				g.lex.go_next();
+				break;
+			} else {
+				bool r = reduce(g, ss, sp, t.type);
+				if (!r) {
+					if (&t != &g.lex.tok().back()) {
+						if (debug_pr) {
+							std::cout << "Retry with same token of type " << g.ts[(&t)[1].type] << endl;
+						}
+						continue;
 					}
-					goto retry;
+					/*stringstream s;
+					for (int i = -4; i <= -1; i++) {
+						if((int)ss.s.size()+i>=0)
+							printstate(s<<"  St["<<(1-i)<<"] = ", g, ss.s[ss.s.size()+i])<<"\n";
+					}
+					printstate(s<<"  Top   = ", g, ss.s.back(), &sp)<<"\n";*/
+					/*if (t.type2 >= 0) {
+						t.type = t.type2;
+						t.type2 = -1;
+						if (debug_pr) {
+							std::cout << "Retry with same token of type " << g.ts[t.type] << endl;
+						}
+						goto retry;
+					}*/
+					auto &t1 = g.lex.tok()[0];
+					throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t1.type] + " = `" + t1.short_str() + "` at " + t1.loc.beg.str(), prstack(g, ss, sp));
 				}
-				t = g.lex.tok();
-				throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t.type] + " = `" + t.str() + "` at " + t.loc.beg.str(), prstack(g,ss,sp));
-			}
-			if (debug_pr) {
-				std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
+				if (debug_pr) {
+					std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
+				}
+				g.lex.acceptToken(t);
+				break;
 			}
 		}
 	}

@@ -85,7 +85,7 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 			string text = loadfile(e.path().string());
 			bool unicode = false;
 			for (char c : text)if (c <= 0)unicode = true;
-			if (unicode) {
+			if (0&&unicode) {
 				skip++;
 				continue;
 			} else total++;
@@ -151,6 +151,22 @@ int main(int argc, char*argv[]) {
 		addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
 		addRule(st, "new_syntax -> new_syntax_expr ';'");
 		addRule(st, "text -> new_syntax text", [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); });
+		addRule(st, "new_syntax_expr -> '%' 'stats'", [](GrammarState* g, ParseNode&) {
+			cout << "===================== Grammar statistics ========================" << endl;
+			cout << "    Number of constant tokens     :    " << g->lex.cterms.size() << endl;
+			cout << "    Number of NON-constant tokens :    " << g->lex.tokens.size() << endl;
+			cout << "    Number of all tokens          :    " << g->ts._i.size()-1/*lex.tokens.size() + g->lex.cterms.size()*/ << endl;
+			cout << "    Number of non-terminals       :    " << g->nts._i.size() << endl;
+			cout << "    Number of productions         :    " << g->rules.size() << endl;
+			int l = 0, total = 0;
+			for (auto& r : g->rules) {
+				l = max(l, (int)r.rhs.size());
+				total += (int)r.rhs.size();
+			}
+			cout << "    Maximum production length     :    " << l << endl;
+			cout << "    Average production length     :    " << total*1./g->rules.size() << endl;
+			cout << "=================================================================" << endl;
+			});
 		//addRule(st, "text -> new_rule text", [](GrammarState*, ParseNode&n) {n = move(n[1]); });
 
 		cout << "Const rules:\n";

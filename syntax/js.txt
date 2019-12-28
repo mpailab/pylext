@@ -164,8 +164,8 @@
 %syntax: eosSt -> ident ':' eosSt;
 
 
-%syntax: varModifier -> 'var ';
-%syntax: varModifier -> 'let ';
+%syntax: varModifier -> 'var';
+%syntax: varModifier -> 'let';
 %syntax: varModifier -> 'const ';
 
 %syntax: eosSt -> 'continue';
@@ -320,7 +320,7 @@
 %syntax: esExpr -> sExpr '?' '.'  idName     ;
 %syntax: esExpr -> sExpr '.' '#' idName      ;
 %syntax: esExpr -> sExpr '.' idName          ;
-%syntax: esExpr -> sExpr arguments       ;
+%syntax: esExpr -> esExpr arguments       ;
 %syntax: esExpr -> 'new' iExpr          ;
 %syntax: esExpr -> 'new' '.' ident       ;
 %syntax: esExpr -> sExpr '++'            ;
@@ -539,7 +539,7 @@
 %syntax: keyword -> 'export';
 %syntax: keyword -> 'import';
 %syntax: keyword -> 'implements';
-%syntax: keyword -> 'let ';
+%syntax: keyword -> 'let';
 %syntax: keyword -> 'set';
 %syntax: keyword -> 'get';
 %syntax: keyword -> 'private';
@@ -553,3 +553,5 @@
 %syntax: keyword -> 'await';
 %syntax: keyword -> 'from';
 %syntax: keyword -> 'as';
+
+%stats;

@@ -28,8 +28,10 @@ struct Trie {
 template<class T>
 struct TrieM {
 	bool final = false;
+	int _size = 0;
 	T val{};
 	vector<TrieM<T>> next;
+	int size()const { return _size; }
 	const T* operator()(const char *m)const {
 		const TrieM<T>* curr = this;
 		for (; *m; m++) {
@@ -44,6 +46,7 @@ struct TrieM {
 			if (curr->next.empty())curr->next.resize(256);
 			curr = &curr->next[(unsigned char)m[0]];
 		}
+		_size += !curr->final;
 		curr->final = true;
 		return curr->val;
 	}

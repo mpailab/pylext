@@ -160,7 +160,7 @@ struct dvector {
 	int size()const { return (int)v.size(); }
 	void clear() {
 		for (int i = 0; i <= mx; i++)v[i].clear();
-		mx = 0;
+		mx = -1;
 	}
 };
 
