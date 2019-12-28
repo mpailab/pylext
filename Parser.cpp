@@ -124,7 +124,8 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 							if (int r = tinv.intersects(u0->finalNT, &Bb)) {
 								if (r > 1 || A1 >= 0) {
 									if(A1 >= 0) throw RRConflict("at " + g.lex.curr.cpos.str() + " RR-conflict(4) : 2 different ways to reduce by " + g.ts[a] + ": NT = "+g.nts[A1]+" or "+g.nts[A], prstack(g, ss, sp,k));
-									auto v = tinv & u0->finalNT; vector<int> vv(v.begin(), v.end());
+									auto v = tinv & u0->finalNT; 
+									vector<int> vv(v.begin(), v.end());
 									throw RRConflict("at " + g.lex.curr.cpos.str() + " RR-conflict(5) : 2 different ways to reduce by " + g.ts[a] + ": NT = " + g.nts[vv[0]] + " or " + g.nts[vv[1]], prstack(g, ss, sp, k));
 								}
 								A1 = A;

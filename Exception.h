@@ -23,3 +23,11 @@ struct RRConflict: SyntaxError {
 	RRConflict(std::string s) noexcept : SyntaxError(std::move(s)) {}
 	RRConflict(std::string s, std::string stackinfo) noexcept : SyntaxError(std::move(s),move(stackinfo)) {}
 };
+
+struct AssertionFailed : std::exception {
+	const char* str = 0;
+	AssertionFailed(const char* s)noexcept :str(s) {}
+	const char* what()const noexcept override {	return str;	}
+};
+
+#define Assert(cond) if(!(cond))throw AssertionFailed(#cond " assertion failed ")

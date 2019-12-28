@@ -40,7 +40,8 @@ struct ParseNode {
 	}
 };
 
-typedef NTSetS NTSet;
+//typedef NTSetCmp<NTSetS,NTSetV> NTSet;
+typedef NTSetV NTSet;
 
 //struct NTTreeNode;
 template<class Node>
@@ -287,7 +288,6 @@ struct PStack {
 	vector<ParseNode> s;
 };
 
-#define Assert(cond) if(!(cond))throw Exception(#cond " assertion failed ")
 
 ParseNode parse(GrammarState & g, const std::string& text);
 
