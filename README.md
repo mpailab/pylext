@@ -7,12 +7,15 @@
 3. Запустить компиляцию (Меню -> Build -> Build solution)
 
 ### С помощью GCC
-Под Windows необходимо убедиться, что установлена 64-битная версия GCC (например, mingw-w64).
+Под Windows необходимо убедиться, что установлена 64-битная версия GCC версии > 8.1.0 (на данный момент доступна только в составе MSYS, GCC версии 9.1.0).
 В текущей версии компиляция запускается командой:
    ``` bash
-   > g++ *.cpp -O3 -o parser.exe -m64 -mbmi
+   > g++ *.cpp -O3 -o parser.exe -m64 -mbmi -std=c++17
    ```
-Процессор должен поддерживать расширенный набор инструкций BMI2. (В будущем надо будет сделать также версию с эмуляцией этих инструкций для остальных процессоров).
+#### Замечания
+- Из C++ 17 используется только модуль filesystem в main.cpp, где парсер запускается на всех  файлах из заданной директории.
+
+- Процессор должен поддерживать расширенный набор инструкций BMI2. (В будущем надо будет сделать также версию с эмуляцией этих инструкций для остальных процессоров).
 
 ## Tool usage
 
@@ -26,12 +29,18 @@
 
 Можно подать несколько файлов, тогда в парсер будет подаваться конкатенация этих файлов. Режим с несколькими файлами удобно использовать, если в грамматика описана в отдельном, и её можно таким образом вставлять перед тем текстом, который нужно разобрать.
 
-Например,
-```
- parser syntax/json.txt test/short.json
-```
+### Примеры
+1. Запуск разбора одного файла:
+   ```
+   parser syntax/json.txt test/short.json
+   ```
 
-При запуске на всех файлах из директории результаты запуска пишутся на экран и в файл log.txt, ошибки более подробно записываются в файл failed.txt
+2. При запуске на всех файлах из директории результаты запуска пишутся на экран и в файл **log.txt**, ошибки более подробно записываются в файл **failed.txt**
+
+   Например, команда запуска парсера JavaScript на тестовых файлах из директории **js_tests** выглядит так:
+   ```
+   parser -d js_tests syntax/js.txt
+   ```
 
 ## Поддерживаемые грамматики
 
@@ -83,36 +92,38 @@
 6. Для возможности добавления правил в грамматику имеются следующие встроенные токены:
 
    - `ident = [_a-zA-Z][_a-zA-Z0-9]*` -- идентификатор
-   - `sq_string = '\\'' ('\\\\' [^\\n] / [^\\n'])* '\\''` -- строка в одинарных кавычках
-   - `dq_string = (ws '\"' ('\\\\' [^\\n] / [^\\n\"])* '\"')+` -- последовательность строк в двойных кавычках
+   - `sq_string = '\\'' ('\\\\' [^] / [^\\n'])* '\\''` -- строка в одинарных кавычках
+   - `dq_string = (ws '\"' ('\\\\' [^] / [^\\n\"])* '\"')+` -- последовательность строк в двойных кавычках
    - ``peg_expr_def = `<громоздкое определение выражения разбора>` ``
+
+   В синтаксисе выражений разбора пока нет символа `.`, поэтому пока используется выражение `[^]`, обозначающее любой символ.
 ### Пример задания грамматики JSON
 ```
-%pexpr: pos_int = `[0-9]+`
-%pexpr: int = `[+\-]? pos_int`
-%token: number = `[+\-]? ('.' [0-9]+ / pos_int ('.' [0-9]*)?) ([Ee] int)?`
+%pexpr: pos_int = `[0-9]+`;
+%pexpr: int = `[+\-]? pos_int`;
+%token: number = `[+\-]? ('.' [0-9]+ / pos_int ('.' [0-9]*)?) ([Ee] int)?`;
 
-%syntax: text -> value
+%syntax: text -> value;
 
-%syntax: value -> object
-%syntax: value -> array
-%syntax: value -> string
-%syntax: value -> number
-%syntax: value -> 'true'
-%syntax: value -> 'false'
-%syntax: value -> 'null'
+%syntax: value -> object;
+%syntax: value -> array;
+%syntax: value -> string;
+%syntax: value -> number;
+%syntax: value -> 'true';
+%syntax: value -> 'false';
+%syntax: value -> 'null';
 
-%syntax: object -> '{' '}'
-%syntax: object -> '{' members '}'
+%syntax: object -> '{' '}';
+%syntax: object -> '{' members '}';
 
-%syntax: members -> member
-%syntax: members -> member ',' members
+%syntax: members -> member;
+%syntax: members -> member ',' members;
 
-%syntax: member -> string ':' value
+%syntax: member -> string ':' value;
 
-%syntax: array -> '[' ']'
-%syntax: array -> '[' elements ']'
+%syntax: array -> '[' ']';
+%syntax: array -> '[' elements ']';
 
-%syntax: elements -> value
-%syntax: elements -> value ',' elements
+%syntax: elements -> value;
+%syntax: elements -> value ',' elements;
 ```

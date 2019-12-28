@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 #include <fstream>
 #include "Parser.h"
 using namespace std;
@@ -70,7 +71,7 @@ struct Timer {
 	}
 };
 
-#include <filesystem>
+
 using namespace filesystem;
 int testDir(GrammarState &g, const string& dir, const string &logfile, const string &failed = "failed.txt") {
 	ofstream log(logfile);
