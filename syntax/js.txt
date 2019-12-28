@@ -1,6 +1,5 @@
-%pexpr: regexClassChar = `[\\]` ;
 %token: HashBangLine = `'#!' [^\r\n]*` ;
-%pexpr: comment     /= `'/*' (!'*/')[^]* '*/'` ;
+%pexpr: comment     /= `'/*' (!'*/' [^])* '*/'` ;
 %pexpr: comment     /= `'//' [^\r\n]*` ;
 
 %pexpr: regexStart     = `[^*\r\n\\/[] / regexBsSeq / '[' regexClassChar* ']'` ;
@@ -16,12 +15,12 @@
 %pexpr: HexDigit = `[_0-9A-Fa-f]` ;
 %pexpr: UnicodeEscapeSequence = `'u' HexDigit HexDigit HexDigit HexDigit / 'u' '{' HexDigit HexDigit+ '}'` ;
 
-%pexpr: pos_int = `'0' / [1-9][0-9]*` ;
+%pexpr: pos_int = `'0'![0-9] / [1-9][0-9]*` ;
 
-%token: DecLit = `('.' [0-9]+ / pos_int ('.' [0-9]*)?) ([Ee] [+\-]? [0-9]+)?`;
+%token: DecLit = `('.' [0-9]+ / (pos_int / '0' [0-9]+&[.Ee]) ('.' [0-9]*)?) ([Ee] [+\-]? [0-9]+)?`;
 
 %token: HexLit    = `'0' [xX] [0-9a-fA-F] HexDigit*`;
-%token: OctLit  = `'0' [0-7]+`;
+%token: OctLit  = `'0' [0-7]+![0-9]`;
 %token: OctLit2 = `'0' [oO] [0-7] [_0-7]*`;
 %token: BinLit = `'0' [bB] [01] [_01]*`;
 
@@ -33,10 +32,20 @@
 %pexpr: comment /= `'<!--' (!'-->' [^])* '-->'`;
 %pexpr: comment /= `'<![CDATA[' (!']]>' [^])* ']]>'`;
 
-%token: ident /= `IdentifierStart IdentifierPart*` ;
+%token: ident \= `IdentifierStart IdentifierPart*` ;
 
-%token: TemplateStringLiteral = `'`' ('\\`' / [^`])* '`'`;
+////////////////////////////////////////////////////////////
+%pexpr: TemplStrChar = `'\\'[^] / !('`'/'${')[^]`;
+%token: TemplMid = `'}' TemplStrChar* '${'`;
+%token: TemplEnd = `'}' TemplStrChar* '`'`;
+%token: TemplStart = `'`' TemplStrChar* '${'`;
+%token: TemplStrFull = `'`' TemplStrChar* '`'`;
 
+////////////////////////////////////////////////////////////
+%syntax: templStr -> TemplStrFull;
+%syntax: templStr -> templStrBeg iExpr TemplEnd;
+%syntax: templStrBeg -> TemplStart;
+%syntax: templStrBeg -> templStrBeg iExpr TemplMid;
 ////////////////////////////////////////////////////////////
 
 %syntax: text -> stmts;
@@ -47,7 +56,6 @@
 
 %syntax: eosSt -> varSt;
 %syntax: eosSt -> impSt;
-%syntax: eosSt -> exportSt;
 %syntax: eosSt -> exprSt;
 
 
@@ -62,9 +70,11 @@
 %syntax: block -> '{' stmts '}';
 
 %syntax: stmts -> eosSt;
+%syntax: stmts -> fullSt;
 %syntax: stmts -> fullSt stmts;
 
 %syntax: impSt -> 'import' string;
+%syntax: impSt -> 'import' aliasName importFrom ;
 %syntax: impSt -> 'import' importDefault importNamespace importFrom;
 %syntax: impSt -> 'import' importDefault moduleItems importFrom;
 %syntax: impSt -> 'import' importNamespace importFrom;
@@ -79,24 +89,23 @@
 %syntax: importDefault -> aliasName ',';
 
 %syntax: importNamespace -> '*' ;
-%syntax: importNamespace -> '*' 'as' identifierName;
+%syntax: importNamespace -> '*' 'as' idName;
 
 %syntax: importFrom -> 'from' string;
 
 %syntax: aliasName -> ident;
-%syntax: aliasName -> ident 'as' identifierName;
+%syntax: aliasName -> ident 'as' idName;
 
-%syntax: exportSt -> 'export' exportFromBlock;
-%syntax: exportSt -> 'export' declaration;
-%syntax: exportSt -> 'export' 'default' sExpr;
+%syntax: eosSt -> 'export' exportFromBlock;
+%syntax: eosSt -> 'export' varSt;
+%syntax: fullSt -> 'export' clsDecl;
+%syntax: fullSt -> 'export' funDecl;
+%syntax: eosSt -> 'export' 'default' ieExpr;
+%syntax: fullSt -> 'export' 'default' fExpr;
 
 %syntax: exportFromBlock -> importNamespace importFrom;
 %syntax: exportFromBlock -> moduleItems importFrom;
 %syntax: exportFromBlock -> moduleItems ;
-
-%syntax: declaration -> varSt;
-%syntax: declaration -> clsDecl;
-%syntax: declaration -> funDecl;
 
 %syntax: varSt -> varModifier varDecls;
 
@@ -104,10 +113,14 @@
 %syntax: varDecls -> varDecls ',' varDecl;
 
 %syntax: varDecl -> assignable;
-%syntax: varDecl -> assignable '=' sExpr;
+%syntax: varDecl -> assignable '=' iExpr;
 
 
-%syntax: exprSt -> exprSeq;
+%syntax: eosSt -> esExpr;
+%syntax: eosSt -> sExpr ',' eexprSeq;
+
+%syntax: fullSt -> fsExpr;
+%syntax: fullSt -> sExpr ',' fexprSeq;
 
 %syntax: fullSt -> 'if' '(' exprSeq ')' fullSt;
 %syntax: fullSt -> 'if' '(' exprSeq ')' stmt 'else' fullSt;
@@ -117,13 +130,12 @@
 %syntax: optExprSeq -> ';' exprSeq;
 %syntax: fullSt -> 'for' '(' optExprSeq optExprSeq ')' fullSt;
 %syntax: fullSt -> 'for' '(' exprSeq optExprSeq optExprSeq ')' fullSt;
-%syntax: fullSt -> 'for' '(' varSt optExprSeq ')' fullSt;
-%syntax: fullSt -> 'for' '(' optExprSeq optExprSeq ')' fullSt;
-%syntax: fullSt -> 'for' '(' sExpr 'in' exprSeq ')' fullSt;
+%syntax: fullSt -> 'for' '(' varSt optExprSeq optExprSeq ')' fullSt;
+%syntax: fullSt -> 'for' '(' iExpr 'in' exprSeq ')' fullSt;
 %syntax: fullSt -> 'for' '(' varSt 'in' exprSeq ')' fullSt;
-%syntax: fullSt -> 'for' '(' sExpr 'of' exprSeq ')' fullSt;
+%syntax: fullSt -> 'for' '(' iExpr 'of' exprSeq ')' fullSt;
 %syntax: fullSt -> 'for' '(' varSt 'of' exprSeq ')' fullSt;
-%syntax: fullSt -> 'for' 'await' '(' sExpr 'of' exprSeq ')' fullSt;
+%syntax: fullSt -> 'for' 'await' '(' iExpr 'of' exprSeq ')' fullSt;
 %syntax: fullSt -> 'for' 'await' '(' varSt 'of' exprSeq ')' fullSt;
 
 %syntax: fullSt -> 'with' '(' exprSeq ')' fullSt;
@@ -134,27 +146,27 @@
 %syntax: eosSt -> 'if' '(' exprSeq ')' eosSt;
 %syntax: eosSt -> 'if' '(' exprSeq ')' stmt 'else' eosSt;
 
-%syntax: eosSt -> 'do' stmt 'while' '(' exprSeq ')';
+%syntax: fullSt -> 'do' stmt 'while' '(' exprSeq ')';
+%syntax: fullSt -> 'do' stmt 'while' '(' exprSeq ')' ';';
 %syntax: eosSt -> 'while' '(' exprSeq ')' eosSt;
 %syntax: eosSt -> 'for' '(' optExprSeq optExprSeq ')' eosSt;
 %syntax: eosSt -> 'for' '(' exprSeq optExprSeq optExprSeq ')' eosSt;
-%syntax: eosSt -> 'for' '(' varSt optExprSeq ')' eosSt;
-%syntax: eosSt -> 'for' '(' optExprSeq optExprSeq ')' eosSt;
-%syntax: eosSt -> 'for' '(' sExpr 'in' exprSeq ')' eosSt;
+%syntax: eosSt -> 'for' '(' varSt optExprSeq optExprSeq ')' eosSt;
+%syntax: eosSt -> 'for' '(' iExpr 'in' exprSeq ')' eosSt;
 %syntax: eosSt -> 'for' '(' varSt 'in' exprSeq ')' eosSt;
-%syntax: eosSt -> 'for' '(' sExpr 'of' exprSeq ')' eosSt;
+%syntax: eosSt -> 'for' '(' iExpr 'of' exprSeq ')' eosSt;
 %syntax: eosSt -> 'for' '(' varSt 'of' exprSeq ')' eosSt;
 %syntax: eosSt -> 'for' 'await' '(' varSt 'of' exprSeq ')' eosSt;
-%syntax: eosSt -> 'for' 'await' '(' sExpr 'of' exprSeq ')' eosSt;
+%syntax: eosSt -> 'for' 'await' '(' iExpr 'of' exprSeq ')' eosSt;
 
 %syntax: eosSt -> 'with' '(' exprSeq ')' eosSt;
 
 %syntax: eosSt -> ident ':' eosSt;
 
 
-%syntax: varModifier -> 'var';
-%syntax: varModifier -> 'let';
-%syntax: varModifier -> 'const';
+%syntax: varModifier -> 'var ';
+%syntax: varModifier -> 'let ';
+%syntax: varModifier -> 'const ';
 
 %syntax: eosSt -> 'continue';
 %syntax: eosSt -> 'continue' ident;
@@ -163,7 +175,8 @@
 %syntax: eosSt -> 'break' ident;
 
 %syntax: eosSt -> 'return';
-%syntax: eosSt -> 'return' exprSeq;
+%syntax: eosSt -> 'return' eexprSeq;
+%syntax: fullSt -> 'return' fexprSeq;
 
 %syntax: yieldSt -> 'yield' ;
 %syntax: yieldSt -> 'yield' exprSeq;
@@ -182,7 +195,8 @@
 %syntax: caseClause -> 'case' exprSeq ':' stmts;
 %syntax: caseClause -> 'case' exprSeq ':';
 
-%syntax: eosSt -> 'throw' exprSeq;
+%syntax: eosSt -> 'throw' eexprSeq;
+%syntax: fullSt -> 'throw' fexprSeq;
 
 %syntax: trySt -> 'try' block catchProduction;
 %syntax: trySt -> 'try' block catchProduction finallyProduction;
@@ -201,15 +215,15 @@
 %syntax: fBody -> '{' '}';
 %syntax: fBody -> '{' stmts '}';
 
-%syntax: funDecl -> 'async' 'function' '*' ident parList fBody;
-%syntax: funDecl -> 'async' 'function' ident parList fBody;
-%syntax: funDecl -> 'function' '*' ident parList fBody;
-%syntax: funDecl -> 'function' ident parList fBody;
+%syntax: funDecl -> 'async' 'function' '*' idName parList fBody;
+%syntax: funDecl -> 'async' 'function' idName parList fBody;
+%syntax: funDecl -> 'function' '*' idName parList fBody;
+%syntax: funDecl -> 'function' idName parList fBody;
 
 %syntax: clsDecl -> 'class' ident classTail;
 
-%syntax: classTail -> 'extends' sExpr '{' clsElems '}';
-%syntax: classTail -> 'extends' sExpr '{' '}';
+%syntax: classTail -> 'extends' iExpr '{' clsElems '}';
+%syntax: classTail -> 'extends' iExpr '{' '}';
 %syntax: classTail -> '{' clsElems '}';
 %syntax: classTail -> '{' '}';
 
@@ -221,9 +235,9 @@
 
 %syntax: clsElem -> methodAttrs clsElem;
 %syntax: clsElem -> mtdDef;
-%syntax: clsElem -> emptyStatement;
-%syntax: clsElem -> propNm '=' sExpr;
-%syntax: clsElem -> '#' propNm '=' sExpr;
+%syntax: clsElem -> ';';
+%syntax: clsElem -> propNm '=' iExpr;
+%syntax: clsElem -> '#' propNm '=' iExpr;
 
 %syntax: mtdDef0 -> propNm parList fBody;
 %syntax: mtdDef0 -> 'get' propNm '(' ')' fBody;
@@ -237,21 +251,24 @@
 %syntax: parList0 -> parArg ;
 %syntax: parList0 -> parArg ',' parList0;
 
-%syntax: parArg ->  assignable '=' sExpr;
+%syntax: parArg ->  assignable '=' iExpr;
 %syntax: parArg ->  assignable;
 
-%syntax: lastPar -> '...' sExpr;
+%syntax: lastPar -> '...' iExpr;
 
+%syntax: arr -> '[' ']';
+%syntax: arr -> '[' zpts ']';
+%syntax: arr -> '[' zpts elementList ']';
 %syntax: arr -> '[' elementList ']';
 
-%syntax: zptArrayElement -> arrayElement;
-%syntax: zptArrayElement -> ',' zptArrayElement;
-%syntax: elementList -> zptArrayElement;
-%syntax: elementList -> elementList ',' zptArrayElement;
-%syntax: elementList -> elementList ',';
+%syntax: zpts -> ',';
+%syntax: zpts -> ',' zpts;
+%syntax: elementList -> arrayElement;
+%syntax: elementList -> arrayElement zpts;
+%syntax: elementList -> arrayElement zpts elementList;
 
-%syntax: arrayElement -> sExpr;
-%syntax: arrayElement -> '...' sExpr;
+%syntax: arrayElement -> iExpr;
+%syntax: arrayElement -> '...' iExpr;
 
 %syntax: propAssigns -> propAssign ;
 %syntax: propAssigns -> propAssign ',';
@@ -260,116 +277,194 @@
 %syntax: obj -> '{' propAssigns '}';
 %syntax: obj -> '{' '}';
 
-%syntax: propAssign -> propNm ':' sExpr ;
-%syntax: propAssign -> '[' sExpr ']' ':' sExpr;
+%syntax: propAssign -> propNm '=' iExpr ;
+%syntax: propAssign -> propNm ':' iExpr ;
+%syntax: propAssign -> '[' iExpr ']' ':' iExpr;
 %syntax: propAssign -> 'async' '*' propNm parList  fBody;
 %syntax: propAssign -> '*' propNm parList  fBody;
 %syntax: propAssign -> 'async' propNm parList  fBody;
 %syntax: propAssign -> propNm parList  fBody;
 %syntax: propAssign -> 'get' propNm '(' ')' fBody;
 %syntax: propAssign -> 'set' propNm '(' parArg ')' fBody;
-%syntax: propAssign -> sExpr;      
-%syntax: propAssign -> '...' sExpr ;
+%syntax: propAssign -> idName;      
+%syntax: propAssign -> '...' iExpr ;
 
-%syntax: propNm -> ident;
+%syntax: propNm -> idName;
 %syntax: propNm -> string;
 %syntax: propNm -> num;
-%syntax: propNm -> '[' sExpr ']';
+%syntax: propNm -> '[' iExpr ']';
 
 %syntax: argList -> argument;
 %syntax: argList -> argument ',';
-%syntax: argList -> argList ',' argument;
+%syntax: argList -> argument ',' argList;
 %syntax: arguments -> '(' ')';
 %syntax: arguments -> '(' argList ')';
 
-%syntax: argument -> sExpr;
-%syntax: argument -> '...' sExpr;
+%syntax: argument -> iExpr;
+%syntax: argument -> '...' iExpr;
 
-%syntax: exprSeq ->  sExpr ;
-%syntax: exprSeq -> exprSeq ',' sExpr;
+%syntax: eexprSeq ->  ieExpr ;
+%syntax: eexprSeq -> iExpr ',' eexprSeq;
+%syntax: fexprSeq ->  fExpr ;
+%syntax: fexprSeq -> iExpr ',' fexprSeq;
 
-%syntax: sExpr -> lambda                             ;
-%syntax: sExpr -> 'class' ident classTail                 ;
-%syntax: sExpr -> 'class' classTail                            ;
-%syntax: sExpr -> sExpr '[' exprSeq ']'  ;
-%syntax: sExpr -> sExpr '?' '.' '#' identifierName  ;
-%syntax: sExpr -> sExpr '?' '.'  identifierName     ;
-%syntax: sExpr -> sExpr '.' '#' identifierName      ;
-%syntax: sExpr -> sExpr '.' identifierName          ;
-%syntax: sExpr -> sExpr arguments                   ;
-%syntax: sExpr -> 'new' sExpr arguments             ;
-%syntax: sExpr -> 'new' sExpr                       ;
-%syntax: sExpr -> 'new' '.' ident                              ;
-%syntax: sExpr -> sExpr '++'                        ;
-%syntax: sExpr -> sExpr '--'                        ;
-%syntax: sExpr -> 'delete' sExpr                    ;
-%syntax: sExpr -> 'void' sExpr                      ;
-%syntax: sExpr -> 'typeof' sExpr                    ;
-%syntax: sExpr -> '++' sExpr                        ;
-%syntax: sExpr -> '--' sExpr                        ;
-%syntax: sExpr -> '+' sExpr                         ;
-%syntax: sExpr -> '-' sExpr                         ;
-%syntax: sExpr -> '~' sExpr                         ;
-%syntax: sExpr -> '!' sExpr                         ;
-%syntax: sExpr -> 'await' sExpr                     ;
-%syntax: sExpr -> sExpr '**' sExpr       ;
-%syntax: sExpr -> sExpr '*' sExpr        ;
-%syntax: sExpr -> sExpr '/' sExpr        ;
-%syntax: sExpr -> sExpr '%' sExpr        ;
-%syntax: sExpr -> sExpr '+' sExpr        ;
-%syntax: sExpr -> sExpr '-' sExpr        ;
-%syntax: sExpr -> sExpr '??' sExpr       ;
-%syntax: sExpr -> sExpr '<<' sExpr       ;
-%syntax: sExpr -> sExpr '>>' sExpr       ;
-%syntax: sExpr -> sExpr '>>>' sExpr      ;
-%syntax: sExpr -> sExpr '<' sExpr        ;
-%syntax: sExpr -> sExpr '>' sExpr        ;
-%syntax: sExpr -> sExpr '<=' sExpr       ;
-%syntax: sExpr -> sExpr '>=' sExpr       ;
-%syntax: sExpr -> sExpr 'instanceof' sExpr;
-%syntax: sExpr -> sExpr 'in' sExpr   ;   
-%syntax: sExpr -> sExpr '==' sExpr   ;   
-%syntax: sExpr -> sExpr '!=' sExpr   ;   
-%syntax: sExpr -> sExpr '===' sExpr  ;   
-%syntax: sExpr -> sExpr '!==' sExpr  ;   
-%syntax: sExpr -> sExpr '&' sExpr    ;   
-%syntax: sExpr -> sExpr '^' sExpr    ;   
-%syntax: sExpr -> sExpr '|' sExpr    ;   
-%syntax: sExpr -> sExpr '&&' sExpr   ;   
-%syntax: sExpr -> sExpr '||' sExpr   ;   
-%syntax: sExpr -> sExpr '?' sExpr ':' sExpr;
-%syntax: sExpr -> sExpr '=' sExpr                  ;
-%syntax: sExpr -> sExpr asgnOp sExpr   ;
-%syntax: sExpr -> 'import' '(' sExpr ')'                      ;
-%syntax: sExpr -> sExpr TemplateStringLiteral                 ;
-%syntax: sExpr -> yieldSt                                         ;
-%syntax: sExpr -> 'this'                                                 ;
-%syntax: sExpr -> ident                                                  ;
-%syntax: sExpr -> 'super'                                                ;
-%syntax: sExpr -> literal                                                ;
-%syntax: sExpr -> arr                                           ;
-%syntax: sExpr -> obj                                          ;
-%syntax: sExpr -> '(' exprSeq ')'                             ;
+%syntax: exprSeq -> eexprSeq;
+%syntax: exprSeq -> fexprSeq;
 
-%syntax: assignable -> ident;
+%syntax: esExpr -> lambda                  ;
+%syntax: fsExpr -> funDecl                  ;
+%syntax: fsExpr -> clsDecl                 ;
+%syntax: fsExpr -> 'class' classTail       ;
+%syntax: esExpr -> sExpr '[' exprSeq ']'  ;
+%syntax: esExpr -> sExpr '?' '.' '#' idName  ;
+%syntax: esExpr -> sExpr '?' '.'  idName     ;
+%syntax: esExpr -> sExpr '.' '#' idName      ;
+%syntax: esExpr -> sExpr '.' idName          ;
+%syntax: esExpr -> sExpr arguments       ;
+%syntax: esExpr -> 'new' iExpr          ;
+%syntax: esExpr -> 'new' '.' ident       ;
+%syntax: esExpr -> sExpr '++'            ;
+%syntax: esExpr -> sExpr '--'            ;
+%syntax: esExpr -> 'delete' iExpr        ;
+%syntax: esExpr -> 'void' iExpr          ;
+%syntax: esExpr -> 'typeof' iExpr        ;
+%syntax: esExpr -> '++' iExpr            ;
+%syntax: esExpr -> '--' iExpr            ;
+%syntax: esExpr -> sExpr '--' iExpr            ;
+%syntax: esExpr -> '+' iExpr             ;
+%syntax: esExpr -> '-' iExpr             ;
+%syntax: esExpr -> '~' iExpr             ;
+%syntax: esExpr -> '!' iExpr             ;
+%syntax: esExpr -> 'await' iExpr         ;
+%syntax: esExpr -> sExpr '**' iExpr       ;
+%syntax: esExpr -> sExpr '*' iExpr        ;
+%syntax: esExpr -> sExpr '/' iExpr        ;
+%syntax: esExpr -> sExpr '%' iExpr        ;
+%syntax: esExpr -> sExpr '+' iExpr        ;
+%syntax: esExpr -> sExpr '-' iExpr        ;
+%syntax: esExpr -> sExpr '??' iExpr       ;
+%syntax: esExpr -> sExpr '<<' iExpr       ;
+%syntax: esExpr -> sExpr '>>' iExpr       ;
+%syntax: esExpr -> sExpr '>>>' iExpr      ;
+%syntax: esExpr -> sExpr '<' iExpr        ;
+%syntax: esExpr -> sExpr '>' iExpr        ;
+%syntax: esExpr -> sExpr '<=' iExpr       ;
+%syntax: esExpr -> sExpr '>=' iExpr       ;
+%syntax: esExpr -> sExpr 'instanceof' iExpr;
+%syntax: esExpr -> sExpr 'in' iExpr   ;   
+%syntax: esExpr -> sExpr '==' iExpr   ;   
+%syntax: esExpr -> sExpr '!=' iExpr   ;   
+%syntax: esExpr -> sExpr '===' iExpr  ;   
+%syntax: esExpr -> sExpr '!==' iExpr  ;   
+%syntax: esExpr -> sExpr '&' iExpr    ;   
+%syntax: esExpr -> sExpr '^' iExpr    ;   
+%syntax: esExpr -> sExpr '|' iExpr    ;   
+%syntax: esExpr -> sExpr '&&' iExpr   ;   
+%syntax: esExpr -> sExpr '||' iExpr   ;   
+%syntax: esExpr -> sExpr '?' iExpr ':' iExpr;
+%syntax: esExpr -> sExpr '=' iExpr                  ;
+%syntax: esExpr -> sExpr asgnOp iExpr   ;
+%syntax: esExpr -> 'import' '(' iExpr ')'                      ;
+%syntax: esExpr -> sExpr templStr                 ;
+%syntax: esExpr -> yieldSt ;
+%syntax: esExpr -> 'this'  ;
+%syntax: esExpr -> ident   ;
+%syntax: esExpr -> 'super' ;
+%syntax: esExpr -> literal ;
+%syntax: esExpr -> arr     ;
+%syntax: esExpr -> '(' exprSeq ')'   ;
+
+%syntax: sExpr -> esExpr;
+%syntax: sExpr -> fsExpr;
+/////////////////////
+%syntax: ieExpr -> obj;
+%syntax: ieExpr -> lambda                  ;
+%syntax: fExpr -> funDecl                  ;
+%syntax: fExpr -> clsDecl                 ;
+%syntax: fExpr -> 'class' classTail                            ;
+%syntax: ieExpr -> iExpr '[' exprSeq ']'  ;
+%syntax: ieExpr -> iExpr '?' '.' '#' idName  ;
+%syntax: ieExpr -> iExpr '?' '.'  idName     ;
+%syntax: ieExpr -> iExpr '.' '#' idName      ;
+%syntax: ieExpr -> iExpr '.' idName          ;
+%syntax: ieExpr -> iExpr arguments                   ;
+%syntax: ieExpr -> 'new' iExpr                       ;
+%syntax: ieExpr -> 'new' '.' ident                              ;
+%syntax: ieExpr -> iExpr '++'                        ;
+%syntax: ieExpr -> iExpr '--'                        ;
+%syntax: ieExpr -> 'delete' iExpr                    ;
+%syntax: ieExpr -> 'void' iExpr                      ;
+%syntax: ieExpr -> 'typeof' iExpr                    ;
+%syntax: ieExpr -> '++' iExpr                        ;
+%syntax: ieExpr -> '--' iExpr                        ;
+%syntax: ieExpr -> iExpr '--' iExpr                  ;
+%syntax: ieExpr -> '+' iExpr                         ;
+%syntax: ieExpr -> '-' iExpr                         ;
+%syntax: ieExpr -> '~' iExpr                         ;
+%syntax: ieExpr -> '!' iExpr                         ;
+%syntax: ieExpr -> 'await' iExpr                     ;
+%syntax: ieExpr -> iExpr '**' iExpr       ;
+%syntax: ieExpr -> iExpr '*' iExpr        ;
+%syntax: ieExpr -> iExpr '/' iExpr        ;
+%syntax: ieExpr -> iExpr '%' iExpr        ;
+%syntax: ieExpr -> iExpr '+' iExpr        ;
+%syntax: ieExpr -> iExpr '-' iExpr        ;
+%syntax: ieExpr -> iExpr '??' iExpr       ;
+%syntax: ieExpr -> iExpr '<<' iExpr       ;
+%syntax: ieExpr -> iExpr '>>' iExpr       ;
+%syntax: ieExpr -> iExpr '>>>' iExpr      ;
+%syntax: ieExpr -> iExpr '<' iExpr        ;
+%syntax: ieExpr -> iExpr '>' iExpr        ;
+%syntax: ieExpr -> iExpr '<=' iExpr       ;
+%syntax: ieExpr -> iExpr '>=' iExpr       ;
+%syntax: ieExpr -> iExpr 'instanceof' iExpr;
+%syntax: ieExpr -> iExpr 'in' iExpr   ;   
+%syntax: ieExpr -> iExpr '==' iExpr   ;   
+%syntax: ieExpr -> iExpr '!=' iExpr   ;   
+%syntax: ieExpr -> iExpr '===' iExpr  ;   
+%syntax: ieExpr -> iExpr '!==' iExpr  ;   
+%syntax: ieExpr -> iExpr '&' iExpr    ;   
+%syntax: ieExpr -> iExpr '^' iExpr    ;   
+%syntax: ieExpr -> iExpr '|' iExpr    ;   
+%syntax: ieExpr -> iExpr '&&' iExpr   ;   
+%syntax: ieExpr -> iExpr '||' iExpr   ;   
+%syntax: ieExpr -> iExpr '?' iExpr ':' iExpr;
+%syntax: ieExpr -> iExpr '=' iExpr                  ;
+%syntax: ieExpr -> iExpr asgnOp iExpr   ;
+%syntax: ieExpr -> 'import' '(' iExpr ')'                      ;
+%syntax: ieExpr -> iExpr templStr                 ;
+%syntax: ieExpr -> yieldSt                                         ;
+%syntax: ieExpr -> 'this'                                                 ;
+%syntax: ieExpr -> ident                                                  ;
+%syntax: ieExpr -> 'super'                                                ;
+%syntax: ieExpr -> literal                                                ;
+%syntax: ieExpr -> arr                                           ;
+%syntax: ieExpr -> '(' exprSeq ')'                             ;
+%syntax: iExpr -> ieExpr;
+%syntax: iExpr -> fExpr;
+//////////////////////
+
+%syntax: kw0 -> 'let';
+
+%syntax: assignable -> idName;
 %syntax: assignable -> arr;
 %syntax: assignable -> obj;
 
-%syntax: lambda -> funDecl;
+
 %syntax: lambda -> 'async' 'function' '*' parList fBody;
 %syntax: lambda -> 'async' 'function' parList fBody;
 %syntax: lambda -> 'function' '*' parList fBody;
 %syntax: lambda -> 'function' parList fBody;
-%syntax: lambda -> 'async' arrFunPars '=>' arrowFunctionBody;
-%syntax: lambda -> ident '=>' arrowFunctionBody;
-%syntax: lambda -> '(' exprSeq ')' '=>' arrowFunctionBody;
-%syntax: lambda -> '(' exprSeq ',' lastPar ')' '=>' arrowFunctionBody;
+%syntax: lambda -> 'async' arrFunPars '=>' lambdaBody;
+%syntax: lambda -> ident '=>' lambdaBody;
+%syntax: lambda -> '(' ')' '=>' lambdaBody;
+%syntax: lambda -> '(' exprSeq ')' '=>' lambdaBody;
+%syntax: lambda -> '(' lParSeq ')' '=>' lambdaBody;
+%syntax: lParSeq -> '...' iExpr;
+%syntax: lParSeq -> iExpr ',' lParSeq;
 
-//%syntax: arrFunPars -> ident;
-//%syntax: arrFunPars -> parList;
-
-%syntax: arrowFunctionBody -> sExpr;
-%syntax: arrowFunctionBody -> fBody;
+%syntax: lambdaBody -> sExpr;
+%syntax: lambdaBody -> fBody;
 
 %syntax: asgnOp -> '*=';
 %syntax: asgnOp -> '/=';
@@ -388,7 +483,7 @@
 %syntax: literal -> 'true';
 %syntax: literal -> 'false';
 %syntax: literal -> string;
-%syntax: literal -> TemplateStringLiteral;
+%syntax: literal -> templStr;
 %syntax: literal -> RegularExpressionLiteral;
 %syntax: literal -> num;
 %syntax: literal -> bignum;
@@ -404,8 +499,8 @@
 %syntax: bignum -> BigOctLit;
 %syntax: bignum -> BigBinLit;
 
-%syntax: identifierName -> ident;
-%syntax: identifierName -> keyword;
+%syntax: idName -> ident;
+%syntax: idName -> keyword;
 
 %syntax: keyword -> 'null';
 %syntax: keyword -> 'true';
@@ -444,7 +539,9 @@
 %syntax: keyword -> 'export';
 %syntax: keyword -> 'import';
 %syntax: keyword -> 'implements';
-%syntax: keyword -> 'let';
+%syntax: keyword -> 'let ';
+%syntax: keyword -> 'set';
+%syntax: keyword -> 'get';
 %syntax: keyword -> 'private';
 %syntax: keyword -> 'public';
 %syntax: keyword -> 'interface';

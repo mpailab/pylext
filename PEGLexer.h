@@ -26,7 +26,7 @@ struct Location {
 };
 
 struct Token {
-	int type = 0;
+	int type = 0, type2 = -1;
 	Location loc;
 	Substr text;
 	string str()const { return string(text.b, text.len); }
@@ -98,19 +98,23 @@ struct PEGLexer {
 			const int* n = lex->cterms(s, p0);
 			int m = 0, end = 0;
 			int imax = -1;
-			int best = -1;
+			int best = -1, b1 = -1;
 			for (int ni = 0; ni < (int)lex->tokens.size(); ni++) {
 				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
 				if (end > imax) {
 					best = ni;
 					m = 1;
 					imax = end;
-				} else if (end == imax)m++;
+				} else if (end == imax) {
+					m++; b1 = ni;
+				}
 			}
 			if (n && p0 >= imax) {
 				auto beg = cpos;
 				shift(p0 - pos);
 				curr = Token{ *n,{ beg,cpos }, Substr{ s + bpos, p0 - bpos } };
+				if (p0 == imax && best >= 0 && m<2)
+					curr.type2 = lex->tokens[best].second;
 			} else {
 				if (best < 0) {
 					Pos ccpos = shifted(lex->packrat.errpos);
@@ -118,7 +122,7 @@ struct PEGLexer {
 						"PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
 					throw SyntaxError(msg);
 				} else if (m > 1) {
-					throw SyntaxError("Lexer conflict: `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens");
+					throw SyntaxError("Lexer conflict: `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: "+lex->_ten[best]+" or "+lex->_ten[b1]);
 				}
 				auto beg = cpos;
 				shift(end - bpos);
@@ -172,13 +176,13 @@ struct PEGLexer {
 	const Token & tok() {
 		return *curr;
 	}
-	void addPEGRule(const string &nt, const string &rhs, int ext_num) {
+	void addPEGRule(const string &nt, const string &rhs, int ext_num, bool to_begin = false) {
 		int errpos = -1;
 		string err;
 		PEGExpr e = readParsingExpr(&packrat, rhs, &errpos, &err);
 		if (errpos >= 0)
 			throw SyntaxError("Cannot parse PEG rule `"s + rhs + "` at position "+to_string(errpos)+": "+err);
-		packrat.add_rule(nt, e);
+		packrat.add_rule(nt, e, to_begin);
 		if (ext_num)declareNCToken(nt,ext_num);
 	}
 	void declareNCToken(const string& nm, int num) {

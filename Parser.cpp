@@ -3,7 +3,8 @@
 #include <sstream>
 #include "Parser.h"
 
-const bool debug_pr = false;
+bool debug_pr = false;
+void setDebug(bool b) { debug_pr = b; }
 ParseNode termnode(const Token& t) {
 	ParseNode res;
 	res.nt = t.type;
@@ -15,12 +16,12 @@ ParseNode termnode(const Token& t) {
 bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) {
 	int sz = (int)s.v.size(), j = 0, k = 0;
 	bool r = false;
-	for (int i = 0; i < sz; i++) {
+	for (int i = 0; i < sz; i++) { // Для каждого слоя в текущем состоянии ищем, по какому ребру можно пройти по символу t
 		auto &ed = term ? s.v[i].v->termEdges : s.v[i].v->ntEdges;
-		auto it = ed.find(t);
-		if ((it != ed.end())&&it->second->phi.intersects(s.v[i].M)) {
-			s.v[i].sh = it->second.get();
-			r = true;
+		auto it = ed.find(t); // TODO: заменить unordered_map на структуру с битовыми масками, по крайней мере, для нетерминалов
+		if ((it != ed.end())&&it->second->phi.intersects(s.v[i].M)) { // Проверяем, проходит ли через следующую вершину хотябы одно правило для текущего множества нетерминалов s.v[i].M
+			s.v[i].sh = it->second.get(); // Помечаем, что в i-м слое можно идти в следующую вершину
+			r = true; // Помечаем, что сдвиг по нетерминалу t возможен
 			k++;
 		} else s.v[i].sh = 0;
 	}
@@ -32,13 +33,14 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 		sv = &sv0;
 	}
 	res.v.resize(k + 1);
+	res.v[k].M.clear();
 	for (int i = 0; i < sz; i++) {
-		if ((*sv)[i].sh) {
-			auto *x = res.v[j].v = (*sv)[i].sh;
+		if ((*sv)[i].sh) { // Если переход возможен в i-м слое
+			auto *x = res.v[j].v = (*sv)[i].sh; // Добавляем в новый фрейм соответствующий слой
 			res.v[j].M = (*sv)[i].M;
 			for (auto &nn : x->ntEdges)
 				if (nn.second->phi.intersects((*sv)[i].M))
-					res.v[k].M |= g.tf.fst[nn.first];
+					res.v[k].M |= g.tf.fst[nn.first]; // Добавляем в новый слой те нетерминалы, которые могут начинаться в данной позиции в i-м слое
 			j++;
 		}
 	}
@@ -48,7 +50,8 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 	return true;
 }
 
-string prstack(GrammarState& g, SStack& ss, PStack& sp);
+
+string prstack(GrammarState& g, SStack& ss, PStack& sp, int k=0);
 
 bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 	LR0State *s = &ss.s.back();
@@ -78,7 +81,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 			for (auto &p : s->v) {
 				auto it = p.v->ntEdges.find(A);
 				if (it == p.v->ntEdges.end() || !it->second->phi.intersects(p.M))continue;
-				if (!it->second->termEdges.count(a)) {
+				if (!it->second->termEdges.count(a) || !it->second->termEdges[a]->phi.intersects(p.M)) {
 					bool ok = false;
 					for (auto &q : it->second->ntEdges) {
 						if (q.second->phi.intersects(p.M) && g.tf.fst[q.first].intersects(nn)) {
@@ -100,9 +103,9 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 			int k;
 			for (int j = i; j > 0; j = k) {
 				const NTTreeNode *u = 0;
-				for (auto &p : B[j]) {
+				for (auto &p : B[j]) { // Перебор по обратным стрелкам из j-го фрейма вверх. Смотрим, по какая из стрелок соответствует свёртке нетерминала A0
 					if (p.M.has(A0)) {
-						if (u)throw RRConflict("at "+g.lex.curr.cpos.str()+" conflict : 2 different ways to reduce by "+g.ts[a]+" : 2",prstack(g,ss,sp));
+						if (u)throw RRConflict("at "+g.lex.curr.cpos.str()+" conflict : 2 different ways to reduce NT="+g.nts[A0]+" : St["+to_string(j)+"] from St["+to_string(k)+"] or St["+to_string(p.i)+"]",prstack(g,ss,sp,j));
 						u = p.v;
 						k = p.i;
 					}
@@ -119,7 +122,11 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 					for (int A : F[k]) {
 						if ((u0 = u->nextN(A))) {
 							if (int r = tinv.intersects(u0->finalNT, &Bb)) {
-								if (r > 1 || A1 >= 0) throw RRConflict("at "+g.lex.curr.cpos.str()+" conflict : 2 different ways to reduce by "+g.ts[a]+": 4", prstack(g, ss, sp));
+								if (r > 1 || A1 >= 0) {
+									if(A1 >= 0) throw RRConflict("at " + g.lex.curr.cpos.str() + " RR-conflict(4) : 2 different ways to reduce by " + g.ts[a] + ": NT = "+g.nts[A1]+" or "+g.nts[A], prstack(g, ss, sp,k));
+									auto v = tinv & u0->finalNT; vector<int> vv(v.begin(), v.end());
+									throw RRConflict("at " + g.lex.curr.cpos.str() + " RR-conflict(5) : 2 different ways to reduce by " + g.ts[a] + ": NT = " + g.nts[vv[0]] + " or " + g.nts[vv[1]], prstack(g, ss, sp, k));
+								}
 								A1 = A;
 								u1 = u0;
 							}
@@ -213,13 +220,13 @@ ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, PSta
 	return os<<"}";
 }
 
-string prstack(GrammarState&g, SStack&ss, PStack &sp) {
+string prstack(GrammarState&g, SStack&ss, PStack &sp, int k) {
 	stringstream s;
-	for (int i = -10; i < -1; i++) {
+	for (int i = -k-10; i < -1; i++) {
 		if ((int)ss.s.size() + i >= 0)
-			printstate(s << "  St[" << (-1 - i) << "] = ", g, ss.s[ss.s.size() + i]) << "\n";
+			printstate(s << (i==-k-1 ? "--> ": "    ") << "St[" << (-1 - i) << "] = ", g, ss.s[ss.s.size() + i]) << "\n";
 	}
-	printstate(s << "  Top   = ", g, ss.s.back(), &sp) << "\n";
+	printstate(s << (!k ? "--> " : "    ") << "Top   = ", g, ss.s.back(), &sp) << "\n";
 	return s.str();
 }
 
@@ -232,10 +239,11 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 	s0.v[0].v = &g.root;
 	ss.s.emplace_back(std::move(s0));
 	for(g.lex.start(text); !g.lex.atEnd();) {
-		const Token& t = g.lex.tok();
+		Token t = g.lex.tok();
 		if (debug_pr) {
 			std::cout << "token of type " << g.ts[t.type] <<": `" << t.str() << "` at " << t.loc << endl;
 		}
+retry:
 		if (shift(g, ss.s.back(), s0, t.type, true)) {
 			if (debug_pr) {
 				std::cout << "Shift by " << g.ts[t.type] << ": ";
@@ -247,13 +255,22 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 		} else {
 			bool r = reduce(g, ss, sp, t.type);
 			if (!r) {
-				stringstream s;
+				/*stringstream s;
 				for (int i = -4; i <= -1; i++) {
 					if((int)ss.s.size()+i>=0)
 						printstate(s<<"  St["<<(1-i)<<"] = ", g, ss.s[ss.s.size()+i])<<"\n";
 				}
-				printstate(s<<"  Top   = ", g, ss.s.back(), &sp)<<"\n";
-				throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t.type] + " = `" + t.str() + "` at " + t.loc.beg.str(), s.str());
+				printstate(s<<"  Top   = ", g, ss.s.back(), &sp)<<"\n";*/
+				if (t.type2 >= 0) {
+					t.type = t.type2;
+					t.type2 = -1;
+					if (debug_pr) {
+						std::cout << "Retry with same token of type " << g.ts[t.type] << endl;
+					}
+					goto retry;
+				}
+				t = g.lex.tok();
+				throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t.type] + " = `" + t.str() + "` at " + t.loc.beg.str(), prstack(g,ss,sp));
 			}
 			if (debug_pr) {
 				std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
@@ -261,7 +278,7 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 		}
 	}
 	if (!reduce(g, ss, sp, 0))
-		throw SyntaxError("Unexpected end of file");
+		throw SyntaxError("Unexpected end of file",prstack(g,ss,sp));
 	Assert(ss.s.size() == 2);
 	Assert(sp.s.size() == 1);
 	return move(sp.s[0]);
@@ -278,12 +295,12 @@ void GrammarState::addToken(const string & term, const string & re) {
 	lex.addNCToken(ts[term], regex(re));
 }*/
 
-void GrammarState::addLexerRule(const string & term, const string & rhs, bool tok) {
+void GrammarState::addLexerRule(const string & term, const string & rhs, bool tok, bool to_begin) {
 	if (debug_pr)
 		std::cout << "!!! Add lexer rule : " << term << " <- " << rhs << "\n";
 	//lex.addNCToken(ts[term], regex(re));
 	int n = tok ? ts[term] : 0;
-	lex.addPEGRule(term, rhs, n);
+	lex.addPEGRule(term, rhs, n, to_begin);
 }
 
 bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, SemanticAction act) {
@@ -382,7 +399,7 @@ bool GrammarState::addRule(const CFGRule & rule) {
 	return true;
 }
 
-bool GrammarState::addLexerRule(const ParseNode * tokenDef, bool tok) {
+bool GrammarState::addLexerRule(const ParseNode * tokenDef, bool tok, bool to_begin) {
 	if (tokenDef->ch.size() != 2) {
 		error("token definition must have 2 nodes");
 		return false;
@@ -391,7 +408,7 @@ bool GrammarState::addLexerRule(const ParseNode * tokenDef, bool tok) {
 		error("token definition cannot contain nonterminals");
 		return false;
 	}
-	addLexerRule(tokenDef->ch[0].term, (tokenDef->ch[1].term), tok);
+	addLexerRule(tokenDef->ch[0].term, (tokenDef->ch[1].term), tok, to_begin);
 	return true;
 }
 

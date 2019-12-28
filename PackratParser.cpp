@@ -2,11 +2,12 @@
 #include "PackratParser.h"
 #include "Exception.h"
 
-void PackratParser::add_rule(const string & nt, const PEGExpr & e) {
+void PackratParser::add_rule(const string & nt, const PEGExpr & e, bool to_begin) {
 	int a = _en[nt];
 	if (a >= len(rules))rules.resize(a + 1);
 	e.id = _een[&e];
-	rules[a] /= e;
+	if (to_begin)rules[a] = e / rules[a];
+	else rules[a] /= e;
 }
 
 void PackratParser::setText(const string & t) {
@@ -178,7 +179,7 @@ PEGExpr readsym(const char *&s, const char *&errpos, string *err) {
 		return{};
 	}
 	++s;
-	bitset<256> res;
+	bitset<256> res(0ULL);
 	bool val = true;
 	if (*s == '^') {
 		res.flip();

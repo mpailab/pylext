@@ -163,6 +163,7 @@ struct dvector {
 	}
 };
 
+void setDebug(bool b);
 struct GrammarState {
 	//unordered_map<int, vector<int>> ntFirstMap; // По входному нетерминалу возвращает список всех нетерминалов, с которых данный нетерминал может начинаться
 	//unordered_map<int, vector<int>> tFirstMap;  // По входному нетерминалу возвращает список всех терминалов, с которых данный нетерминал может начинаться
@@ -203,12 +204,12 @@ struct GrammarState {
 	vector<pair<Pos, string>> _err;
 	void error(const string &err);
 
-	void addLexerRule(const string& term, const string& re, bool tok=false);
+	void addLexerRule(const string& term, const string& re, bool tok=false, bool to_begin = false);
 	void addToken(const string& term, const string& re) { addLexerRule(term, re, true); }
 	bool addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction());
 	bool addRule(const CFGRule &r);
 
-	bool addLexerRule(const ParseNode *tokenDef, bool tok);
+	bool addLexerRule(const ParseNode *tokenDef, bool tok, bool to_begin=false);
 	bool addRule(const ParseNode *ruleDef);
 	GrammarState() {
 		ts[""];  // Резервируем нулевой номер терминала, чтобы все терминалы имели ненулевой номер.

@@ -59,6 +59,6 @@ struct TrieM {
 				pos = p1+1;
 			}
 		}
-		return curr->final ? &curr->val : 0;
+		return res;// curr->final ? &curr->val : 0;
 	}
 };

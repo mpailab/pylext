@@ -43,8 +43,13 @@ struct PEGExpr {
 	PEGExpr& operator *=(PEGExpr &&e) {
 		if (type == Empty)return *this = move(e);
 		if (type == Concat) {
-			if (subexprs.back().type == Terminal&&e.type == Terminal)
-				subexprs.back().t_mask |= e.t_mask;
+			if (e.type == Concat) {
+				if (e.subexprs[0].type == String && subexprs.back().type == String) {
+					subexprs.back().s += e.subexprs[0].s;
+					subexprs.insert(subexprs.end(), e.subexprs.begin() + 1, e.subexprs.end());
+				} else subexprs.insert(subexprs.end(), e.subexprs.begin(), e.subexprs.end());
+			} else if (subexprs.back().type == String && e.type == String)
+					subexprs.back().s += e.s;
 			else subexprs.emplace_back(move(e));
 		} else if (type == Terminal&&e.type == Terminal) {
 			t_mask |= e.t_mask;
@@ -208,7 +213,7 @@ struct PackratParser {
 	}
 	string text;
 	//int pos;
-	void add_rule(const string &nt, const PEGExpr &e);
+	void add_rule(const string &nt, const PEGExpr &e, bool to_begin = false);
 	PackratParser() :_een(1024,HashExpr(this)) {}
 	void setText(const string &t);
 	int parse(const PEGExpr&e, int pos);

@@ -75,13 +75,19 @@ using namespace filesystem;
 int testDir(GrammarState &g, const string& dir, const string &logfile, const string &failed = "failed.txt") {
 	ofstream log(logfile);
 	ofstream fail(failed);
-	int total = 0, success = 0;
+	int total = 0, success = 0, skip = 0;
+	//setDebug(true);
 	for (auto it = directory_iterator(path(dir)); it != directory_iterator(); ++it) {
 		const directory_entry& e = *it;
 		if (!e.is_regular_file())continue;
 		try {
-			total++;
 			string text = loadfile(e.path().string());
+			bool unicode = false;
+			for (char c : text)if (c <= 0)unicode = true;
+			if (unicode) {
+				skip++;
+				continue;
+			} else total++;
 			Timer tm;
 			tm.start();
 			parse(g, text);
@@ -102,7 +108,9 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 		}
 		log.flush();
 	}
-	cout << "=========================================\n\n" << success << " / " << total << " (" << success * 100. / total << "%) passed\n"<<(total-success)<<" failed\n\n";
+	cout << "=========================================\n\n";
+	if (skip) cout << skip << " contain unicode or zero symbols and skipped\n";
+	cout << success << " / " << total << " (" << success * 100. / total << "%) passed\n" << (total - success) << " failed\n\n";
 	return 0;
 }
 
@@ -119,8 +127,8 @@ int main(int argc, char*argv[]) {
 		st.addToken("ident", "[_a-zA-Z][_a-zA-Z0-9]*");
 		st.addLexerRule("peg_concat_expr", "ws (([&!] ws)* ws ('(' peg_expr ws ')' / '[' ('\\\\' [^\\n] / [^\\]\\n])* ']' / sq_string / dq_string / ident) (ws [*+?])*)+");
 		st.addLexerRule("peg_expr", "ws peg_concat_expr (ws '/' ws peg_concat_expr)*");
-		st.addToken("sq_string", ("'\\'' ('\\\\' [^\\n] / [^\\n'])* '\\''"));
-		st.addToken("dq_string", ("(ws '\"' ('\\\\' [^\\n] / [^\\n\"])* '\"')+"));
+		st.addToken("sq_string", ("'\\'' ('\\\\' [^] / [^\\n'])* '\\''"));
+		st.addToken("dq_string", ("(ws '\"' ('\\\\' [^] / [^\\n\"])* '\"')+"));
 		st.addToken("peg_expr_def", "'`' ws peg_expr ws '`'");
 		//st.addToken("ident", ("\\b[_[:alpha:]]\\w*\\b"));
 		//st.addToken("token_def", ("\\(\\?\\:[^#\\n]*\\)(?=\\s*($|#))"));
@@ -132,14 +140,15 @@ int main(int argc, char*argv[]) {
 		addRule(st, "rule_rhs -> rule_symbol");
 		addRule(st, "rule_rhs -> rule_rhs rule_symbol");
 
-		addRule(st, "new_syntax -> '%' 'syntax' ':' ident '->' rule_rhs ';'", [](GrammarState*g, ParseNode&n) { g->addRule(&n); });
+		addRule(st, "new_syntax_expr -> '%' 'syntax' ':' ident '->' rule_rhs", [](GrammarState*g, ParseNode&n) { g->addRule(&n); });
 	
-		addRule(st, "new_syntax -> '%' 'token' ':' ident '=' peg_expr_def ';'", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
-		addRule(st, "new_syntax -> '%' 'token' ':' ident '/=' peg_expr_def ';'", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
+		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
+		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
+		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '\\=' peg_expr_def", [](GrammarState* g, ParseNode& n) { g->addLexerRule(&n, true,true); });
 
-		addRule(st, "new_syntax -> '%' 'pexpr' ':' ident '=' peg_expr_def ';'", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
-		addRule(st, "new_syntax -> '%' 'pexpr' ':' ident '/=' peg_expr_def ';'", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
-
+		addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
+		addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
+		addRule(st, "new_syntax -> new_syntax_expr ';'");
 		addRule(st, "text -> new_syntax text", [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); });
 		//addRule(st, "text -> new_rule text", [](GrammarState*, ParseNode&n) {n = move(n[1]); });
 
@@ -171,7 +180,9 @@ int main(int argc, char*argv[]) {
 		}
 		//st.print_rules(cout);
 #ifndef _DEBUG
-	} catch (Exception &e) {
+	} catch (SyntaxError &ex) {
+		cout << "Error: " << ex.what() << "\n" << ex.stack_info << "\n";
+	} catch (Exception & e) {
 		cout << "Exception: " << e.what() << "\n";
 	}
 #endif
