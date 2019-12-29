@@ -3,8 +3,134 @@
 #include <memory>
 #include <bitset>
 #include <unordered_map>
+#include <iostream>
 #include "common.h"
+#include "Exception.h"
 using namespace std;
+
+template<class K, class V, class H=std::hash<K>>
+struct PosHash {
+	struct Elem {
+		int next = 0;
+		/*union {
+			int h;
+			int prev = 0;
+		};*/
+		V val;
+		K key;
+	};
+	H h;
+	vector<Elem> _elems;
+	V _def = V();
+	int _size=0, _nbin = 0, _mask = 0, _free = 0;
+	int _coef = 2;
+	//unordered_map<K, V, H> _check;
+	void clear() {
+		//_check.clear();
+		for (int i = 0; i < _nbin; i++)
+			_elems[i].next = -1;
+		for (int i = _nbin; i < 2 * _nbin - 1; i++)
+			_elems[i].next = i + 1;
+		_mask = _nbin - 1;
+		_free = _nbin;
+		_size = 0;
+	}
+	void rehash() {
+		int sz = 1;
+		while (sz < (_size+1) * _coef)sz <<= 1;
+		if (sz == _nbin)return;
+		vector<Elem> old = move(_elems);
+		_elems.clear();
+		_nbin = sz;
+		_elems.resize(2 * sz);
+		for (int i = 0; i < sz; i++)
+			_elems[i].next = -1;
+		for (int i = sz; i < 2*sz-1; i++)
+			_elems[i].next = i + 1;
+		_elems[2 * sz - 1].next = -1;
+		_mask = _nbin - 1;
+		int oldfree = _free;
+		_free = sz;
+		_size = 0;
+		for (int i = 0; i < oldfree; i++) {
+			if (old[i].next >= 0)
+				_insert(old[i].key, old[i].val);
+		}
+	}
+	Elem& _insert(K k, V v) {
+		struct Counter {
+			int cnt = 0;
+			~Counter() {
+				cout << "Count = " << cnt << endl;
+			}
+			void operator++() { cnt++; }
+		};
+		//static Counter c;
+		//++c;
+		if (_size*_coef >= _nbin)rehash();
+		int hh = h(k)&_mask;
+		if (_elems[hh].next < 0) {
+			_size++; 
+			_elems[hh].key = k;
+			_elems[hh].val = v;
+			_elems[hh].next = 0;
+			return _elems[hh];
+		}
+		for(;;hh=_elems[hh].next) {
+			if (_elems[hh].key == k)return _elems[hh];
+			if (!_elems[hh].next) break;
+		}
+		_size++;
+		hh = _elems[hh].next = _free;
+		_free = _elems[hh].next;
+		_elems[hh].key = k;
+		_elems[hh].val = v;
+		_elems[hh].next = 0;
+		return _elems[hh];
+	}
+	bool insert(K k, V v) {
+		Elem& e = _insert(k,v);
+		//Assert((e.next < 0) == _check.insert(make_pair(k, v)).second);
+		if (e.next < 0) {
+			//_check[k] = v; //Check
+			e.next = 0;
+			e.val = v;
+			return true;
+		} else return false;
+	}
+	V& operator[](K k) {
+		Elem& e = _insert(k,_def);
+		//_check[k]=_def;
+		//Assert(_check.size() == _size);
+		//Assert(_check.insert(make_pair(k, _def)).first->second == e.val);
+		return e.val;
+	}
+	const V& find(K k)const{
+		int hh = h(k) & _mask;
+		if (_elems[hh].next < 0) {
+			//Assert(!_check.count(k));
+			return _def;
+		}
+		for (;; hh = _elems[hh].next) {
+			if (_elems[hh].key == k) {
+				//Assert(_check.count(k));//&& _check.find(k)->second == _elems[hh].val);
+				return _elems[hh].val;
+			}
+			if (!_elems[hh].next) break;
+		}
+		//Assert(!_check.count(k));
+		return _def;
+	}
+	const V* findp(K k)const {
+		int hh = h(k) & _mask;
+		if (_elems[hh].next < 0) return 0;
+		for (;; hh = _elems[hh].next) {
+			if (_elems[hh].key == k)return &_elems[hh].val;
+			if (!_elems[hh].next) break;
+		}
+		return 0;
+	}
+};
 
 struct PEGExpr {
 	enum Type {
@@ -27,17 +153,75 @@ struct PEGExpr {
 	//size_t min = 0, max = -1;
 	int num = 0;
 	mutable int id=-1;
+	int _cmplx = -1;
+	void _updatecmplx(const vector<PEGExpr> *v = 0, bool rec = false) {
+		if (type != Terminal) {
+			t_mask.reset();
+			t_mask.flip();
+		}
+		if (rec) {
+			for (auto& e : subexprs)
+				e._updatecmplx(v, true);
+		}
+		switch (type) {
+		case Terminal:
+			_cmplx = 1;
+			return;
+		case String:
+			_cmplx = (int)s.size();
+			t_mask.reset();
+			t_mask[(unsigned char)s[0]] = true;
+			return;
+		case NonTerminal:
+			if (v) {
+				if (num < (int)v->size()) {
+					_cmplx = (*v)[num]._cmplx;
+					t_mask = (*v)[num].t_mask;
+				} else t_mask.reset(), _cmplx = 1;
+			}
+			else _cmplx = -1;
+			return;
+		case Many1:
+			t_mask = subexprs[0].t_mask;
+		case Many:
+			_cmplx = -1;
+			return;
+		case OrdAlt:
+			t_mask = subexprs[0].t_mask;
+			for (auto& e : subexprs)
+				t_mask |= e.t_mask;
+			break;
+		case Concat:
+			if ((subexprs[0].type == Opt || subexprs[0].type == Many) && subexprs.size() > 1) {
+				t_mask = subexprs[0].subexprs[0].t_mask | subexprs[1].t_mask;
+			} else if (subexprs[0].type == NegLookahead) t_mask = subexprs[1].t_mask;
+			else if (subexprs[0].type == PosLookahead)t_mask = subexprs[0].t_mask & subexprs[1].t_mask;
+			else t_mask = subexprs[0].t_mask;
+			break;
+		case PosLookahead:
+			t_mask = subexprs[0].t_mask;
+			break;
+		default:;
+		}
+		_cmplx = 1;
+		for (auto& c : subexprs)
+			_cmplx = ((_cmplx < 0 || c._cmplx < 0) ? -1 : _cmplx + c._cmplx);
+	}
 	PEGExpr() = default;
-	PEGExpr(const string &ss):type(String),s(ss) {}
-	PEGExpr(const bitset<256> & bs, const string&text = "") :type(Terminal), t_mask(bs), s(text) {}
-	PEGExpr(Type t, vector<PEGExpr> && l, const string&text = ""):type(t),subexprs(move(l)),s(text) {}
+	PEGExpr(const string &ss):type(String),s(ss),_cmplx((int)ss.size()) {}
+	PEGExpr(const bitset<256> & bs, const string&text = "") :type(Terminal), t_mask(bs), s(text),_cmplx(1) {}
+	PEGExpr(Type t, vector<PEGExpr> && l, const string&text = ""):type(t),subexprs(move(l)),s(text) {
+		_updatecmplx();
+	}
 	PEGExpr& operator /=(PEGExpr &&e) {
 		if (type == Empty)return *this = move(e);
-		if (type == OrdAlt)subexprs.emplace_back(move(e));
-		else {
+		if (type == OrdAlt) {
+			subexprs.emplace_back(move(e));
+		} else {
 			subexprs = { std::move(*this), std::move(e) };
 			type = OrdAlt;
 		}
+		_updatecmplx();
 		return *this;
 	}
 	PEGExpr& operator *=(PEGExpr &&e) {
@@ -59,6 +243,7 @@ struct PEGExpr {
 			subexprs = { std::move(*this), std::move(e) };
 			type = Concat;
 		}
+		_updatecmplx();
 		return *this;
 	}
 	PEGExpr& operator /=(const PEGExpr &e) { return (*this) /= PEGExpr(e); }
@@ -174,7 +359,9 @@ struct PackratParser {
 			res += (res.empty() ? "" : ", ") + e->str();
 		return res;
 	}
-	vector<int*> _manypos;
+	bool _updated=true;
+	int _ops = 0;
+	vector<int> _manypos;
 	struct HashExpr {
 		mutable PackratParser *p = 0;
 		HashExpr(PackratParser *ps) :p(ps) {}
@@ -203,8 +390,10 @@ struct PackratParser {
 	Enumerator<const PEGExpr*, unordered_map, HashExpr,EqExpr> _een;
 	vector<PEGExpr> rules;
 	//vector<vector<int>> accepted;
-	unordered_map<uint64_t, int> acceptedh;
-	unordered_map<uint64_t, int> manyh;
+	PosHash<uint64_t, int> acceptedh;
+	PosHash<uint64_t, int> manyh;
+	//unordered_map<uint64_t, int> acceptedh;
+	//unordered_map<uint64_t, int> manyh;
 	int &hmany(uint32_t pos, uint32_t id) {
 		return manyh[(uint64_t(pos) << 32) | id];
 	}
@@ -213,6 +402,7 @@ struct PackratParser {
 	}
 	string text;
 	//int pos;
+	void update_props();
 	void add_rule(const string &nt, const PEGExpr &e, bool to_begin = false);
 	PackratParser() :_een(1024,HashExpr(this)) {}
 	void setText(const string &t);

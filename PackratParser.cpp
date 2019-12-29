@@ -2,12 +2,22 @@
 #include "PackratParser.h"
 #include "Exception.h"
 
+void PackratParser::update_props() {
+	for(int i=0; i<10; i++)
+		for (auto& r : rules)
+			r._updatecmplx(&rules, true);
+	_updated = true;
+	_ops = 0;
+}
+
 void PackratParser::add_rule(const string & nt, const PEGExpr & e, bool to_begin) {
 	int a = _en[nt];
 	if (a >= len(rules))rules.resize(a + 1);
 	e.id = _een[&e];
 	if (to_begin)rules[a] = e / rules[a];
 	else rules[a] /= e;
+	_updated = false;
+	_ops = 0;
 }
 
 void PackratParser::setText(const string & t) {
@@ -19,8 +29,10 @@ void PackratParser::setText(const string & t) {
 }
 
 static constexpr int iterMemStart = 8; // Ќачинаем запоминать после 8-го прочитанного элемента 
+static constexpr int cmplxThresh = 16; // «апоминаем выражение со сложностью выше этого значени€ 
 
 int PackratParser::parse0(const PEGExpr & e, int pos) {
+	if (!_updated)_ops++;
 	switch (e.type) {
 	case PEGExpr::OrdAlt:
 		for (auto &e1 : e.subexprs)
@@ -57,14 +69,14 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 				for (; pos<=lastpos; pos++) {
 					if (!m[(unsigned char)text[pos - 1]]) break;
 					if (!(pos & (termMemFreq - 1))) {
-						int& aa = hmany(pos, id);
-						if (aa) {
+						//int& aa = hmany(pos, id);
+						if (int aa = hmany(pos,id)) {
 							pos = aa; break;
 						}
-						_manypos.push_back(&aa);
+						_manypos.push_back(pos);// &aa);
 					}
 				}
-				for (auto j = mp; j < _manypos.size(); j++)*_manypos[j] = pos;
+				for (auto j = mp; j < _manypos.size(); j++)hmany(_manypos[j],id) = pos;
 				hmany((p0 + termMemFreq - 1) & ~(termMemFreq - 1), id) = pos;
 				_manypos.resize(mp);
 			}
@@ -82,16 +94,20 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 			}
 			if (i == iterMemStart) {
 				auto mp = _manypos.size();
-				for (;;) {
-					int& aa = hmany(pos, e1.id);
-					if (aa) { pos = aa; break; }
+				for (;;i++) {
+					if (i % iterMemStart == 0) {
+						if (int aa = hmany(pos, e1.id)) { pos = aa; break; }
+					}
+					//int& aa = hmany(pos, e1.id);
+					//if (aa) { pos = aa; break; }
 					if (int a = parse(e1, pos)) {
-						_manypos.push_back(&aa);
+						if(i/iterMemStart%iterMemStart==0)
+							_manypos.push_back(pos);// &aa);
 						if (a == pos) break;
 						pos = a;
 					} else break;
 				}
-				for (auto j = mp; j < _manypos.size(); j++)*_manypos[j] = pos;
+				for (auto j = mp; j < _manypos.size(); j++)hmany(_manypos[j], e1.id) = pos;
 				hmany(p0, e1.id) = pos;
 				_manypos.resize(mp);
 			}
@@ -116,6 +132,15 @@ int PackratParser::parse(const PEGExpr & e, int pos) {
 	return r;
 }
 int PackratParser::parse(int nt, int pos) {
+	if (!_updated) { 
+		if (_ops > rules.size() * 100)
+			update_props(); 
+	} else if (!rules[nt].t_mask[(unsigned char)text[pos - 1]])
+		return -1;
+	if (rules[nt]._cmplx <= cmplxThresh) {
+		int r = parse(rules[nt], pos);
+		return r ? r : -1;
+	}
 	int &a = accepted(pos, nt);
 	if (a == -2)throw Exception("Left recursion not allowed in PEG, detected at position "+to_string(pos)+" in nonterminal "+_en[nt]);
 	if (a)return a;
@@ -126,7 +151,7 @@ int PackratParser::parse(int nt, int pos) {
 	//	accepted[nt].resize(nt + 1,-1);
 	//if (int a = accepted[pos][nt]) return a;
 	int r = parse(rules[nt], pos);
-	return a = (r ? r : -1);
+	return accepted(pos,nt) = (r ? r : -1);
 }
 
 bool PackratParser::parse(int nt, int pos, int &end, string * res) {
