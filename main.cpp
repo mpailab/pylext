@@ -78,6 +78,7 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 	ofstream fail(failed);
 	int total = 0, success = 0, skip = 0;
 	//setDebug(true);
+	cout << "\n=========================================================================\n";
 	for (auto it = directory_iterator(path(dir)); it != directory_iterator(); ++it) {
 		const directory_entry& e = *it;
 		if (!e.is_regular_file())continue;
@@ -93,8 +94,9 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 			tm.start();
 			parse(g, text);
 			double t = tm.stop();
-			log  << e.path().filename() << ":\t Success :\t time = " << t << "\n";
-			cout << e.path().filename() << ":\t Success :\t time = " << t << "\n";
+			cout << setprecision(3);
+			log  << e.path().filename() << ":\t Success :\t time = " << t << "\t(" << text.size()/t*1e-6 << " MB/s)\n";
+			cout << e.path().filename() << ":\t Success :\t time = " << t << "\t(" << text.size() / t * 1e-6 << " MB/s)\n";
 			success++;
 		} catch (SyntaxError & ex) {
 			log << e.path().filename() << ":\t Failed  :\t" << ex.what()<<"\n";
@@ -109,7 +111,7 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 		}
 		log.flush();
 	}
-	cout << "=========================================\n\n";
+	cout << "=========================================================================\n\n";
 	if (skip) cout << skip << " contain unicode or zero symbols and skipped\n";
 	cout << success << " / " << total << " (" << success * 100. / total << "%) passed\n" << (total - success) << " failed\n\n";
 	return 0;

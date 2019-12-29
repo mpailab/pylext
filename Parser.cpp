@@ -53,6 +53,62 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 
 string prstack(GrammarState& g, SStack& ss, PStack& sp, int k=0);
 
+bool reduce1(GrammarState& g, SStack& ss, PStack& sp) {
+	int B=-1;
+	LR0State* s = &ss.s.back()-1;
+	//for (;;) {
+		int r = 0;
+		const NTTreeNode* u = 0;
+		for (auto& p : s->v) {
+			if (int r0 = p.v->finalNT.intersects(p.M, &B)) {
+				r += r0;
+				if (r > 1 || g.tf.T[B].size() > 1)return true;
+				u = p.v;
+				if (r > 1)return true;
+			}
+		}
+		if (!u)return false;
+		if (u->pos > 1) {
+			g.reduce(sp.s.data() + sp.s.size() - u->pos, u, B, B);
+		} else sp.s.back().nt = B;
+		//if (!shift(g, *(s - 1), *s, B, false))
+		//	return false;
+		return shift(g, *(s - 1), *s, B, false);
+	//}
+}
+
+bool reduce0(GrammarState& g, SStack& ss, PStack& sp/*, NTSet &M1*/) {
+	int B = -1, C = -1;
+	//M1.clear();
+	for (;ss.s.size();) {
+		LR0State* s = &ss.s.back() - 1;
+		int r = 0;
+		const NTTreeNode* u = 0;
+		for (auto& p : s->v) {
+			if (p.M.intersects(p.v->next))return true;
+			if (int r0 = p.v->finalNT.intersects(p.M, &B)) {
+				r += r0;
+				if (r > 1|| g.tf.T[B].intersects(p.M,&C)>1)return true;
+				u = p.v;
+			}
+		}
+		if (!u)return false;
+		if (u->pos > 1) {
+			int p = (int)ss.s.size() - u->pos;
+			ss.s.resize(p + 1);
+			sp.s[p] = g.reduce(sp.s.data() + sp.s.size() - u->pos, u, B, B);
+			sp.s.resize(p + 1);
+			if(!shift(g, ss.s[p - 1], ss.s[p], B, false))
+				return false;
+		} else {
+			sp.s.back().nt = B;
+			if (!shift(g, *(s - 1), *s, B, false))
+				return false;
+		}
+	}
+	return true;
+}
+
 bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 	LR0State *s = &ss.s.back();
 
@@ -153,7 +209,8 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 			}
 			int p = (int)ss.s.size() - i;
 			ss.s.resize(p + 1);
-			shift(g, ss.s[p - 1], ss.s[p], A00, false);
+			bool r = shift(g, ss.s[p - 1], ss.s[p], A00, false);
+			Assert(r);
 			return true;
 		}
 		for (auto &p : s->v) {
@@ -254,6 +311,10 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 				ss.s.emplace_back(move(s0));
 				g.lex.acceptToken(t);
 				sp.s.push_back(termnode(t));
+
+				if (!reduce0(g, ss, sp))
+					throw SyntaxError("Cannot shift or reduce after terminal " + g.ts[t.type] + " = `" + t.short_str() + "` at " + t.loc.beg.str(), prstack(g, ss, sp));
+
 				g.lex.go_next();
 				break;
 			} else {

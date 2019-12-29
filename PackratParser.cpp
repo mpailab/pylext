@@ -13,9 +13,11 @@ void PackratParser::update_props() {
 void PackratParser::add_rule(const string & nt, const PEGExpr & e, bool to_begin) {
 	int a = _en[nt];
 	if (a >= len(rules))rules.resize(a + 1);
-	e.id = _een[&e];
 	if (to_begin)rules[a] = e / rules[a];
 	else rules[a] /= e;
+	_updateHash(rules[a]);
+	//rules[a].id = _een[&rules[a]];
+	//e.id = _een[&e];
 	_updated = false;
 	_ops = 0;
 }

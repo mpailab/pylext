@@ -8,7 +8,18 @@
 #include "Exception.h"
 using namespace std;
 
-template<class K, class V, class H=std::hash<K>>
+struct hash64 {
+	inline size_t operator()(uint64_t v) noexcept {
+		size_t x = 14695981039346656037ULL;
+		for (size_t i = 0; i < 64; i += 8) {
+			x ^= static_cast<size_t>((v >> i) & 255);
+			x *= 1099511628211ULL;
+		}
+		return x;
+	}
+};
+
+template<class K, class V, class H=hash64>//std::hash<K>>
 struct PosHash {
 	struct Elem {
 		int next = 0;
@@ -221,6 +232,7 @@ struct PEGExpr {
 			subexprs = { std::move(*this), std::move(e) };
 			type = OrdAlt;
 		}
+		id = -1;
 		_updatecmplx();
 		return *this;
 	}
@@ -230,11 +242,13 @@ struct PEGExpr {
 			if (e.type == Concat) {
 				if (e.subexprs[0].type == String && subexprs.back().type == String) {
 					subexprs.back().s += e.subexprs[0].s;
+					subexprs.back().id = -1;
 					subexprs.insert(subexprs.end(), e.subexprs.begin() + 1, e.subexprs.end());
 				} else subexprs.insert(subexprs.end(), e.subexprs.begin(), e.subexprs.end());
-			} else if (subexprs.back().type == String && e.type == String)
-					subexprs.back().s += e.s;
-			else subexprs.emplace_back(move(e));
+			} else if (subexprs.back().type == String && e.type == String) {
+				subexprs.back().s += e.s;
+				subexprs.back().id = -1;
+			} else subexprs.emplace_back(move(e));
 		} else if (type == Terminal&&e.type == Terminal) {
 			t_mask |= e.t_mask;
 		} else if (type == String&&e.type == String) {
@@ -243,6 +257,7 @@ struct PEGExpr {
 			subexprs = { std::move(*this), std::move(e) };
 			type = Concat;
 		}
+		id = -1;
 		_updatecmplx();
 		return *this;
 	}
@@ -376,7 +391,8 @@ struct PackratParser {
 				return h ^ std::hash<int>()(e->num);
 			default:
 				for (auto &x : e->subexprs) {
-					if (x.id < 0)x.id = p->_een[&x];
+					//Assert(x.id>=0);
+					//if (x.id < 0)x.id = p->_een[&x];
 					h ^= std::hash<int>()(x.id);
 				}
 			}
@@ -386,6 +402,11 @@ struct PackratParser {
 	struct EqExpr {
 		bool operator()(const PEGExpr *e1, const PEGExpr *e2)const { return *e1 == *e2; }
 	};
+	void _updateHash(PEGExpr& e) {
+		for (auto& x : e.subexprs)
+			if (x.id < 0)_updateHash(x);
+		e.id = _een[&e];
+	}
 	Enumerator<string,unordered_map> _en;
 	Enumerator<const PEGExpr*, unordered_map, HashExpr,EqExpr> _een;
 	vector<PEGExpr> rules;

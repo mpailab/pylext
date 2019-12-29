@@ -12,6 +12,7 @@
 #include "Exception.h"
 #include "PEGLexer.h"
 #include "NTSet.h"
+//#include "BinAlloc.h"
 
 using namespace std;
 
@@ -21,7 +22,7 @@ struct ParseNode {
 	int rule=-1;          // Номер правила (-1 => терминал)
 	string term;          // Строковое значение (если терминал)
 	ParseNode* p = 0;     // Ссылка на родительский узел
-	vector<ParseNode> ch; // Дочерние узлы
+	vector<ParseNode/*,BinAlloc<ParseNode>*/> ch; // Дочерние узлы
 	Location loc;         // Размещение фрагмента в тексте
 	bool isTerminal()const {
 		return rule < 0;
@@ -40,7 +41,8 @@ struct ParseNode {
 	}
 };
 
-//typedef NTSetCmp<NTSetS,NTSetV> NTSet;
+//typedef NTSetCmp<NTSetV4,NTSetV> NTSet;
+//typedef NTSetV4 NTSet;
 typedef NTSetV NTSet;
 
 //struct NTTreeNode;
@@ -222,9 +224,13 @@ struct GrammarState {
 		res.rule = r;
 		res.B = nt;
 		res.nt = nt1;
+		int szp = 0;
 		for (int i = 0; i < sz; i++)
+			szp += rules[r].rhs[i].save;
+		res.ch.resize(szp);
+		for (int i = 0,j=0; i < sz; i++)
 			if (rules[r].rhs[i].save)
-				res.ch.emplace_back(move(pn[i]));
+				res.ch[j++] = move(pn[i]);
 		res.loc.beg = pn[0].loc.beg;
 		res.loc.end = pn[sz - 1].loc.end;
 		if (rules[r].action)
