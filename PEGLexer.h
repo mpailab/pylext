@@ -114,7 +114,7 @@ struct PEGLexer {
 			int best = -1, b1 = -1;
 			for (int ni = 0; ni < (int)lex->tokens.size(); ni++) {
 				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
-				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, shifted(end) }, Substr{ s + bpos, end - bpos } });
+				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos/*shifted(end)*/ }, Substr{ s + bpos, end - bpos } });
 				if (end > imax) {
 					best = ni;
 					m = 1;
@@ -151,7 +151,7 @@ struct PEGLexer {
 			}
 			_accepted = false;
 		}
-		void acceptToken(const Token& tok) {
+		void acceptToken(Token& tok) {
 			if (_accepted) {
 				Assert(curr_t[0].type==tok.type && curr_t[0].text.b == tok.text.b && curr_t[0].text.len == tok.text.len);
 				return;
@@ -159,6 +159,7 @@ struct PEGLexer {
 			Assert(s + pos == tok.text.b);
 			curr_t.resize(1); curr_t[0] = tok;
 			shift(tok.text.len);
+			tok.loc.end = cpos;
 			_accepted = true;
 		}
 		const vector<Token>& operator*()const {
@@ -198,7 +199,7 @@ struct PEGLexer {
 		packrat.setText(text);
 		curr = begin();
 	}
-	void acceptToken(const Token& t) {
+	void acceptToken(Token& t) {
 		curr.acceptToken(t);
 	}
 	bool go_next() {

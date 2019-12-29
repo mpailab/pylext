@@ -241,7 +241,7 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 	ss.s.emplace_back(std::move(s0));
 	for(g.lex.start(text); !g.lex.atEnd();) {
 		for (int ti = 0; ti < len(g.lex.tok()); ti++){
-			auto& t = g.lex.tok()[ti];
+			auto t = g.lex.tok()[ti];
 			if (debug_pr) {
 				std::cout << "token of type " << g.ts[t.type] << ": `" << t.str() << "` at " << t.loc << endl;
 			}
@@ -252,14 +252,14 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 					printstate(std::cout, g, s0) << "\n";
 				}
 				ss.s.emplace_back(move(s0));
-				sp.s.push_back(termnode(t));
 				g.lex.acceptToken(t);
+				sp.s.push_back(termnode(t));
 				g.lex.go_next();
 				break;
 			} else {
 				bool r = reduce(g, ss, sp, t.type);
 				if (!r) {
-					if (&t != &g.lex.tok().back()) {
+					if (ti < len(g.lex.tok())-1) {
 						if (debug_pr) {
 							std::cout << "Retry with same token of type " << g.ts[(&t)[1].type] << endl;
 						}

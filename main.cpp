@@ -124,7 +124,7 @@ int main(int argc, char*argv[]) {
 		st.setNtNames("text", "new_token", "new_rule");
 		st.setWsToken("ws");
 		st.addLexerRule("ws", "([ \\t\\n\\r] / comment)*");
-		st.addLexerRule("comment", "'#' [^\\n]*");
+		//st.addLexerRule("comment", "'#' [^\\n]*");
 		st.addToken("ident", "[_a-zA-Z][_a-zA-Z0-9]*");
 		st.addLexerRule("peg_concat_expr", "ws (([&!] ws)* ws ('(' peg_expr ws ')' / '[' ('\\\\' [^\\n] / [^\\]\\n])* ']' / sq_string / dq_string / ident) (ws [*+?])*)+");
 		st.addLexerRule("peg_expr", "ws peg_concat_expr (ws '/' ws peg_concat_expr)*");
