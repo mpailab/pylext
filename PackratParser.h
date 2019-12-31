@@ -357,7 +357,7 @@ inline size_t get_hash(const T& x) {
 }
 
 struct PackratParser {
-	int errpos;
+	int errpos = 0;
 	int lastpos=0;
 	vector<const PEGExpr*> errin;
 	void reseterr() { errpos = 0; errin.clear(); }

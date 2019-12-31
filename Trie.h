@@ -3,7 +3,7 @@
 using namespace std;
 /// Префиксное дерево, как множество
 struct Trie {
-	bool final;
+	bool final = false;
 	vector<Trie> next;
 	bool operator[](const char *m)const {
 		const Trie* curr = this;

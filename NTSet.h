@@ -297,7 +297,7 @@ struct NTSetV4 {
 	NTSetV4& clear() { x=_mm256_setzero_si256(); return *this; }
 	NTSetV4() :x(_mm256_setzero_si256()) {};
 	NTSetV4(__m256i v) :x(v) {};
-	NTSetV4(std::initializer_list<int>& l) { for (int i : l)add(i); }
+	NTSetV4(std::initializer_list<int>& l): x(_mm256_setzero_si256()) { for (int i : l)add(i); }
 	NTSetV4& operator|=(const NTSetV4& s) {
 		x = _mm256_or_si256(x, s.x);
 		return *this;

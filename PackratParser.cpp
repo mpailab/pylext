@@ -211,11 +211,17 @@ PEGExpr readsym(const char *&s, const char *&errpos, string *err) {
 	if (*s == '^') {
 		res.flip();
 	}
-	unsigned char prev, curr;
-	bool rng = false;
+	unsigned char prev=0, curr;
+	bool rng = false,was_prev = false;
 	for (; *s&&*s != ']'; s++) {
 		if (*s == '^') { val = false; continue; }
-		if (*s == '-') { rng = true; continue; }
+		if (*s == '-') {
+			if (!was_prev) {
+				if (err)*err = "start of range expected";
+				return {};
+			}
+			rng = true; continue;
+		}
 		if (*s == '\\') {
 			switch (*++s) {
 			case 'n':res[curr = uint8_t('\n')] = val; break;
@@ -243,6 +249,7 @@ PEGExpr readsym(const char *&s, const char *&errpos, string *err) {
 			rng = false;
 		}
 		prev = curr;
+		was_prev = true;
 	}
 	if (rng) {
 		errpos = s;

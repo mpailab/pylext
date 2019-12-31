@@ -198,7 +198,7 @@ struct GrammarState {
 		}
 	};
 	Temp tmp;
-	int start;
+	int start = -1;
 	bool finish = false;
 	TF tf;
 	PEGLexer lex;
@@ -272,9 +272,6 @@ struct GrammarState {
 	}
 };
 
-
-typedef unordered_map<int, TrieM<int>> FollowR_T;
-
 struct RulePos {
 	mutable const NTTreeNode* sh = 0;
 	const NTTreeNode *v = 0; // Текущая вершина в дереве правил
@@ -296,23 +293,6 @@ struct PStack {
 
 
 ParseNode parse(GrammarState & g, const std::string& text);
-
-struct StackFrame {
-	const NTTreeNode *v = 0; // Текущая вершина в дереве правил
-	NTSetS nts;         // Текущее множество нетерминалов
-	NTSetS leftrec;     // Нетерминалы, для которых из корня процедура вызывается рекурсивно (те, рёбра которых есть исходящие рёбра из корня)
-	FollowR_T fr;      // Множество возможных продолжений после свёртки в зависимости от нетерминала
-	vector<ParseNode> parsed; // Список разобранных поддеревьев, соответствующих разобранным нетерминалам текущего правила
-};
-
-typedef vector<StackFrame> ParseStack;
-
-struct ParseState {
-	ParseStack st;
-	FollowR_T followR;
-	StackFrame&operator[](size_t x) { return st[x]; }
-	StackFrame& top() { return st.back(); }
-};
 
 struct ParserError {
 	Location loc;
