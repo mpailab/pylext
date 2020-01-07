@@ -67,6 +67,12 @@ struct NTTreeNode {
 	unordered_map<int, int> rules;             // Правила по номерам нетерминалов
 	int pos = 0;                               // Расстояние до корня дерева
 	int _frule = -1;
+
+	///////////////// Для вычисления множества допустимых терминалов ////////////////////////////
+	unordered_map<int, NTSet> next_mt;           // Сопоставляет нетерминалу A множество терминалов, по которым можно пройти из данной вершины, читая правило для A
+	unordered_map<int, NTSet> next_mnt;          // Сопоставляет нетерминалу A множество нетерминалов, по которым можно пройти из данной вершины, читая правило для A
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	
 	const NTTreeNode* nextN(int A)const {
 		auto it = ntEdges.find(A);
 		if (it == ntEdges.end())return 0;
@@ -78,14 +84,17 @@ struct NTTreeNode {
 };
 
 struct TF {
-	vector<NTSet> T;     // По нетерминалу возвращает все нетерминалы, которые наследуются от данного нетерминала (A :-> {B | B => A})
-	vector<NTSet> inv;   // По нетерминалу возвращает все нетерминалы, от которых наследуется данный нетерминал   (A :-> {B | A => B})
-	vector<NTSet> fst;   // По нетерминалу возвращает все нетерминалы, с которых может начинаться данный нетерминал
-	vector<NTSet> ifst;  // По нетерминалу возвращает все нетерминалы, которые могут начинаться с данного нетерминала
+	vector<NTSet> T;      // По нетерминалу возвращает все нетерминалы, которые наследуются от данного нетерминала (A :-> {B | B => A})
+	vector<NTSet> inv;    // По нетерминалу возвращает все нетерминалы, от которых наследуется данный нетерминал   (A :-> {B | A => B})
+	vector<NTSet> fst;    // По нетерминалу возвращает все нетерминалы, с которых может начинаться данный нетерминал
+	vector<NTSet> ifst;   // По нетерминалу возвращает все нетерминалы, которые могут начинаться с данного нетерминала
+
+	vector<NTSet> fst_t;  // По нетерминалу возвращает все терминалы, с которых может начинаться данный нетерминал
+	vector<NTSet> ifst_t; // По терминалу возвращает все нетерминалы, которые могут начинаться с данного терминала
+
 	void addRuleBeg(int /*pos*/, int A, int rhs0, int len) { // Добавляет в структуру правило A -> rhs0 ...; pos -- позиция в тексте; len -- длина правой части правила
 		int mx = max(A, rhs0);
 		checkSize(mx);
-		//if (T.size() <= mx)T.resize(mx + 1), inv.resize(mx + 1);
 		if (len == 1) {
 			//T[rhs0].add(A);
 			for(int x : inv[rhs0])
@@ -95,16 +104,29 @@ struct TF {
 			for(int x : T[A])
 				inv[x] |= inv[rhs0]; // A -> rhs0 ..., rhs0 -> B ... ==> A -> B ...
 		}
-		for(int x : ifst[A])
+		for (int x : ifst[A]) {
 			fst[x] |= fst[rhs0];
+			fst_t[x] |= fst_t[rhs0];
+		}
+		for (int x : fst_t[rhs0])
+			ifst_t[x] |= ifst[A];
 		for(int x : fst[rhs0])
 			ifst[x] |= ifst[A];
+		// TODO: как-то запоминать позицию и изменения, чтобы можно было потом откатить назад.
+	}
+	void addRuleBeg_t(int /*pos*/, int A, int rhs0) { // Добавляет в структуру правило A -> rhs0 ..., только здесь rhs0 -- терминал; pos -- позиция в тексте;
+		//int mx = max(A, rhs0);
+		checkSize(A);
+		checkSize_t(rhs0);
+		for (int x : ifst[A])
+			fst_t[x].add(rhs0);
+		ifst_t[rhs0] |= ifst[A];
 		// TODO: как-то запоминать позицию и изменения, чтобы можно было потом откатить назад.
 	}
 	void checkSize(int A) {
 		int n0 = (int)T.size();
 		if (n0 <= A) {
-			T.resize(A + 1), inv.resize(A + 1), fst.resize(A + 1), ifst.resize(A + 1);
+			T.resize(A + 1), inv.resize(A + 1), fst.resize(A + 1), ifst.resize(A + 1), fst_t.resize(A + 1);
 			for (int i = n0; i <= A; i++) {
 				T[i].add(i);
 				inv[i].add(i);
@@ -113,15 +135,21 @@ struct TF {
 			}
 		}
 	}
+	void checkSize_t(int t) {
+		int n0 = (int)ifst_t.size();
+		if (n0 <= t) {
+			ifst_t.resize(t + 1);
+		}
+	}
 };
 
-
+/*
 struct NTTree {
 	unordered_map<int, vector<int>> ntFirstMap; // По входному нетерминалу возвращает список всех нетерминалов, с которых данный нетерминал может начинаться
 	unordered_map<int, vector<int>> tFirstMap;  // По входному нетерминалу возвращает список всех терминалов, с которых данный нетерминал может начинаться
 	NTTreeNode root;
 	int start;
-};
+};*/
 
 struct RuleElem {
 	int num;
@@ -272,6 +300,11 @@ struct GrammarState {
 	}
 };
 
+struct LAInfo {
+	NTSet t, nt;
+};
+typedef unordered_map<int, LAInfo> LAMap;
+
 struct RulePos {
 	mutable const NTTreeNode* sh = 0;
 	const NTTreeNode *v = 0; // Текущая вершина в дереве правил
@@ -280,6 +313,7 @@ struct RulePos {
 
 struct LR0State {
 	vector<RulePos> v;
+	LAMap la; // Информация о предпросмотре для свёртки по нетерминалам до данного фрейма: по нетерминалу A возвращает, какие символы могут идти после свёртки по A
 };
 
 

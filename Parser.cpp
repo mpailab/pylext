@@ -13,7 +13,12 @@ ParseNode termnode(const Token& t) {
 	return res;
 }
 
-bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) {
+inline void get_union(NTSet &x, const unordered_map<int, NTSet> &m, int i) {
+	auto it = m.find(i);
+	if (it != m.end())x |= it->second;
+}
+
+bool shift(GrammarState &g, const SStack &ss, const LR0State &s, LR0State &res, int t, bool term) {
 	int sz = (int)s.v.size(), j = 0, k = 0;
 	bool r = false;
 	for (int i = 0; i < sz; i++) { // Для каждого слоя в текущем состоянии ищем, по какому ребру можно пройти по символу t
@@ -34,19 +39,55 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 	}
 	res.v.resize(k + 1);
 	res.v[k].M.clear();
+	res.la.clear();
 	for (int i = 0; i < sz; i++) {
-		if ((*sv)[i].sh) { // Если переход возможен в i-м слое
-			auto *x = res.v[j].v = (*sv)[i].sh; // Добавляем в новый фрейм соответствующий слой
-			res.v[j].M = (*sv)[i].M;
+		auto &p = (*sv)[i];
+		if (p.sh) { // Если переход возможен в i-м слое
+			auto *x = res.v[j].v = p.sh; // Добавляем в новый фрейм соответствующий слой
+			res.v[j].M = p.M;
 			for (auto &nn : x->ntEdges)
-				if (nn.second->phi.intersects((*sv)[i].M))
+				if (nn.second->phi.intersects(p.M)) {
 					res.v[k].M |= g.tf.fst[nn.first]; // Добавляем в новый слой те нетерминалы, которые могут начинаться в данной позиции в i-м слое
+
+					auto &pla = res.la[nn.first]; // Информация о предпросмотре при свёртке по символу nn.first
+					for (int nt : nn.second->phi & p.M) {
+						get_union(pla.t, nn.second->next_mt, nt);        // Пополняем множество предпросмотра терминалов (для случая свёртки по символу nn.first)
+						get_union(pla.nt, nn.second->next_mnt, nt);      // Пополняем множество предпросмотра нетерминалов (для случая свёртки по символу nn.first)
+					}
+					if (nn.second->finalNT.intersects(p.M)) {
+						NTSet M;
+						for (int i : p.M & p.v->finalNT)
+							M |= g.tf.T[i];   // Вычисляем M -- множество нетерминалов, по которым можно свернуть
+						auto &mm = ss.s[ss.s.size() - p.v->pos]; // ????? Может быть здесь индекс на 1 должен отличаться
+						for (int x : M) {
+							if (auto *y = g.root.nextN(x)) {
+								for (int z : y->phi & p.M) { // !!!!!!!! Тройной цикл по множеству допустимых нетерминалов !!!!!!!! По-другому не понятно как (разве что кешировать всё)
+									get_union(pla.t, y->next_mt, z);
+									get_union(pla.nt, y->next_mnt, z);
+								}
+							}
+							auto it = mm.la.find(x);
+							if (it != mm.la.end()) { // Достаём информацию о допустимых символах из предыдущих фреймов
+								pla.t |= it->second.t;
+								pla.t |= it->second.nt;
+							}
+						}
+					}
+				}
 			j++;
 		}
 	}
 	if (res.v[k].M.empty())
 		res.v.pop_back();
-	else res.v[k].v = &g.root;
+	else {
+		res.v[k].v = &g.root;
+		// TODO: Сформировать множество допустимых терминалов для созданной вершины
+		// Оно должно состоять из:
+		//  - множества терминалов, исходящих из вершины
+		//  - для каждого нетерминала A из [psi] из терминалов, исходящих из вершины next(r,A) по нетерминалам из M
+		//  - для каждого нетерминала A из [psi] из множества с предыдущего уровня для свёртки по A 
+		//  - множества терминалов, с которых начинаются нетерминалы, исходящие из текущей вершины + нетерминалы, исходящие из вершины после свёртки по A
+	}
 	return true;
 }
 
@@ -73,7 +114,7 @@ bool reduce1(GrammarState& g, SStack& ss, PStack& sp) {
 		} else sp.s.back().nt = B;
 		//if (!shift(g, *(s - 1), *s, B, false))
 		//	return false;
-		return shift(g, *(s - 1), *s, B, false);
+		return shift(g, ss, *(s - 1), *s, B, false);
 	//}
 }
 
@@ -98,11 +139,11 @@ bool reduce0(GrammarState& g, SStack& ss, PStack& sp/*, NTSet &M1*/) {
 			ss.s.resize(p + 1);
 			sp.s[p] = g.reduce(sp.s.data() + sp.s.size() - u->pos, u, B, B);
 			sp.s.resize(p + 1);
-			if(!shift(g, ss.s[p - 1], ss.s[p], B, false))
+			if(!shift(g, ss, ss.s[p - 1], ss.s[p], B, false))
 				return false;
 		} else {
 			sp.s.back().nt = B;
-			if (!shift(g, *(s - 1), *s, B, false))
+			if (!shift(g, ss, *(s - 1), *s, B, false))
 				return false;
 		}
 	}
@@ -209,7 +250,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 			}
 			int p = (int)ss.s.size() - i;
 			ss.s.resize(p + 1);
-			bool r = shift(g, ss.s[p - 1], ss.s[p], A00, false);
+			bool r = shift(g, ss, ss.s[p - 1], ss.s[p], A00, false);
 			Assert(r);
 			return true;
 		}
@@ -302,8 +343,7 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 			if (debug_pr) {
 				std::cout << "token of type " << g.ts[t.type] << ": `" << t.str() << "` at " << t.loc << endl;
 			}
-		//retry:
-			if (shift(g, ss.s.back(), s0, t.type, true)) {
+			if (shift(g, ss, ss.s.back(), s0, t.type, true)) {
 				if (debug_pr) {
 					std::cout << "Shift by " << g.ts[t.type] << ": ";
 					printstate(std::cout, g, s0) << "\n";
@@ -326,20 +366,6 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 						}
 						continue;
 					}
-					/*stringstream s;
-					for (int i = -4; i <= -1; i++) {
-						if((int)ss.s.size()+i>=0)
-							printstate(s<<"  St["<<(1-i)<<"] = ", g, ss.s[ss.s.size()+i])<<"\n";
-					}
-					printstate(s<<"  Top   = ", g, ss.s.back(), &sp)<<"\n";*/
-					/*if (t.type2 >= 0) {
-						t.type = t.type2;
-						t.type2 = -1;
-						if (debug_pr) {
-							std::cout << "Retry with same token of type " << g.ts[t.type] << endl;
-						}
-						goto retry;
-					}*/
 					auto &t1 = g.lex.tok()[0];
 					throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t1.type] + " = `" + t1.short_str() + "` at " + t1.loc.beg.str(), prstack(g, ss, sp));
 				}
@@ -405,6 +431,10 @@ bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, Semant
 	int nrule = (int)rules.size();
 	for (auto &r : rule.rhs) {
 		curr->next.add(rule.A); // TODO: сделать запоминание позиции, где было изменение
+
+		if(r.term)curr->next_mt[rule.A].add(r.num); // Поддержка структуры для вычисления множества допустимых терминалов и нетерминалов для предпросмотра
+		else curr->next_mnt[rule.A].add(r.num);
+
 		if (!r.term)curr->nextnt.add(r.num); // TODO: сделать запоминание позиции, где было изменение
 		auto e = (r.term ? curr->termEdges[r.num] : curr->ntEdges[r.num]).get();
 		curr = e;
@@ -429,6 +459,7 @@ bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, Semant
 		auto &tmap = tFirstMap[rule.rhs[0].num];
 		tFirstMap[rule.rhs[0].num].add(rule.A);
 		tFirstMap[rule.rhs[0].num] |= tf.ifst[rule.A];
+		tf.addRuleBeg_t(lex.curr.pos, rule.A, rule.rhs[0].num);
 	} else tf.addRuleBeg(lex.curr.pos, rule.A, rule.rhs[0].num, len(rule.rhs));
 
 	rules.emplace_back(move(rule));
