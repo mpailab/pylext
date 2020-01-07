@@ -54,9 +54,10 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 						get_union(pla.t, nn.second->next_mt, nt);        // Пополняем множество предпросмотра терминалов (для случая свёртки по символу nn.first)
 						get_union(pla.nt, nn.second->next_mnt, nt);      // Пополняем множество предпросмотра нетерминалов (для случая свёртки по символу nn.first)
 					}
-					if (nn.second->finalNT.intersects(p.M)) {
+					auto &q = *nn.second;
+					if (q.finalNT.intersects(p.M)) {
 						NTSet M;
-						for (int i : p.M & p.v->finalNT)
+						for (int i : p.M & q.finalNT)
 							M |= g.tf.T[i];   // Вычисляем M -- множество нетерминалов, по которым можно свернуть
 						auto &mm = *(&s - p.v->pos); // ????? Может быть здесь индекс на 1 должен отличаться
 						for (int x : M) {
@@ -375,8 +376,22 @@ bool nextTok(GrammarState &g, SStack &ss) { // Определяет множество допустимых т
 			}
 		}
 	}
+	if (debug_pr) {
+		cout << "Lookahead: T =";
+		for (int x : t)
+			cout << " "<<g.lex.tName(x);
+		cout << "; NT =";
+		for (int n : nt)
+			cout << " " << g.nts[n];
+		cout << "; AllT =";
+	}
 	for (int n : nt)
 		t |= g.tf.fst_t[n];
+	if (debug_pr) {
+		for (int x : t)
+			cout << " " << g.lex.tName(x);
+		cout << "\n";
+	}
 	return g.lex.go_next(t);
 }
 

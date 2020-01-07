@@ -175,7 +175,7 @@ int main(int argc, char*argv[]) {
 		st.print_rules(cout);
 		cout << "\n";
 		string text, dir;
-		setDebug(true);
+		//setDebug(true);
 		if (argc>1 && (argv[1] == "-d"s || argv[1] == "--dir"s)) {
 			if (argc < 3)throw Exception("dir argument expected");
 			dir = argv[2];

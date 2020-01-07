@@ -1,3 +1,5 @@
+%syntax: object -> '{' members '}';
+
 %pexpr: pos_int = `[0-9]+`;
 %pexpr: int = `[+\-]? pos_int`;
 %token: number = `[+\-]? ('.' [0-9]+ / [0-9]+ ('.' [0-9]*)?) ([Ee] int)?`;
@@ -13,7 +15,6 @@
 %syntax: value -> 'null';
 
 %syntax: object -> '{' '}';
-%syntax: object -> '{' members '}';
 
 %syntax: members -> member;
 %syntax: members -> member ',' members;
