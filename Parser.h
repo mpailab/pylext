@@ -41,9 +41,6 @@ struct ParseNode {
 	}
 };
 
-//typedef NTSetCmp<NTSetV4,NTSetV> NTSet;
-//typedef NTSetV4 NTSet;
-typedef NTSetV NTSet;
 
 //struct NTTreeNode;
 template<class Node>
@@ -153,6 +150,7 @@ struct NTTree {
 
 struct RuleElem {
 	int num;
+	bool cterm;
 	bool term;
 	bool save;
 };

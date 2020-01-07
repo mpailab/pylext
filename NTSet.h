@@ -439,3 +439,7 @@ struct NTSetCmp {
 	iterator begin()const { return s2.begin(); }
 	iterator end()const { return s2.end(); }
 };
+
+//typedef NTSetCmp<NTSetV4,NTSetV> NTSet;
+//typedef NTSetV4 NTSet;
+typedef NTSetV NTSet;

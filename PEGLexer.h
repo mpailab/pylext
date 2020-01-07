@@ -5,6 +5,7 @@
 #include "Trie.h"
 #include "Exception.h"
 #include "common.h"
+#include "NTSet.h"
 #include "PackratParser.h"
 using namespace std;
 
@@ -47,6 +48,7 @@ struct PEGLexer {
 	//vector<pair<unique_ptr<regex>, int>> ncterms;
 	vector<pair<int,int>> tokens; // ¬нутренний номер токена -> (номер packrat, внешний номер)
 	Enumerator<string, unordered_map> _ten; // ¬нутренн€€ нумераци€ неконстантных токенов
+	unordered_map<int, int> _intnum;
 	TrieM<int> cterms;
 	//int token(const string &x)const { return _ten.num(x); }
 	//const string& token(int n)const { return _ten[n]; }
@@ -92,7 +94,7 @@ struct PEGLexer {
 			//	rit.push_back(regex_iterator<const char*>(s, s + text.size(), *p.first));
 			readToken();
 		}
-		void readToken() {
+		void readToken(const NTSet *t=0) {
 			Assert(_accepted);
 			if (lex->ws_token >= 0) {
 				int end = 0;
@@ -113,6 +115,7 @@ struct PEGLexer {
 			int imax = -1;
 			int best = -1, b1 = -1;
 			for (int ni = 0; ni < (int)lex->tokens.size(); ni++) {
+				if (t && !t->has(ni))continue;
 				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
 				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos/*shifted(end)*/ }, Substr{ s + bpos, end - bpos } });
 				if (end > imax) {
@@ -169,6 +172,10 @@ struct PEGLexer {
 			readToken();
 			return *this;
 		}
+		iterator& go_next(const NTSet &t) {
+			readToken(&t);
+			return *this;
+		}
 		bool operator==(const iterator& it)const {
 			return pos == it.pos;// curr.text.b == it.curr.text.b;
 		}
@@ -207,6 +214,14 @@ struct PEGLexer {
 		++curr;
 		return true;
 	}
+	bool go_next(const NTSet &t) {
+		if (curr.atEnd())return false;
+		curr.go_next(t);
+		return true;
+	}
+	const std::string& tName(int intnum) const {
+		return _ten[intnum];
+	}
 	bool atEnd() const {
 		return curr.atEnd();
 	}
@@ -229,6 +244,13 @@ struct PEGLexer {
 		if (t >= (int)tokens.size())
 			tokens.resize(t+1,make_pair(-1,-1));
 		tokens[t] = make_pair(a,num);
+		_intnum[num] = t;
+	}
+	int internalNum(const string& nm) {
+		return _ten[nm];
+	}
+	int internalNum(int ext_num) {
+		return _intnum.find(ext_num)->second;
 	}
 	void addCToken(int t, const string &x) {
 		cterms[x.c_str()] = t;
@@ -239,6 +261,7 @@ struct PEGLexer {
 	int setWsToken(string tname) {
 		return ws_token = packrat._en[tname];
 	}
+	
 	/*void delTokens(int p, bool remove) {
 		if (addedNcTokens.empty())return;
 		int i, j;
