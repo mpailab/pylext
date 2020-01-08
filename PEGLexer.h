@@ -54,6 +54,7 @@ struct PEGLexer {
 	//const string& token(int n)const { return _ten[n]; }
 	vector<pair<int, int>> addedNcTokens;
 	vector<pair<int, string>> addedCTokens;
+	unordered_map<int, int> _counter; // !!!!!! Для отладки !!!!!!
 	int ws_token=-1;
 	PEGLexer() { 
 		//_ten[""]; // Резервируем нулевой номер токена, чтобы номер любого токена был отличен от нуля
@@ -88,11 +89,11 @@ struct PEGLexer {
 			return c;
 		}
 		iterator() = default;
-		iterator(PEGLexer *l) :lex(l), s(l->text.c_str()) {
+		iterator(PEGLexer *l, const NTSet *t=0) :lex(l), s(l->text.c_str()) {
 			_at_end = false;
 			//for (auto &p : lex->ncterms)
 			//	rit.push_back(regex_iterator<const char*>(s, s + text.size(), *p.first));
-			readToken();
+			readToken(t);
 		}
 		void readToken(const NTSet *t=0) {
 			Assert(_accepted);
@@ -116,6 +117,7 @@ struct PEGLexer {
 			int best = -1, b1 = -1;
 			for (int ni = 0; ni < (int)lex->tokens.size(); ni++) {
 				if (t && !t->has(ni))continue;
+				//lex->_counter[ni]++;
 				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
 				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos/*shifted(end)*/ }, Substr{ s + bpos, end - bpos } });
 				if (end > imax) {
@@ -184,8 +186,8 @@ struct PEGLexer {
 			//return curr.text.b == it.curr.text.b;
 		}
 	};
-	iterator begin() {
-		return iterator(this);
+	iterator begin(const NTSet *t=0) {
+		return iterator(this,t);
 	}
 	iterator end()const { return iterator(); }
 	/*struct Tokens {
@@ -200,11 +202,11 @@ struct PEGLexer {
 	/*Tokens tokens(const std::string &text) {
 		return Tokens(this, text);
 	}*/
-	void start(const std::string &s = "") {
+	void start(const std::string &s = "", const NTSet* t = 0) {
 		if (s.size())
 			text = s;
 		packrat.setText(text);
-		curr = begin();
+		curr = begin(t);
 	}
 	void acceptToken(Token& t) {
 		curr.acceptToken(t);
@@ -261,7 +263,15 @@ struct PEGLexer {
 	int setWsToken(string tname) {
 		return ws_token = packrat._en[tname];
 	}
-	
+	~PEGLexer() {
+		if (!_counter.empty()) {
+			cout << "\n============ LEXER STATS =============\n";
+			for (auto &p : _counter) {
+				cout << "  " << _ten[p.first] << ":\t" << p.second << "\n";
+			}
+			cout << "======================================\n";
+		}
+	}
 	/*void delTokens(int p, bool remove) {
 		if (addedNcTokens.empty())return;
 		int i, j;

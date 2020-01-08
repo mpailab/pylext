@@ -31,10 +31,10 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 		} else s.v[i].sh = 0;
 	}
 	if (!r)return false;
-	decltype(s.v) sv0;
+	decltype(res.v) sv0;
 	auto *sv = &s.v;
 	if (&res == &s) {
-		sv0 = std::move(s.v);
+		sv0 = std::move(res.v);
 		sv = &sv0;
 	}
 	res.v.resize(k + 1);
@@ -48,8 +48,8 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 			for (auto &nn : x->ntEdges)
 				if (nn.second->phi.intersects(p.M)) {
 					res.v[k].M |= g.tf.fst[nn.first]; // Добавляем в новый слой те нетерминалы, которые могут начинаться в данной позиции в i-м слое
-
-					auto &pla = res.la[nn.first]; // Информация о предпросмотре при свёртке по символу nn.first
+					LAInfo pla;
+					//auto &pla = res.la[nn.first]; // Информация о предпросмотре при свёртке по символу nn.first
 					for (int nt : nn.second->phi & p.M) {
 						get_union(pla.t, nn.second->next_mt, nt);        // Пополняем множество предпросмотра терминалов (для случая свёртки по символу nn.first)
 						get_union(pla.nt, nn.second->next_mnt, nt);      // Пополняем множество предпросмотра нетерминалов (для случая свёртки по символу nn.first)
@@ -67,13 +67,18 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 									get_union(pla.nt, y->next_mnt, z);
 								}
 							}
-							auto it = mm.la.find(x);
+							auto &y = mm.la.find(x);
+							pla.t |= y.t;
+							pla.nt |= y.nt;
+							/*auto it = mm.la.find(x);
 							if (it != mm.la.end()) { // Достаём информацию о допустимых символах из предыдущих фреймов
 								pla.t |= it->second.t;
 								pla.nt |= it->second.nt;
-							}
+							}*/
 						}
 					}
+					if (!pla.nt.empty() || !pla.t.empty())
+						res.la[nn.first] |= pla;
 				}
 			j++;
 		}
@@ -318,7 +323,7 @@ ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, PSta
 		}
 	}
 	os<<"}";
-	if (st.la.size()) {
+	/*if (st.la.size()) {
 		os << " LA = {";
 		bool fst = true;
 		for (auto &x : st.la) {
@@ -334,7 +339,7 @@ ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, PSta
 			os << ")";
 		}
 		os << "}";
-	}
+	}*/
 	return os;
 }
 
@@ -368,11 +373,14 @@ bool nextTok(GrammarState &g, SStack &ss) { // Определяет множество допустимых т
 						get_union(nt, y->next_mnt, z);
 					}
 				}
-				auto it = mm.la.find(x);
-				if (it != mm.la.end()) { // Достаём информацию о допустимых символах из предыдущих фреймов
-					t |= it->second.t;
-					nt |= it->second.nt;
-				}
+				auto &y = mm.la.find(x);
+				t |= y.t;
+				nt |= y.nt;
+				//auto it = mm.la.find(x);
+				//if (it != mm.la.end()) { // Достаём информацию о допустимых символах из предыдущих фреймов
+				//	t |= it->second.t;
+				//	nt |= it->second.nt;
+				//}
 			}
 		}
 	}
@@ -403,7 +411,7 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 	s0.v[0].M = g.tf.fst[g.nts[""]];
 	s0.v[0].v = &g.root;
 	ss.s.emplace_back(std::move(s0));
-	for(g.lex.start(text); !g.lex.atEnd();) {
+	for(g.lex.start(text, &g.tf.fst_t[g.start]); !g.lex.atEnd();) {
 		for (int ti = 0; ti < len(g.lex.tok()); ti++){
 			auto t = g.lex.tok()[ti];
 			if (debug_pr) {
@@ -416,7 +424,7 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 				}
 				ss.s.emplace_back(move(s0));
 				g.lex.acceptToken(t);
-				sp.s.push_back(termnode(t));
+				sp.s.emplace_back(termnode(t));
 
 				if (!reduce0(g, ss, sp))
 					throw SyntaxError("Cannot shift or reduce after terminal " + g.ts[t.type] + " = `" + t.short_str() + "` at " + t.loc.beg.str(), prstack(g, ss, sp));

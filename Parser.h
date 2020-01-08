@@ -12,6 +12,8 @@
 #include "Exception.h"
 #include "PEGLexer.h"
 #include "NTSet.h"
+#include "Hash.h"
+#include "Vector.h"
 //#include "BinAlloc.h"
 
 using namespace std;
@@ -140,14 +142,6 @@ struct TF {
 	}
 };
 
-/*
-struct NTTree {
-	unordered_map<int, vector<int>> ntFirstMap; // ѕо входному нетерминалу возвращает список всех нетерминалов, с которых данный нетерминал может начинатьс€
-	unordered_map<int, vector<int>> tFirstMap;  // ѕо входному нетерминалу возвращает список всех терминалов, с которых данный нетерминал может начинатьс€
-	NTTreeNode root;
-	int start;
-};*/
-
 struct RuleElem {
 	int num;
 	bool cterm;
@@ -163,15 +157,6 @@ struct CFGRule {
 	int used;
 	SemanticAction action;
 };
-/*
-template<class Cont>
-concept has_clear = requires(Cont x) {
-	{x.clear()}->void;
-};
-template<class T> requires has_clear<T>
-void clearElem(T& vec) {
-	vec.clear();
-}*/
 
 template<class T>
 struct dvector {
@@ -194,10 +179,7 @@ struct dvector {
 
 void setDebug(bool b);
 struct GrammarState {
-	//unordered_map<int, vector<int>> ntFirstMap; // ѕо входному нетерминалу возвращает список всех нетерминалов, с которых данный нетерминал может начинатьс€
-	//unordered_map<int, vector<int>> tFirstMap;  // ѕо входному нетерминалу возвращает список всех терминалов, с которых данный нетерминал может начинатьс€
 	unordered_map<int, NTSet> tFirstMap;   // ѕо терминалу возвращает, какие нетерминалы могут начинатьс€ с данного терминала
-	//vector<NTSet> ntFirstMap;              // ѕо нетерминалу возвращает множество нетерминалов, с которых данный нетерминал может начинатьс€
 	vector<vector<NTTreeNode*>> ntRules;   //  аждому нетерминалу сопоставл€етс€ список финальных вершин, соответствующих правилам дл€ данного нетерминала
 	NTTreeNode root;        //  орнева€ вершина дерева правил
 	Enumerator<string, unordered_map> nts; // Ќумераци€ нетерминалов
@@ -228,8 +210,8 @@ struct GrammarState {
 	bool finish = false;
 	TF tf;
 	PEGLexer lex;
-	int syntaxDefNT=0;
-	int tokenNT=0;
+	//int syntaxDefNT=0;
+	//int tokenNT=0;
 	vector<pair<Pos, string>> _err;
 	void error(const string &err);
 
@@ -261,11 +243,9 @@ struct GrammarState {
 		res.loc.end = pn[sz - 1].loc.end;
 		if (rules[r].action)
 			rules[r].action(this, res);
-		//if (nt == tokenNT)addToken(&res);
-		//else if (nt == syntaxDefNT)addRule(&res);
 		return std::move(res);
 	}
-	void setNtNames(const string&start, const string& token, const string &syntax) {
+	void setStart(const string&start){ //, const string& token, const string &syntax) {
 		int S0 = nts[""];
 		this->start = nts[start];
 		CFGRule r;
@@ -278,10 +258,10 @@ struct GrammarState {
 		r.rhs[1].save = false;
 		r.rhs[1].num = 0;
 		addRule(r);
-		if(!token.empty())
-			tokenNT = nts[token];
-		if (!syntax.empty())
-			syntaxDefNT = nts[syntax];
+		//if(!token.empty())
+		//	tokenNT = nts[token];
+		//if (!syntax.empty())
+		//	syntaxDefNT = nts[syntax];
 	}
 	void setWsToken(const string& ws) {
 		lex.setWsToken(ws);
@@ -300,8 +280,12 @@ struct GrammarState {
 
 struct LAInfo {
 	NTSet t, nt;
+	LAInfo& operator |=(const LAInfo &i) { 
+		t |= i.t;   nt |= i.nt;
+		return *this;
+	}
 };
-typedef unordered_map<int, LAInfo> LAMap;
+typedef PosHash<int, LAInfo> LAMap;
 
 struct RulePos {
 	mutable const NTTreeNode* sh = 0;
@@ -310,7 +294,7 @@ struct RulePos {
 };
 
 struct LR0State {
-	vector<RulePos> v;
+	VectorF<RulePos,4> v;
 	LAMap la; // »нформаци€ о предпросмотре дл€ свЄртки по нетерминалам до данного фрейма: по нетерминалу A возвращает, какие символы могут идти после свЄртки по A
 };
 

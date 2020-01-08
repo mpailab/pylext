@@ -44,6 +44,19 @@ string loadfile(const string &fn) {
 	return string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
 }
 
+std::string read_whole_file(const std::string &fn) {
+	std::ifstream file(fn, std::ios::binary);
+	file.seekg(0, std::istream::end);
+	std::size_t size(static_cast<size_t>(file.tellg()));
+
+	file.seekg(0, std::istream::beg);
+
+	std::string result(size, 0);
+	file.read(&result[0], size);
+
+	return result;
+}
+
 #include <chrono>  // for high_resolution_clock
 
 struct Timer {
@@ -83,7 +96,7 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 		const directory_entry& e = *it;
 		if (!e.is_regular_file())continue;
 		try {
-			string text = loadfile(e.path().string());
+			string text = read_whole_file(e.path().string());
 			bool unicode = false;
 			for (char c : text)if (c <= 0)unicode = true;
 			if (0&&unicode) {
@@ -123,7 +136,7 @@ int main(int argc, char*argv[]) {
 	try {
 #endif
 		GrammarState st;
-		st.setNtNames("text", "new_token", "new_rule");
+		st.setStart("text");// , "new_token", "new_rule");
 		st.setWsToken("ws");
 		st.addLexerRule("ws", "([ \\t\\n\\r] / comment)*");
 		//st.addLexerRule("comment", "'#' [^\\n]*");

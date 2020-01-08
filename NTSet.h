@@ -210,9 +210,368 @@ inline uint64_t extract64(__m256i x, int i) {
 	}
 	return 0;
 }
+
+//#define HAS_AVX512
+#ifdef HAS_AVX512
+#include <zmmintrin.h>
+
+inline __m512i bitmask512(int i) {
+	return _mm512_mask_set1_epi64(_mm512_setzero_si512(), 1 << (i >> 6), 1ULL << (i & 63));
+}
+
+inline __m256i bitmask256(int i) {
+	return _mm256_mask_set1_epi64(_mm256_setzero_si256(), 1 << (i >> 6), 1ULL << (i & 63));
+}
+
+inline __m128i bitmask128(int i) {
+	return _mm_mask_set1_epi64(_mm_setzero_si128(), 1 << (i >> 6), 1ULL << (i & 63));
+}
+
+struct NTSetV8 { // Требует поддержки AVX-512
+	__m512i x;
+	struct iterator {
+		typedef std::forward_iterator_tag iterator_category;
+		typedef int value_type;
+		typedef int difference_type;
+		typedef int reference;
+		typedef int* pointer;
+		uint64_t cmask;
+		uint32_t pmask;
+		int pos = 0;
+		__m512i x;
+		iterator() : cmask(0), pmask(0) {}
+		iterator(__m512i p) :x(p) {
+			pmask = _mm512_test_epi64_mask(x,x);
+			cmask = _mm512_mask_reduce_or_epi64(_blsi_u32(pmask), x);
+			pos = _tzcnt_u32(pmask) << 6;
+		}
+		iterator& next() {
+			pmask = _blsr_u32(pmask);
+			cmask = _mm512_mask_reduce_or_epi64(_blsi_u32(pmask), x);
+			pos = _tzcnt_u32(pmask) << 6;
+			return *this;
+		}
+		iterator& operator++() {
+			if ((cmask = _blsr_u64(cmask)))return *this;
+			return next();
+		}
+		int operator*() const {
+			return (int)_tzcnt_u64(cmask) + pos;
+		}
+		bool operator==(const iterator& i)const {
+			return cmask == i.cmask && pmask == i.pmask;
+		}
+		bool operator!=(const iterator& i)const {
+			return cmask != i.cmask || pmask != i.pmask;
+		}
+		bool atEnd() {
+			return !pmask;
+		}
+		bool last() {
+			return !_blsr_u64(cmask) && !_blsr_u64(pmask);
+		}
+	};
+	bool empty() const {
+		return !_mm512_test_epi64_mask(x,x);
+	}
+	bool intersects(const NTSetV8& y) const {
+		return _mm512_test_epi64_mask(x, y.x) != 0;
+	}
+	int intersects(const NTSetV8& y, int* B) const {
+		iterator it(_mm512_and_si512(x, y.x));
+		if (it.atEnd())return 0;
+		*B = *it;
+		return it.last() ? 1 : 2;
+	}
+	/// Фильтрация множества нетерминалов
+	bool filter(NTSetV8& y)const {
+		y.x = _mm512_and_si512(x, y.x);
+		return !y.empty();
+	}
+	bool has(int i)const {
+		return _mm512_mask_test_epi64_mask(1 << (i >> 6), x, _mm512_set1_epi64(1ULL << (i & 63)))!=0;
+	}
+	bool add_check(int i) {
+		auto y = x;
+		add(i);
+		return _mm512_cmpneq_epi64_mask(y, x)!=0;
+	}
+	void add(int i) {
+		x = _mm512_mask_or_epi64(x, (1<<(i>>6)), x, _mm512_set1_epi64(1ULL<<(i&63)));
+	}
+	int size()const {
+		//int m = _mm512_test_epi64_mask(x);
+		union {
+			u64 t[8];
+			__m512 x;
+		} r;
+		_mm512_store_epi64(r.t, x);
+		return (int)_mm512_reduce_add_epi64(_mm512_setr_epi64(_mm_popcnt_u64(r.t[0]), _mm_popcnt_u64(r.t[1]), _mm_popcnt_u64(r.t[2]), _mm_popcnt_u64(r.t[3]), _mm_popcnt_u64(r.t[4]), _mm_popcnt_u64(r.t[5]), _mm_popcnt_u64(r.t[6]),_mm_popcnt_u64(r.t[7])));
+	}
+	NTSetV8& clear() { x = _mm512_setzero_si512(); return *this; }
+	NTSetV8() :x(_mm512_setzero_si512()) {};
+	NTSetV8(__m512i v) :x(v) {};
+	NTSetV8(std::initializer_list<int>& l) : x(_mm512_setzero_si512()) { for (int i : l)add(i); }
+	NTSetV8& operator|=(const NTSetV8& s) {
+		x = _mm512_or_si512(x, s.x);
+		return *this;
+	}
+	NTSetV8& operator&=(const NTSetV8& s) {
+		x = _mm512_and_si512(x, s.x);
+		return *this;
+	}
+	NTSetV8 operator|(const NTSetV8& s) const {
+		return _mm512_or_si512(x, s.x);
+	}
+	NTSetV8 operator&(const NTSetV8& s) const {
+		return _mm512_and_si512(x, s.x);
+	}
+	NTSetV8& operator=(const std::initializer_list<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	NTSetV8& operator=(const vector<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	iterator begin()const { return iterator(x); }
+	iterator end()const { return iterator(); }
+};
+
+
+struct NTSetV4 {
+	__m256i x;
+	struct iterator {
+		typedef std::forward_iterator_tag iterator_category;
+		typedef int value_type;
+		typedef int difference_type;
+		typedef int reference;
+		typedef int* pointer;
+		uint64_t cmask;
+		uint32_t pmask;
+		__m256i x;
+		iterator() : cmask(0), pmask(0) {}
+		iterator(__m256i p) :x(p) {
+			pmask = _mm256_test_epi64_mask(x, x);// _mm256_movemask_pd(_mm256_castsi256_pd(_mm256_cmpeq_epi64(x, _mm256_setzero_si256()))) ^ 0xF;
+			cmask = pmask ? extract64(x, _tzcnt_u32(pmask)) : 0;
+		}
+		iterator& next() {
+			pmask = _blsr_u32(pmask);
+			cmask = pmask ? extract64(x, _tzcnt_u32(pmask)) : 0;
+			return *this;
+		}
+		iterator& operator++() {
+			if ((cmask = _blsr_u64(cmask)))return *this;
+			return next();
+		}
+		int operator*() const {
+			return (int)_tzcnt_u64(cmask) + _tzcnt_u32(pmask) * 64;
+		}
+		int* operator->() const {
+			return 0;
+		}
+		bool operator==(const iterator& i)const {
+			return cmask == i.cmask && pmask == i.pmask;
+		}
+		bool operator!=(const iterator& i)const {
+			return cmask != i.cmask || pmask != i.pmask;
+		}
+		bool atEnd() {
+			return !pmask;
+		}
+		bool last() {
+			return !(cmask & (cmask - 1)) && !(pmask & (pmask - 1));
+		}
+	};
+	bool empty() const {
+		return _mm256_testz_si256(x, x) != 0;
+	}
+	bool intersects(const NTSetV4& y) const {
+		return !_mm256_testz_si256(x, y.x);
+	}
+	int intersects(const NTSetV4& y, int* B) const {
+		iterator it(_mm256_and_si256(x, y.x));
+		if (it.atEnd())return 0;
+		*B = *it;
+		return it.last() ? 1 : 2;
+	}
+	/// Фильтрация множества нетерминалов
+	bool filter(NTSetV4& y)const {
+		y.x = _mm256_and_si256(x, y.x);
+		return !y.empty();
+	}
+	bool has(int i)const {
+		return _mm256_mask_test_epi64_mask(1 << (i >> 6), x, _mm256_set1_epi64x(1ULL << (i & 63))) != 0;
+	}
+	bool add_check(int i) {
+		auto y = x;
+		add(i);
+		return _mm256_cmpneq_epi64_mask(y, x) != 0;
+	}
+	void add(int i) {
+		x = _mm256_mask_or_epi64(x, (1 << (i >> 6)), x, _mm256_set1_epi64x(1ULL << (i & 63)));
+	}
+	int size()const {
+		return int(_mm_popcnt_u64(_mm256_extract_epi64(x, 0)) + _mm_popcnt_u64(_mm256_extract_epi64(x, 1)) +
+			_mm_popcnt_u64(_mm256_extract_epi64(x, 2)) + _mm_popcnt_u64(_mm256_extract_epi64(x, 3)));
+	}
+	NTSetV4& clear() { x = _mm256_setzero_si256(); return *this; }
+	NTSetV4() :x(_mm256_setzero_si256()) {};
+	NTSetV4(__m256i v) :x(v) {};
+	NTSetV4(std::initializer_list<int>& l) : x(_mm256_setzero_si256()) { for (int i : l)add(i); }
+	NTSetV4& operator|=(const NTSetV4& s) {
+		x = _mm256_or_si256(x, s.x);
+		return *this;
+	}
+	NTSetV4& operator&=(const NTSetV4& s) {
+		x = _mm256_and_si256(x, s.x);
+		return *this;
+	}
+	NTSetV4 operator|(const NTSetV4& s) const {
+		return _mm256_or_si256(x, s.x);
+	}
+	NTSetV4 operator&(const NTSetV4& s) const {
+		return _mm256_and_si256(x, s.x);
+	}
+	NTSetV4& operator=(const std::initializer_list<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	NTSetV4& operator=(const vector<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	iterator begin()const { return iterator(x); }
+	iterator end()const { return iterator(); }
+};
+
+struct NTSetV2 {
+	__m128i x;
+	struct iterator {
+		typedef std::forward_iterator_tag iterator_category;
+		typedef int value_type;
+		typedef int difference_type;
+		typedef int reference;
+		typedef int* pointer;
+		uint64_t cmask[3];
+		uint32_t pos;
+		//__m128i x;
+		iterator() : pos(2) {}
+		iterator(__m128i p) /*:x(p)*/ {
+			cmask[0] = _mm_extract_epi64(p, 0);
+			cmask[1] = _mm_extract_epi64(p, 1);
+			cmask[2] = 0;
+			pos = cmask[0] ? 0 : cmask[1] ? 1 : 2;
+		}
+		iterator& operator++() {
+			if (cmask[pos] &= (cmask[pos] - 1))return *this;
+			else if (++pos < 2 && !cmask[pos])pos = 2;
+			return *this;
+		}
+		int operator*() const {
+			return (int)_tzcnt_u64(cmask[pos]) + pos * 64;
+		}
+		int* operator->() const {
+			return 0;
+		}
+		bool operator==(const iterator& i)const {
+			return pos == i.pos && cmask[pos] == i.cmask[pos];
+		}
+		bool operator!=(const iterator& i)const {
+			return pos != i.pos && cmask[pos] != i.cmask[pos];
+		}
+		bool atEnd() {
+			return pos >= 2;
+		}
+		bool last() {
+			return pos < 2 && !cmask[pos + 1] && !(cmask[pos] & (cmask[pos] - 1));
+		}
+	};
+	bool empty() const {
+		return _mm_testz_si128(x, x) != 0;
+	}
+	bool intersects(const NTSetV2& y) const {
+		return !_mm_testz_si128(x, y.x);
+	}
+	int intersects(const NTSetV2& y, int* B) const {
+		iterator it(_mm_and_si128(x, y.x));
+		if (it.atEnd())return 0;
+		*B = *it;
+		return it.last() ? 1 : 2;
+	}
+	/// Фильтрация множества нетерминалов
+	bool filter(NTSetV2& y)const {
+		y.x = _mm_and_si128(x, y.x);
+		return !y.empty();
+	}
+	bool has(int i)const {
+		return (((i & 64 ? _mm_extract_epi64(x, 1) : _mm_extract_epi64(x, 0)) >> (i & 63)) & 1) != 0;
+		//return int(_mm_extract_epi16(x, i >> 4) >> (i & 15)) & 1;
+	}
+	bool add_check(int i) {
+		auto y = x;
+		add(i);
+		return !_mm_testc_si128(y, x);
+	}
+	void add(int i) {
+		x = _mm_or_si128(x, bitmask128(i));
+	}
+	int size()const {
+		return int(_mm_popcnt_u64(_mm_extract_epi64(x, 0)) + _mm_popcnt_u64(_mm_extract_epi64(x, 1)));
+	}
+	NTSetV2& clear() { x = _mm_setzero_si128(); return *this; }
+	NTSetV2() :x(_mm_setzero_si128()) {};
+	NTSetV2(__m128i v) :x(v) {};
+	NTSetV2(std::initializer_list<int>& l) : x(_mm_setzero_si128()) { for (int i : l)add(i); }
+	NTSetV2& operator|=(const NTSetV2& s) {
+		x = _mm_or_si128(x, s.x);
+		return *this;
+	}
+	NTSetV2& operator&=(const NTSetV2& s) {
+		x = _mm_and_si128(x, s.x);
+		return *this;
+	}
+	NTSetV2 operator|(const NTSetV2& s) const {
+		return _mm_or_si128(x, s.x);
+	}
+	NTSetV2 operator&(const NTSetV2& s) const {
+		return _mm_and_si128(x, s.x);
+	}
+	NTSetV2& operator=(const std::initializer_list<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	NTSetV2& operator=(const vector<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	iterator begin()const { return iterator(x); }
+	iterator end()const { return iterator(); }
+};
+
+#else
+
 inline __m256i bitmask256(int i) {
 	//auto mask = _mm256_cmpeq_epi32(_mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0), _mm256_set1_epi32(i));
-	return _mm256_and_si256(_mm256_cmpeq_epi32(_mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0), _mm256_set1_epi32(i>>5)), _mm256_set1_epi32(1U << (i & 31)));
+	return _mm256_and_si256(_mm256_cmpeq_epi32(_mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0), _mm256_set1_epi32(i >> 5)), _mm256_set1_epi32(1U << (i & 31)));
+}
+inline __m128i bitmask128(int i) {
+	return i & 64 ? _mm_set_epi64x((1ULL << (i & 63)), 0) : _mm_set_epi64x(0, 1ULL << i);
+	//auto mask = _mm256_cmpeq_epi32(_mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0), _mm256_set1_epi32(i));
+	//return _mm_insert_epi16(_mm_setzero_si128(), 1 << (i & 15), i >> 4);
+	//return _mm256_and_si256(_mm256_cmpeq_epi32(_mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0), _mm256_set1_epi32(i >> 5)), _mm256_set1_epi32(1U << (i & 31)));
 }
 
 struct NTSetV4 {
@@ -319,6 +678,211 @@ struct NTSetV4 {
 		return *this;
 	}
 	NTSetV4& operator=(const vector<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	iterator begin()const { return iterator(x); }
+	iterator end()const { return iterator(); }
+};
+
+struct NTSetV2 {
+	__m128i x;
+	struct iterator {
+		typedef std::forward_iterator_tag iterator_category;
+		typedef int value_type;
+		typedef int difference_type;
+		typedef int reference;
+		typedef int* pointer;
+		uint64_t cmask[3];
+		uint32_t pos;
+		//__m128i x;
+		iterator() : pos(2) {}
+		iterator(__m128i p) /*:x(p)*/ {
+			cmask[0] = _mm_extract_epi64(p, 0);
+			cmask[1] = _mm_extract_epi64(p, 1);
+			cmask[2] = 0;
+			pos = cmask[0] ? 0 : cmask[1] ? 1 : 2;
+		}
+		iterator& operator++() {
+			if (cmask[pos] &= (cmask[pos] - 1))return *this;
+			else if(++pos<2&&!cmask[pos])pos=2;
+			return *this;
+		}
+		int operator*() const {
+			return (int)_tzcnt_u64(cmask[pos]) + pos * 64;
+		}
+		int* operator->() const {
+			return 0;
+		}
+		bool operator==(const iterator& i)const {
+			return pos == i.pos && cmask[pos] == i.cmask[pos];
+		}
+		bool operator!=(const iterator& i)const {
+			return pos != i.pos && cmask[pos] != i.cmask[pos];
+		}
+		bool atEnd() {
+			return pos>=2;
+		}
+		bool last() {
+			return pos<2 && !cmask[pos+1] && !(cmask[pos] & (cmask[pos] - 1));
+		}
+	};
+	bool empty() const {
+		return _mm_testz_si128(x, x) != 0;
+	}
+	bool intersects(const NTSetV2& y) const {
+		return !_mm_testz_si128(x, y.x);
+	}
+	int intersects(const NTSetV2& y, int* B) const {
+		iterator it(_mm_and_si128(x, y.x));
+		if (it.atEnd())return 0;
+		*B = *it;
+		return it.last() ? 1 : 2;
+	}
+	/// Фильтрация множества нетерминалов
+	bool filter(NTSetV2& y)const {
+		y.x = _mm_and_si128(x, y.x);
+		return !y.empty();
+	}
+	bool has(int i)const {
+		return (((i & 64 ? _mm_extract_epi64(x, 1) : _mm_extract_epi64(x, 0)) >> (i & 63)) & 1) != 0;
+		//return int(_mm_extract_epi16(x, i >> 4) >> (i & 15)) & 1;
+	}
+	bool add_check(int i) {
+		auto y = x;
+		add(i);
+		return !_mm_testc_si128(y, x);
+	}
+	void add(int i) {
+		x = _mm_or_si128(x, bitmask128(i));
+	}
+	int size()const {
+		return int(_mm_popcnt_u64(_mm_extract_epi64(x, 0)) + _mm_popcnt_u64(_mm_extract_epi64(x, 1)));
+	}
+	NTSetV2& clear() { x = _mm_setzero_si128(); return *this; }
+	NTSetV2() :x(_mm_setzero_si128()) {};
+	NTSetV2(__m128i v) :x(v) {};
+	NTSetV2(std::initializer_list<int>& l) : x(_mm_setzero_si128()) { for (int i : l)add(i); }
+	NTSetV2& operator|=(const NTSetV2& s) {
+		x = _mm_or_si128(x, s.x);
+		return *this;
+	}
+	NTSetV2& operator&=(const NTSetV2& s) {
+		x = _mm_and_si128(x, s.x);
+		return *this;
+	}
+	NTSetV2 operator|(const NTSetV2& s) const {
+		return _mm_or_si128(x, s.x);
+	}
+	NTSetV2 operator&(const NTSetV2& s) const {
+		return _mm_and_si128(x, s.x);
+	}
+	NTSetV2& operator=(const std::initializer_list<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	NTSetV2& operator=(const vector<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	iterator begin()const { return iterator(x); }
+	iterator end()const { return iterator(); }
+};
+#endif
+
+struct NTSetV1 {
+	uint64_t x;
+	struct iterator {
+		typedef std::forward_iterator_tag iterator_category;
+		typedef int value_type;
+		typedef int difference_type;
+		typedef int reference;
+		typedef int* pointer;
+		uint64_t cmask;
+		//__m128i x;
+		iterator(uint64_t p = 0) :cmask(p){}
+		iterator& operator++() {
+			cmask = _blsr_u64(cmask);
+			return *this;
+		}
+		int operator*() const {
+			return (int)_tzcnt_u64(cmask);
+		}
+		bool operator==(const iterator& i)const {
+			return cmask == i.cmask;
+		}
+		bool operator!=(const iterator& i)const {
+			return cmask!=i.cmask;
+		}
+		bool atEnd() {
+			return !cmask;
+		}
+		bool last() {
+			return !_blsr_u64(cmask);
+		}
+	};
+	bool empty() const {
+		return !x;
+	}
+	bool intersects(const NTSetV1& y) const {
+		return (x&y.x)!=0;
+	}
+	int intersects(const NTSetV1& y, int* B) const {
+		iterator it(x&y.x);
+		if (it.atEnd())return 0;
+		*B = *it;
+		return it.last() ? 1 : 2;
+	}
+	/// Фильтрация множества нетерминалов
+	bool filter(NTSetV1& y)const {
+		y.x &= x;
+		return !y.empty();
+	}
+	bool has(int i)const {
+		return ((x >> i) & 1) != 0;
+	}
+	bool add_check(int i) {
+		auto y = x;
+		add(i);
+		return (y^x)!=0;
+	}
+	void add(int i) {
+		x |= 1ULL << i;
+	}
+	int size()const {
+		return (int)_mm_popcnt_u64(x);
+	}
+	NTSetV1& clear() { x = 0; return *this; }
+	NTSetV1() :x(0) {};
+	explicit NTSetV1(u64 v) :x(v) {};
+	NTSetV1(std::initializer_list<int>& l) : x(0) { for (int i : l)add(i); }
+	NTSetV1& operator|=(const NTSetV1& s) {
+		x |= s.x;
+		return *this;
+	}
+	NTSetV1& operator&=(const NTSetV1& s) {
+		x &= s.x;
+		return *this;
+	}
+	NTSetV1 operator|(const NTSetV1& s) const {
+		return NTSetV1(x|s.x);
+	}
+	NTSetV1 operator&(const NTSetV1& s) const {
+		return NTSetV1(x&s.x);
+	}
+	NTSetV1& operator=(const std::initializer_list<int>& l) {
+		clear();
+		for (int i : l)
+			add(i);
+		return *this;
+	}
+	NTSetV1& operator=(const vector<int>& l) {
 		clear();
 		for (int i : l)
 			add(i);
@@ -440,6 +1004,8 @@ struct NTSetCmp {
 	iterator end()const { return s2.end(); }
 };
 
-//typedef NTSetCmp<NTSetV4,NTSetV> NTSet;
-//typedef NTSetV4 NTSet;
-typedef NTSetV NTSet;
+//typedef NTSetCmp<NTSetV1,NTSetV> NTSet;
+//typedef NTSetV8 NTSet;
+typedef NTSetV4 NTSet;
+//typedef NTSetV2 NTSet;
+//typedef NTSetV1 NTSet;
