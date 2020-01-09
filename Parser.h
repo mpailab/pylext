@@ -14,35 +14,79 @@
 #include "NTSet.h"
 #include "Hash.h"
 #include "Vector.h"
+#include "Alloc.h"
 //#include "BinAlloc.h"
 
 using namespace std;
+
+struct ParseNode;
+using PParseNode = unique_ptr<ParseNode>;
+struct ParseTree;
 
 struct ParseNode {
 	int nt;               // Номер терминала или нетерминала
 	int B = -1;           // Номер промежуточного нетерминала в случае свёртки nt <- B <- rule
 	int rule=-1;          // Номер правила (-1 => терминал)
 	string term;          // Строковое значение (если терминал)
-	ParseNode* p = 0;     // Ссылка на родительский узел
-	vector<ParseNode/*,BinAlloc<ParseNode>*/> ch; // Дочерние узлы
+	//ParseTree* tree = 0;  // Ссылка на дерево разбора
+	//ParseNode* p = 0;     // Ссылка на родительский узел
+	int size = 1;
+	VectorF<ParseNode* /*,BinAlloc<ParseNode>*/,4> ch; // Дочерние узлы
 	Location loc;         // Размещение фрагмента в тексте
 	bool isTerminal()const {
 		return rule < 0;
 	}
-	ParseNode& operator[](size_t i) { return ch[int(i)<0 ? i+ch.size() : i]; }
-	const ParseNode& operator[](size_t i)const { return ch[int(i)<0 ? i + ch.size() : i]; }
+	ParseNode& operator[](size_t i) { return *ch[int(i)<0 ? i+ch.size() : i]; }
+	const ParseNode& operator[](size_t i)const { return *ch[int(i)<0 ? i + ch.size() : i]; }
 	ParseNode() = default;
 	ParseNode(const ParseNode&) = delete;
 	ParseNode& operator=(const ParseNode&) = delete;
 
 	ParseNode(ParseNode&&) = default;
+	void updateSize() {
+		size = 1;
+		for (auto *n : ch)
+			size += n->size;
+	}
 	ParseNode& operator=(ParseNode&&) = default;
 	void del();
+	//void free();
 	~ParseNode() {
-		if (ch.size())del();
+		//for(auto *n : ch)
+		//if (ch.size())del();
 	}
 };
 
+struct ParseTree {
+	Alloc<ParseNode> _alloc;
+	ParseNode* root = 0;
+	template<class ... Args>
+	ParseNode *newnode(Args && ... args) {
+		//return new ParseNode(std::forward(args)...);
+		ParseNode*res = _alloc.allocate(args...);
+		//res->tree = this;
+		return res;
+	}
+	~ParseTree() { del(root); }
+	ParseTree() {}
+	ParseTree(ParseTree && t):root(t.root) { t.root = 0; }
+	void del(ParseNode *r) { 
+		for (ParseNode *curr = r, *next = 0; curr; curr = next) {
+			next = 0;
+			for (auto *n : curr->ch)
+				if (n->size > curr->size / 2)
+					next = n;
+				else del(n);
+			_alloc.deallocate(curr);
+		}
+	}
+};
+
+/*inline void ParseNode::free() {
+	//if (tree)tree->del(this);
+	//else
+	delete this;
+}*/
 
 //struct NTTreeNode;
 template<class Node>
@@ -226,24 +270,27 @@ struct GrammarState {
 		ts[""];  // Резервируем нулевой номер терминала, чтобы все терминалы имели ненулевой номер.
 		nts[""]; // Резервируем нулевой номер нетерминала, чтобы все нетерминалы имели ненулевой номер.
 	}
-	ParseNode reduce(ParseNode *pn, const NTTreeNode *v, int nt, int nt1) {
+	ParseNode* reduce(ParseNode **pn, const NTTreeNode *v, int nt, int nt1, ParseTree &pt) {
 		int r = v->rule(nt), sz = len(rules[r].rhs);
-		ParseNode res;
-		res.rule = r;
-		res.B = nt;
-		res.nt = nt1;
+		ParseNode* res = pt.newnode();
+		res->rule = r;
+		res->B = nt;
+		res->nt = nt1;
 		int szp = 0;
 		for (int i = 0; i < sz; i++)
 			szp += rules[r].rhs[i].save;
-		res.ch.resize(szp);
-		for (int i = 0,j=0; i < sz; i++)
+		res->ch.resize(szp);
+		res->loc.beg = pn[0]->loc.beg;
+		res->loc.end = pn[sz - 1]->loc.end;
+		for (int i = 0, j = 0; i < sz; i++)
 			if (rules[r].rhs[i].save)
-				res.ch[j++] = move(pn[i]);
-		res.loc.beg = pn[0].loc.beg;
-		res.loc.end = pn[sz - 1].loc.end;
+				res->ch[j++] = pn[i];// ? pn[i] : termnode(;
+			else if(pn[i])pt.del(pn[i]);
+		//res->loc.beg = res->ch[0].
+		res->updateSize();
 		if (rules[r].action)
-			rules[r].action(this, res);
-		return std::move(res);
+			rules[r].action(this, *res);
+		return res;
 	}
 	void setStart(const string&start){ //, const string& token, const string &syntax) {
 		int S0 = nts[""];
@@ -304,11 +351,10 @@ struct SStack {
 };
 
 struct PStack {
-	vector<ParseNode> s;
+	vector<ParseNode*> s;
 };
 
-
-ParseNode parse(GrammarState & g, const std::string& text);
+ParseTree parse(GrammarState & g, const std::string& text);
 
 struct ParserError {
 	Location loc;

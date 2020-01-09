@@ -246,6 +246,7 @@
     <ClInclude Include="Exception.h" />
     <ClInclude Include="Hash.h" />
     <ClInclude Include="Lexer.h" />
+    <ClInclude Include="Alloc.h" />
     <ClInclude Include="NTSet.h" />
     <ClInclude Include="PackratParser.h" />
     <ClInclude Include="Parser.h" />

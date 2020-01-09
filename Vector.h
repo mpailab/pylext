@@ -70,8 +70,8 @@ public:
 		_size++;
 		return *this;
 	}
-	T& operator[](int i) { return _ptr[i]; }
-	const T& operator[](int i)const { return _ptr[i]; }
+	T& operator[](size_t i) { return _ptr[i]; }
+	const T& operator[](size_t i)const { return _ptr[i]; }
 	VectorF<T, bsz, Alloc>& resize(int sz) {
 		if (sz < _size) {
 			std::destroy_n(_ptr + sz, _size - sz);

@@ -5,11 +5,11 @@
 
 bool debug_pr = false;
 void setDebug(bool b) { debug_pr = b; }
-ParseNode termnode(const Token& t) {
-	ParseNode res;
-	res.nt = t.type;
-	res.loc = t.loc;
-	res.term = t.str();
+ParseNode* termnode(const Token& t, ParseTree &pt) {
+	ParseNode* res = pt.newnode();// std::make_unique<ParseNode>();
+	res->nt = t.type;
+	res->loc = t.loc;
+	res->term = t.str();
 	return res;
 }
 
@@ -100,7 +100,7 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 
 string prstack(GrammarState& g, SStack& ss, PStack& sp, int k=0);
 
-bool reduce1(GrammarState& g, SStack& ss, PStack& sp) {
+bool reduce1(GrammarState& g, SStack& ss, PStack& sp, ParseTree &pt) {
 	int B=-1;
 	LR0State* s = &ss.s.back()-1;
 	//for (;;) {
@@ -116,15 +116,15 @@ bool reduce1(GrammarState& g, SStack& ss, PStack& sp) {
 		}
 		if (!u)return false;
 		if (u->pos > 1) {
-			g.reduce(sp.s.data() + sp.s.size() - u->pos, u, B, B);
-		} else sp.s.back().nt = B;
+			g.reduce(sp.s.data() + sp.s.size() - u->pos, u, B, B, pt);
+		} else sp.s.back()->nt = B;
 		//if (!shift(g, *(s - 1), *s, B, false))
 		//	return false;
 		return shift(g, *(s - 1), *s, B, false);
 	//}
 }
 
-bool reduce0(GrammarState& g, SStack& ss, PStack& sp/*, NTSet &M1*/) {
+bool reduce0(GrammarState& g, SStack& ss, PStack& sp/*, NTSet &M1*/, ParseTree &pt) {
 	int B = -1, C = -1;
 	//M1.clear();
 	for (;ss.s.size();) {
@@ -143,12 +143,12 @@ bool reduce0(GrammarState& g, SStack& ss, PStack& sp/*, NTSet &M1*/) {
 		if (u->pos > 1) {
 			int p = (int)ss.s.size() - u->pos;
 			ss.s.resize(p + 1);
-			sp.s[p] = g.reduce(sp.s.data() + sp.s.size() - u->pos, u, B, B);
+			sp.s[p] = g.reduce(sp.s.data() + sp.s.size() - u->pos, u, B, B, pt);
 			sp.s.resize(p + 1);
 			if(!shift(g, ss.s[p - 1], ss.s[p], B, false))
 				return false;
 		} else {
-			sp.s.back().nt = B;
+			sp.s.back()->nt = B;
 			if (!shift(g, *(s - 1), *s, B, false))
 				return false;
 		}
@@ -156,7 +156,7 @@ bool reduce0(GrammarState& g, SStack& ss, PStack& sp/*, NTSet &M1*/) {
 	return true;
 }
 
-bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
+bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
 	LR0State *s = &ss.s.back();
 
 	g.tmp.clear();
@@ -246,7 +246,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 			for (int j = (int)path.size(); j--;) {
 				//ParseNode pn;
 				int p = path[j].v->pos;
-				sp.s[sp.s.size() - p] = g.reduce(&sp.s[sp.s.size() - p], path[j].v, path[j].B, path[j].A);
+				sp.s[sp.s.size() - p] = g.reduce(&sp.s[sp.s.size() - p], path[j].v, path[j].B, path[j].A, pt);
 				//pn.rule = path[j].v->rule(path[j].A);
 				//pn.ch.resize(p);
 				//std::move(sp.s.end() - p, sp.s.end(), pn.ch.begin());
@@ -282,6 +282,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a) {
 	}
 	return false;
 }
+
 ostream & operator<<(ostream &s, Location loc) {
 	if (loc.beg.line == loc.end.line) {
 		if(loc.beg.col == loc.end.col)return s << "(" << loc.beg.line << ":" << loc.beg.col<<")";
@@ -298,7 +299,7 @@ ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, PSta
 		int k = 0;
 		if (i++)os << ", ";
 		if (ps && x.v->pos) {
-			os << ps->s[ps->s.size() - x.v->pos].loc.beg.str();
+			os << ps->s[ps->s.size() - x.v->pos]->loc.beg.str();
 		}
 		for (int j : x.M)
 			if(!x.v->phi.has(j))
@@ -403,9 +404,10 @@ bool nextTok(GrammarState &g, SStack &ss) { // Определяет множество допустимых т
 	return g.lex.go_next(t);
 }
 
-ParseNode parse(GrammarState & g, const std::string& text) {
+ParseTree parse(GrammarState & g, const std::string& text) {
 	SStack ss;
 	PStack sp;
+	ParseTree pt;
 	LR0State s0;
 	s0.v.resize(1);
 	s0.v[0].M = g.tf.fst[g.nts[""]];
@@ -424,16 +426,17 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 				}
 				ss.s.emplace_back(move(s0));
 				g.lex.acceptToken(t);
-				sp.s.emplace_back(termnode(t));
+				
+				sp.s.emplace_back(termnode(t,pt));
 
-				if (!reduce0(g, ss, sp))
+				if (!reduce0(g, ss, sp, pt))
 					throw SyntaxError("Cannot shift or reduce after terminal " + g.ts[t.type] + " = `" + t.short_str() + "` at " + t.loc.beg.str(), prstack(g, ss, sp));
 
 				nextTok(g, ss);
 				//g.lex.go_next();
 				break;
 			} else {
-				bool r = reduce(g, ss, sp, t.type);
+				bool r = reduce(g, ss, sp, t.type, pt);
 				if (!r) {
 					if (ti < len(g.lex.tok())-1) {
 						if (debug_pr) {
@@ -452,11 +455,11 @@ ParseNode parse(GrammarState & g, const std::string& text) {
 			}
 		}
 	}
-	if (!reduce(g, ss, sp, 0))
+	if (!reduce(g, ss, sp, 0, pt))
 		throw SyntaxError("Unexpected end of file",prstack(g,ss,sp));
 	Assert(ss.s.size() == 2);
 	Assert(sp.s.size() == 1);
-	return move(sp.s[0]);
+	return pt;
 }
 
 void GrammarState::error(const string & err) {
@@ -586,11 +589,11 @@ bool GrammarState::addLexerRule(const ParseNode * tokenDef, bool tok, bool to_be
 		error("token definition must have 2 nodes");
 		return false;
 	}
-	if (!tokenDef->ch[0].isTerminal() || !tokenDef->ch[1].isTerminal()) {
+	if (!tokenDef->ch[0]->isTerminal() || !tokenDef->ch[1]->isTerminal()) {
 		error("token definition cannot contain nonterminals");
 		return false;
 	}
-	addLexerRule(tokenDef->ch[0].term, (tokenDef->ch[1].term), tok, to_begin);
+	addLexerRule(tokenDef->ch[0]->term, (tokenDef->ch[1]->term), tok, to_begin);
 	return true;
 }
 
@@ -599,31 +602,76 @@ bool GrammarState::addRule(const ParseNode * ruleDef) {
 		error("syntax definition must have at least 2 nodes");
 		return false;
 	}
-	if (!ruleDef->ch[0].isTerminal()) {
+	if (!ruleDef->ch[0]->isTerminal()) {
 		error("left side of syntax definition must be a non-terminal name");
 		return false;
 	}
 	vector<const ParseNode*> curr;
 	for (auto i = ruleDef->ch.size(); --i; )
-		curr.push_back(&ruleDef->ch[i]);
+		curr.push_back(&*ruleDef->ch[i]);
 	vector<string> res;
 	while (curr.size()) {
 		auto *x = curr.back(); curr.pop_back();
 		if (x->isTerminal()) { res.push_back(x->term); }
 		else for (auto i = x->ch.size(); i--; )
-			curr.push_back(&x->ch[i]);
+			curr.push_back(&*x->ch[i]);
 	}
-	addRule(ruleDef->ch[0].term, res);
+	addRule(ruleDef->ch[0]->term, res);
 	return true;
 }
 
-void ParseNode::del() {
-	queue<ParseNode> q;
-	q.push(move(*this));
-	while (!q.empty()) {
-		for (auto& n : q.front().ch)
-			q.push(move(n));
-		q.front().ch.clear();
-		q.pop();
+template<class T>
+class Queue {
+	vector<T> v;
+	unsigned _head=0, _tail=0, _size = 0, _mask = 0;
+	void reserve(unsigned c) {
+		c = 1U << (32 - _lzcnt_u32(c - 1));
+		auto c0 = (int)v.size();
+		v.resize(c);
+		if (_size && _tail <= _head) {
+			std::move(v.begin(), v.begin() + _tail, v.begin() + c0);
+			_tail += c0;
+		}
+		_mask = c - 1;
+	} 
+public:
+	Queue& operator << (const T&x) {
+		if (_size >= v.size())reserve(_size + 1);
+		v[_tail] = x;
+		_tail = (_tail + 1)&_mask;
+		_size++;
+		return *this;
 	}
+	Queue& operator >> (T&x) {
+		x = pop();
+		return *this;
+	}
+	T pop() {
+		_size--;
+		auto h = _head;
+		_head = (_head + 1)&_mask;
+		return move(v[h]);
+	}
+	bool empty() { return !_size; }
+};
+
+void ParseNode::del() {
+	for (ParseNode *curr = this, *next = 0; curr; curr = next) {
+		next = 0;
+		for (auto *n : curr->ch)
+			if (n->size > curr->size / 2)
+				next = n;
+			else n->del();
+		delete curr;
+	}
+	/*Queue<ParseNode*> q;
+	for(auto &c : ch)
+		q << c.release();
+	while (!q.empty()) {
+		auto n = q.pop();
+		for (auto& c : n->ch)
+			q << c.release();
+		n->ch.clear();
+		delete n;
+	}*/
 }

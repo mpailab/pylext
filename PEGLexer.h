@@ -30,6 +30,7 @@ struct Token {
 	int type = 0, type2 = -1;
 	Location loc;
 	Substr text;
+	int nonconst = true;
 	string str()const { return string(text.b, text.len); }
 	string short_str()const { 
 		if (text.len <= 80)return str();
@@ -39,7 +40,7 @@ struct Token {
 		return string(text.b, n1)+" <...> "+string(text.b+n2+1,text.len-n2-1); 
 	}
 	Token() {}
-	Token(int t, Location l, Substr s) :type(t), loc(l), text(s) { loc.end.col--; }
+	Token(int t, Location l, Substr s, bool nc) :type(t), loc(l), text(s), nonconst(nc) { loc.end.col--; }
 };
 
 struct PEGLexer {
@@ -119,7 +120,7 @@ struct PEGLexer {
 				if (t && !t->has(ni))continue;
 				//lex->_counter[ni]++;
 				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
-				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos/*shifted(end)*/ }, Substr{ s + bpos, end - bpos } });
+				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos/*shifted(end)*/ }, Substr{ s + bpos, end - bpos }, true});
 				if (end > imax) {
 					best = ni;
 					m = 1;
@@ -133,11 +134,11 @@ struct PEGLexer {
 				if (p0 >= imax) {
 					auto beg = cpos;
 					//shift(p0 - pos);
-					curr_t.insert(curr_t.begin(), Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos } });
+					curr_t.insert(curr_t.begin(), Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos }, false });
 					//if (p0 == imax && best >= 0 && m<2)
 					//	curr.type2 = lex->tokens[best].second;
 				} else { 
-					curr_t.push_back(Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos } }); 
+					curr_t.push_back(Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos }, false }); 
 					sort(curr_t.begin(), curr_t.end(), [](const Token& x, const Token& y) {return x.text.len > y.text.len; });
 				}
 			} 

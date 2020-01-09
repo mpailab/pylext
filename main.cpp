@@ -204,7 +204,7 @@ int main(int argc, char*argv[]) {
 		if (!text.empty()) {
 			Timer tm("Parsing");
 			tm.start();
-			ParseNode res = parse(st, text);
+			ParseTree res = parse(st, text);
 			tm.stop_pr();
 			cout << "Parser finished successfully\n";
 		}
