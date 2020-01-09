@@ -11,6 +11,11 @@ struct Exception :std::exception {
 	const char* what()const noexcept override { return str ? str : msg.c_str(); }
 };
 
+struct GrammarError : Exception {
+	GrammarError()noexcept : Exception("Grammar Error") {}
+	GrammarError(std::string s) noexcept : Exception(std::move(s)) {}
+};
+
 struct SyntaxError : Exception {
 	std::string stack_info;
 	SyntaxError()noexcept : Exception("Syntax Error") {}

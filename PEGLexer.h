@@ -297,6 +297,28 @@ struct PEGLexer {
 	const vector<Token> & tok() {
 		return *curr;
 	}
+	int _declareSpecToken(const std::string &nm, int ext_num, int *_pnum, const std::string& intname) {
+		if (*_pnum >= 0) {
+			if (_ten[*_pnum] == nm) return *_pnum;
+			else throw GrammarError(intname + " token already declared with name `" + _ten[*_pnum] + "`");
+		}
+		return *_pnum = declareNCToken(nm, ext_num);
+	}
+	int declareIndentToken(const std::string &nm, int ext_num) {
+		return _declareSpecToken(nm, ext_num, &indent, "indent");
+	}
+	int declareDedentToken(const std::string &nm, int ext_num) {
+		return _declareSpecToken(nm, ext_num, &dedent, "dedent");
+	}
+	int declareCheckIndentToken(const std::string &nm, int ext_num) {
+		return _declareSpecToken(nm, ext_num, &check_indent, "check_indent");
+	}
+	int declareEOLToken(const std::string &nm, int ext_num) {
+		return _declareSpecToken(nm, ext_num, &eol, "EOL");
+	}
+	int declareEOFToken(const std::string &nm, int ext_num) {
+		return _declareSpecToken(nm, ext_num, &eof, "EOF");
+	}
 	void addPEGRule(const string &nt, const string &rhs, int ext_num, bool to_begin = false) {
 		int errpos = -1;
 		string err;
@@ -306,14 +328,14 @@ struct PEGLexer {
 		packrat.add_rule(nt, e, to_begin);
 		if (ext_num)declareNCToken(nt,ext_num);
 	}
-	void declareNCToken(const string& nm, int num) {
+	int declareNCToken(const string& nm, int num) {
 		int t = _ten[nm];
 		int a = packrat._en.num(nm);
 		if (a < 0)throw Exception("Cannot declare token `" + nm + "` when no rules exists");
 		if (t >= (int)tokens.size())
 			tokens.resize(t+1,make_pair(-1,-1));
 		tokens[t] = make_pair(a,num);
-		_intnum[num] = t;
+		return _intnum[num] = t;
 	}
 	int internalNum(const string& nm) {
 		return _ten[nm];

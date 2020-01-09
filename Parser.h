@@ -293,6 +293,21 @@ struct GrammarState {
 	void setWsToken(const string& ws) {
 		lex.setWsToken(ws);
 	}
+	void setIndentToken(const std::string &nm) {
+		lex.declareIndentToken(nm, ts[nm]);
+	}
+	void setDedentToken(const std::string &nm) {
+		lex.declareDedentToken(nm, ts[nm]);
+	}
+	void setCheckIndentToken(const std::string &nm) {
+		lex.declareCheckIndentToken(nm, ts[nm]);
+	}
+	void setEOLToken(const std::string &nm) {
+		lex.declareEOLToken(nm, ts[nm]);
+	}
+	void setEOFToken(const std::string &nm) {
+		lex.declareEOFToken(nm, ts[nm]);
+	}
 	void print_rules(ostream &s) const{
 		for (auto &r : rules) {
 			s << nts[r.A] << " -> ";

@@ -164,6 +164,13 @@ int main(int argc, char*argv[]) {
 
 		addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
 		addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
+		
+		addRule(st, "new_syntax_expr -> '%' 'indent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setIndentToken(n.term); });
+		addRule(st, "new_syntax_expr -> '%' 'dedent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setDedentToken(n.term); });
+		addRule(st, "new_syntax_expr -> '%' 'check_indent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setCheckIndentToken(n.term); });
+		addRule(st, "new_syntax_expr -> '%' 'eol' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOLToken(n.term); });
+		addRule(st, "new_syntax_expr -> '%' 'eof' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOFToken(n.term); });
+		
 		addRule(st, "new_syntax -> new_syntax_expr ';'");
 		addRule(st, "text -> new_syntax text", [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); });
 		addRule(st, "new_syntax_expr -> '%' 'stats'", [](GrammarState* g, ParseNode&) {
