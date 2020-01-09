@@ -417,8 +417,8 @@ ParseTree parse(GrammarState & g, const std::string& text) {
 				
 				sp.s.emplace_back(termnode(t,pt));
 
-				if (!reduce0(g, ss, sp, pt))
-					throw SyntaxError("Cannot shift or reduce after terminal " + g.ts[t.type] + " = `" + t.short_str() + "` at " + t.loc.beg.str(), prstack(g, ss, sp));
+				//if (!reduce0(g, ss, sp, pt))
+				//	throw SyntaxError("Cannot shift or reduce after terminal " + g.ts[t.type] + " = `" + t.short_str() + "` at " + t.loc.beg.str(), prstack(g, ss, sp));
 
 				nextTok(g, ss);
 				//g.lex.go_next();

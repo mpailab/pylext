@@ -20,6 +20,8 @@ struct Pos {
 	string str() const {
 		return to_string(line) + ":" + to_string(col);
 	}
+	bool operator==(const Pos &p) { return line == p.line&&col == p.col; }
+	bool operator!=(const Pos &p) { return line != p.line||col != p.col; }
 };
 
 struct Location {
@@ -44,6 +46,12 @@ struct Token {
 };
 
 struct PEGLexer {
+	struct IndentSt {
+		bool fix = true; // Ѕыла ли уже строка, где величина отступа зафиксирована
+		int line; // —трока, где началс€ блок с отступом
+		int start_col; // —толбец, в котором было прочитано увеличение отступа
+		int col;  // ¬еличина отступа
+	};
 	string text;
 	PackratParser packrat;
 	//vector<pair<unique_ptr<regex>, int>> ncterms;
@@ -57,6 +65,10 @@ struct PEGLexer {
 	vector<pair<int, string>> addedCTokens;
 	unordered_map<int, int> _counter; // !!!!!! ƒл€ отладки !!!!!!
 	int ws_token=-1;
+	int indent = -1, dedent = -1, check_indent = -1; // “окены дл€ отслеживани€ отступов: indent -- увеличить отступ, dedent -- уменьшить отступ, check_indent -- проверить отступ
+	int eol = -1, eof = -1; // “окены дл€ конца строки и конца файла
+	NTSet special; // »меющиес€ специальные токены (отступы, начала / концы строк)
+
 	PEGLexer() { 
 		//_ten[""]; // –езервируем нулевой номер токена, чтобы номер любого токена был отличен от нул€
 	}
@@ -64,9 +76,12 @@ struct PEGLexer {
 	struct iterator {
 		//vector<regex_iterator<const char*>> rit;
 		//regex_iterator<const char*> rend;
+		vector<IndentSt> indents;
 		PEGLexer *lex = 0;
 		const char *s = 0;
-		Pos cpos;
+		Pos cpos, cprev;
+		bool rdws = true;
+		int nlines = 0;
 		int pos = 0;
 		bool _accepted = true;
 		bool _at_end = true;
@@ -92,23 +107,70 @@ struct PEGLexer {
 		iterator() = default;
 		iterator(PEGLexer *l, const NTSet *t=0) :lex(l), s(l->text.c_str()) {
 			_at_end = false;
+			indents = { IndentSt{false,0,0} };
 			//for (auto &p : lex->ncterms)
 			//	rit.push_back(regex_iterator<const char*>(s, s + text.size(), *p.first));
 			readToken(t);
 		}
 		void readToken(const NTSet *t=0) {
 			Assert(_accepted);
-			if (lex->ws_token >= 0) {
-				int end = 0;
-				if(lex->packrat.parse(lex->ws_token, pos, end, 0) && end>pos)
-					shift(end - pos);
-			}
-			//while (isspace(s[pos]))
-				//shift(1);
 			curr_t.clear();
+			_accepted = false;
+			bool spec = t && t->intersects(lex->special);
+
+			if (lex->ws_token >= 0 && rdws) {
+				cprev = cpos;
+				int end = 0;
+				if (lex->packrat.parse(lex->ws_token, pos, end, 0) && end > pos)
+					shift(end - pos);
+				rdws = false; nlines = 0;
+				if (!s[pos] && cpos.col>1) { cpos.line++; cpos.col = 1; } // ƒл€ корректного завершени€ блока отступов в конце файла виртуально добавл€ем пустую строку в конец
+			}
+			
+			//auto prev = cpos;
+			if (spec) { // „тение специальных токенов
+				if (cpos.line > cprev.line + nlines && lex->eol >= 0 && t->has(lex->eol)) { // ѕереход на новую строку (считаетс€, если после чтени€ пробелов/комментариев привело к увеличению номера строки
+					curr_t.push_back(Token(lex->tokens[lex->eol].second, { cpos,cpos }, Substr(s + pos, 0), false));
+					nlines++;
+					return;
+				} else if (spec && lex->indent >= 0 && t->has(lex->indent)) { // ≈сли увеличение отступа допустимо, то оно читаетс€ вне зависимости от того, что дальше 
+					if (indents.back().col != cprev.col || indents.back().line != cprev.line) {     // «апрещено читать 2 раза подр€д увеличение отступа с одной и той же позиции
+						indents.push_back(IndentSt{ false, cprev.line, cprev.col, indents.back().col + 1 }); // иначе может произойти зацикливание, если неправильна€ грамматика, например, есть правило A -> indent A ...
+						curr_t.push_back(Token(lex->tokens[lex->indent].second, { cprev, cprev }, Substr(s + pos, 0), false));
+					}
+					return;
+				} else if (lex->dedent >= 0 && t->has(lex->dedent)) { // ”меньшение отступа
+					if (cpos.col < indents.back().col) {
+						indents.pop_back();
+						if (!indents.back().fix) { 
+							indents.back().fix = true;  
+							indents.back().col = max(indents.back().col, cpos.col); 
+						}
+						curr_t.push_back(Token(lex->tokens[lex->dedent].second, { cpos, cpos }, Substr(s + pos, 0), false));
+						return;
+					}
+				} else if (cpos.line > cprev.line && lex->check_indent >= 0 && t->has(lex->check_indent)) { // ѕроверка отступа
+					auto &b = indents.back();
+					bool indented = false;
+					if (cpos.col >= b.col) {
+						if (cpos.line > b.line) {
+							if (!b.fix) 
+								b.fix = true,
+								b.col = cpos.col;
+							if (b.col == cpos.col) indented = true;
+						} else indented = (b.start_col == cprev.col);  // “екст началс€ в той же строке, что и блок с отступами
+						if (indented) {
+							curr_t.push_back(Token(lex->tokens[lex->check_indent].second, { cpos, cpos }, Substr(s + pos, 0), false));
+							return;
+						}
+					}
+				}
+			}
+
 			if (!s[pos]) {
-				_at_end = true;
-				//curr = Token{ 0,{ cpos,cpos }, Substr() };
+				if(spec && lex->eof>=0 && t->has(lex->eof))
+					curr_t.push_back(Token(lex->tokens[lex->eof].second, { cpos, cpos }, Substr(s + pos, 0), false));
+				else _at_end = true;
 				return;
 			}
 			int p0 = pos, bpos = pos;
@@ -155,6 +217,7 @@ struct PEGLexer {
 				//shift(end - bpos);
 				//curr = { lex->tokens[best].second, { beg,cpos }, Substr{ s + bpos, end - bpos } };
 			}
+			rdws = true;
 			_accepted = false;
 		}
 		void acceptToken(Token& tok) {
@@ -164,6 +227,7 @@ struct PEGLexer {
 			}
 			Assert(s + pos == tok.text.b);
 			curr_t.resize(1); curr_t[0] = tok;
+			if (tok.type == lex->eof)_at_end = true;
 			shift(tok.text.len);
 			tok.loc.end = cpos;
 			_accepted = true;
@@ -172,11 +236,13 @@ struct PEGLexer {
 			return curr_t;
 		}
 		iterator& operator++() {
-			readToken();
+			if(!_at_end)
+				readToken();
 			return *this;
 		}
 		iterator& go_next(const NTSet &t) {
-			readToken(&t);
+			if (!_at_end)
+				readToken(&t);
 			return *this;
 		}
 		bool operator==(const iterator& it)const {
