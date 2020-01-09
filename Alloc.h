@@ -1,7 +1,7 @@
 #pragma once
 #include <stdlib.h>
 #include <memory>
-
+//#include <iostream>
 template<class T> class AllocRef;
 
 template<class T>
@@ -15,6 +15,7 @@ class Alloc{
 		AllocTp* p;
 		ListAllocNode *next;
 		ListAllocNode(size_t n, ListAllocNode *nxt=0){
+			//std::cout << "Allocate " << n << " nodes\n";
 			p = (AllocTp*)malloc(n*sizeof(AllocTp));
 			for(size_t i=1; i<n; i++)
 				p[i-1].next = p+i;

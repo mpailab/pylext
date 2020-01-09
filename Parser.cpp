@@ -101,32 +101,27 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 string prstack(GrammarState& g, SStack& ss, PStack& sp, int k=0);
 
 bool reduce1(GrammarState& g, SStack& ss, PStack& sp, ParseTree &pt) {
-	int B=-1;
-	LR0State* s = &ss.s.back()-1;
-	//for (;;) {
-		int r = 0;
-		const NTTreeNode* u = 0;
-		for (auto& p : s->v) {
-			if (int r0 = p.v->finalNT.intersects(p.M, &B)) {
-				r += r0;
-				if (r > 1 || g.tf.T[B].size() > 1)return true;
-				u = p.v;
-				if (r > 1)return true;
-			}
+	int B = -1;
+	LR0State* s = &ss.s.back() - 1;
+	int r = 0;
+	const NTTreeNode* u = 0;
+	for (auto& p : s->v) {
+		if (int r0 = p.v->finalNT.intersects(p.M, &B)) {
+			r += r0;
+			if (r > 1 || g.tf.T[B].size() > 1)return true;
+			u = p.v;
+			if (r > 1)return true;
 		}
-		if (!u)return false;
-		if (u->pos > 1) {
-			g.reduce(sp.s.data() + sp.s.size() - u->pos, u, B, B, pt);
-		} else sp.s.back()->nt = B;
-		//if (!shift(g, *(s - 1), *s, B, false))
-		//	return false;
-		return shift(g, *(s - 1), *s, B, false);
-	//}
+	}
+	if (!u)return false;
+	if (u->pos > 1) {
+		g.reduce(sp.s.data() + sp.s.size() - u->pos, u, B, B, pt);
+	} else sp.s.back()->nt = B;
+	return shift(g, *(s - 1), *s, B, false);
 }
 
 bool reduce0(GrammarState& g, SStack& ss, PStack& sp/*, NTSet &M1*/, ParseTree &pt) {
 	int B = -1, C = -1;
-	//M1.clear();
 	for (;ss.s.size();) {
 		LR0State* s = &ss.s.back() - 1;
 		int r = 0;
@@ -238,21 +233,14 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
 					}
 					Assert(A1 >= 0);
 				}
-				//if (A0 != Bb)
-				//	path.push_back({ g.root.nextN(Bb),A0 });
 				path.push_back({ u1,A0,Bb }); // A0 <- Bb <- rule
 				A0 = A1;
 			}
 			for (int j = (int)path.size(); j--;) {
-				//ParseNode pn;
 				int p = path[j].v->pos;
 				sp.s[sp.s.size() - p] = g.reduce(&sp.s[sp.s.size() - p], path[j].v, path[j].B, path[j].A, pt);
-				//pn.rule = path[j].v->rule(path[j].A);
-				//pn.ch.resize(p);
-				//std::move(sp.s.end() - p, sp.s.end(), pn.ch.begin());
 				// TODO: добавить позицию в тексте и т.п.
 				sp.s.resize(sp.s.size() - p + 1);
-				//sp.s.emplace_back(std::move(pn));
 			}
 			int p = (int)ss.s.size() - i;
 			ss.s.resize(p + 1);
@@ -459,6 +447,7 @@ ParseTree parse(GrammarState & g, const std::string& text) {
 		throw SyntaxError("Unexpected end of file",prstack(g,ss,sp));
 	Assert(ss.s.size() == 2);
 	Assert(sp.s.size() == 1);
+	pt.root = sp.s[0];
 	return pt;
 }
 
@@ -466,17 +455,10 @@ void GrammarState::error(const string & err) {
 	cerr << "Error at line "<< lex.curr.cpos.line<<':'<< lex.curr.cpos.col<<" : " << err << "\n";
 	_err.push_back(make_pair(lex.curr.cpos, err));
 }
-/*
-void GrammarState::addToken(const string & term, const string & re) {
-	if(debug_pr)
-		std::cout << "!!! Add token : " << term << " = " << re << "\n";
-	lex.addNCToken(ts[term], regex(re));
-}*/
 
 void GrammarState::addLexerRule(const string & term, const string & rhs, bool tok, bool to_begin) {
 	if (debug_pr)
 		std::cout << "!!! Add lexer rule : " << term << " <- " << rhs << "\n";
-	//lex.addNCToken(ts[term], regex(re));
 	int n = tok ? ts[term] : 0;
 	lex.addPEGRule(term, rhs, n, to_begin);
 }
@@ -530,9 +512,6 @@ bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, Semant
 		ntRules.resize(rule.A + 1);
 	ntRules[rule.A].push_back(curr);
 
-	//if ((int)ntFirstMap.size() <= rule.A)
-	//	ntFirstMap.resize(rule.A + 1);
-
 	if (rule.rhs[0].term) {
 		tf.checkSize(rule.A);
 		auto &tmap = tFirstMap[rule.rhs[0].num];
@@ -568,9 +547,6 @@ bool GrammarState::addRule(const CFGRule & rule) {
 	if ((int)ntRules.size() <= rule.A)
 		ntRules.resize(rule.A + 1);
 	ntRules[rule.A].push_back(curr);
-
-	//if ((int)ntFirstMap.size() <= rule.A)
-	//	ntFirstMap.resize(rule.A + 1);
 
 	if (rule.rhs[0].term) {
 		tf.checkSize(rule.A);
@@ -619,7 +595,7 @@ bool GrammarState::addRule(const ParseNode * ruleDef) {
 	addRule(ruleDef->ch[0]->term, res);
 	return true;
 }
-
+#if 0
 template<class T>
 class Queue {
 	vector<T> v;
@@ -675,3 +651,4 @@ void ParseNode::del() {
 		delete n;
 	}*/
 }
+#endif

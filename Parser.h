@@ -49,12 +49,8 @@ struct ParseNode {
 			size += n->size;
 	}
 	ParseNode& operator=(ParseNode&&) = default;
-	void del();
-	//void free();
-	~ParseNode() {
-		//for(auto *n : ch)
-		//if (ch.size())del();
-	}
+	//void del();
+	~ParseNode() {}
 };
 
 struct ParseTree {
@@ -62,9 +58,7 @@ struct ParseTree {
 	ParseNode* root = 0;
 	template<class ... Args>
 	ParseNode *newnode(Args && ... args) {
-		//return new ParseNode(std::forward(args)...);
 		ParseNode*res = _alloc.allocate(args...);
-		//res->tree = this;
 		return res;
 	}
 	~ParseTree() { del(root); }
@@ -82,25 +76,11 @@ struct ParseTree {
 	}
 };
 
-/*inline void ParseNode::free() {
-	//if (tree)tree->del(this);
-	//else
-	delete this;
-}*/
-
-//struct NTTreeNode;
-template<class Node>
-struct NTTreeEdge {
-	Node end;  // Конец ребра
-	//NTSet filter;    // Фильтр на ребре
-};
 template<class T>
 struct Ref : unique_ptr<T> {
 	Ref() :unique_ptr<T>(new T) {}
 };
 struct NTTreeNode {
-	//typedef NTTreeEdge<NTTreeNode> Edge;
-	//unordered_map<string, Edge> charedges; // Ветвление по константным терминалам
 	unordered_map<int, Ref<NTTreeNode>> termEdges;    // Ветвление по неконстантным терминалам
 	unordered_map<int, Ref<NTTreeNode>> ntEdges;      // Ветвление по нетерминалам
 	NTSet phi;                                   // Нетерминалы, по которым можно пройти до текущей вершины

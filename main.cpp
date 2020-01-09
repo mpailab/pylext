@@ -108,8 +108,8 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 			auto N = parse(g, text);
 			double t = tm.stop();
 			cout << setprecision(3);
-			log  << e.path().filename() << ":\t Success :\t time = " << t << "\t(" << text.size()/t*1e-6 << " MB/s)\n";
-			cout << e.path().filename() << ":\t Success :\t time = " << t << "\t(" << text.size() / t * 1e-6 << " MB/s)\n";
+			log << e.path().filename() << ":\t Success :\t " << N.root->size << " nodes\t time = " << t << "\t(" << text.size() / t * 1e-6 << " MB/s)\n";
+			cout << e.path().filename() << ":\t Success :\t " << N.root->size << " nodes\t time = " << t << "\t(" << text.size() / t * 1e-6 << " MB/s)\n";
 			success++;
 		} catch (SyntaxError & ex) {
 			log << e.path().filename() << ":\t Failed  :\t" << ex.what()<<"\n";
