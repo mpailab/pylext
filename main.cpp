@@ -4,7 +4,7 @@
 #include "Parser.h"
 using namespace std;
 
-bool addRule(GrammarState &gr, const string &s, SemanticAction act=SemanticAction()) {
+bool addRule(GrammarState &gr, const string &s, SemanticAction act=SemanticAction(), int id=-1) {
 	int pos = 0, i=0;
 	string A;
 	vector<string> rhs;
@@ -34,10 +34,12 @@ bool addRule(GrammarState &gr, const string &s, SemanticAction act=SemanticActio
 			pos = q;
 		} else throw Exception("Error : unexpected symbol '"s + s[pos] + "'");
 	}
-	gr.addRule(A, rhs, act);
+	gr.addRule(A, rhs, act, id);
 	return true;
 }
-
+bool addRule(GrammarState &gr, const string &s,int id) {
+	return addRule(gr, s, SemanticAction(), id);
+}
 string loadfile(const string &fn) {
 	ifstream f(fn);
 	if (!f.is_open())throw Exception("cannot open file `"+fn+"`");
@@ -84,7 +86,6 @@ struct Timer {
 	}
 };
 
-
 using namespace filesystem;
 int testDir(GrammarState &g, const string& dir, const string &logfile, const string &failed = "failed.txt") {
 	ofstream log(logfile);
@@ -129,7 +130,45 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 	cout << success << " / " << total << " (" << success * 100. / total << "%) passed\n" << (total - success) << " failed\n\n";
 	return 0;
 }
-
+enum SynType {
+	Or=1,
+	Maybe,
+	Concat
+};
+template<class T>
+vector<T>& operator +=(vector<T> &x, const vector<T> &y) {
+	x.insert(x.end(), y.begin(), y.end());
+	return x;
+}
+template<class T>
+vector<T> operator +(vector<T> x, const vector<T> &y) {
+	return x += y;
+}
+vector<vector<string>> getVariants(ParseNode *n) {
+	vector<vector<string>> res;
+	while (!n->isTerminal() && n->ch.size() == 1 && n->rule_id<0)
+		n = n->ch[0];
+	switch (n->rule_id) {
+	case Or: for (auto *m : n->ch)res += getVariants(m);
+		return res;
+	case Maybe:
+		res = getVariants(n->ch[0]);
+		res.push_back({});
+		return res;
+	case Concat:
+		res = { {} };
+		for (auto *m : n->ch) {
+			auto x = getVariants(m);
+			auto t = res; res.clear();
+			for (auto &u : t)
+				for (auto &v : x)
+					res.push_back(u + v);
+		}
+		return res;
+	}
+	Assert(n->isTerminal());
+	return { {n->term} };
+}
 
 int main(int argc, char*argv[]) {
 #ifndef _DEBUG
@@ -153,10 +192,40 @@ int main(int argc, char*argv[]) {
 		addRule(st, "string -> dq_string");
 		addRule(st, "rule_symbol -> ident"); 
 		addRule(st, "rule_symbol -> sq_string");
-		addRule(st, "rule_rhs -> rule_symbol");
-		addRule(st, "rule_rhs -> rule_rhs rule_symbol");
+		addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](GrammarState*g, ParseNode&n) { n = std::move(n[0]); });// TODO: ѕотенциальна€ утечка пам€ти -- проверить !!!
+		addRule(st, "rule_symbol -> '[' rule_rhs ']'", Maybe);
+		addRule(st, "rule_rhs_seq -> rule_symbol");
+		addRule(st, "rule_rhs_seq -> rule_rhs_seq rule_symbol", /*[](GrammarState*g, ParseNode&n) {
+			if (n[0].rule_id == Concat) {
+				n[0].ch.push_back(n.ch[1]);
+				n = move(n[0]); // TODO: ѕотенциальна€ утечка пам€ти -- проверить !!!
+			} 
+		},*/ Concat);
+		addRule(st, "rule_rhs -> rule_rhs_seq");
+		addRule(st, "rule_rhs -> rule_rhs_seq '|' rule_rhs", /*[](GrammarState*g, ParseNode&n) {
+			if (n[1].rule_id == Or) {
+				n[1].ch.push_back(n.ch[0]);
+				n = move(n[1]); // TODO: ѕотенциальна€ утечка пам€ти -- проверить !!!
+			}
+		},*/ Or);
 
-		addRule(st, "new_syntax_expr -> '%' 'syntax' ':' ident '->' rule_rhs", [](GrammarState*g, ParseNode&n) { g->addRule(&n); });
+		addRule(st, "new_syntax_expr -> '%' 'syntax' ':' ident '->' rule_rhs", [](GrammarState*g, ParseNode&n) { 
+			Assert(n[0].isTerminal());
+			for (auto &x : getVariants(n.ch[1])) {
+				g->addRule(n[0].term, x);
+			}
+			/*if (n[1].rule_id == Or) {
+				for (auto *nn : n[1].ch) {
+					vector<string> rhs;
+					Assert(nn->isTerminal() || nn->rule_id == 1);
+					if (nn->rule_id == Concat)
+						for (auto *m : nn->ch)
+							rhs.push_back(m->term);
+					else rhs.push_back(nn->term);
+					g->addRule(n[0].term, rhs);
+				}
+			} else g->addRule(&n); */
+		});
 	
 		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
 		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
@@ -165,14 +234,15 @@ int main(int argc, char*argv[]) {
 		addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
 		addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
 		
-		addRule(st, "new_syntax_expr -> '%' 'indent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setIndentToken(n.term); });
-		addRule(st, "new_syntax_expr -> '%' 'dedent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setDedentToken(n.term); });
-		addRule(st, "new_syntax_expr -> '%' 'check_indent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setCheckIndentToken(n.term); });
-		addRule(st, "new_syntax_expr -> '%' 'eol' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOLToken(n.term); });
-		addRule(st, "new_syntax_expr -> '%' 'eof' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOFToken(n.term); });
+		addRule(st, "new_syntax_expr -> '%' 'indent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setIndentToken(n[0].term); });
+		addRule(st, "new_syntax_expr -> '%' 'dedent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setDedentToken(n[0].term); });
+		addRule(st, "new_syntax_expr -> '%' 'check_indent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setCheckIndentToken(n[0].term); });
+		addRule(st, "new_syntax_expr -> '%' 'eol' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOLToken(n[0].term); });
+		addRule(st, "new_syntax_expr -> '%' 'eof' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOFToken(n[0].term); });
 		
 		addRule(st, "new_syntax -> new_syntax_expr ';'");
-		addRule(st, "text -> new_syntax text", [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); });
+		addRule(st, "text -> new_syntax text");// , [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); }); // TODO: ѕотенциальна€ утечка пам€ти -- проверить !!!
+
 		addRule(st, "new_syntax_expr -> '%' 'stats'", [](GrammarState* g, ParseNode&) {
 			cout << "===================== Grammar statistics ========================" << endl;
 			cout << "    Number of constant tokens     :    " << g->lex.cterms.size() << endl;

@@ -107,7 +107,8 @@ struct PEGLexer {
 		iterator() = default;
 		iterator(PEGLexer *l, const NTSet *t=0) :lex(l), s(l->text.c_str()) {
 			_at_end = false;
-			indents = { IndentSt{false,0,0} };
+			indents = { IndentSt{false,1,1,1} };
+			cprev.line = 0;
 			//for (auto &p : lex->ncterms)
 			//	rit.push_back(regex_iterator<const char*>(s, s + text.size(), *p.first));
 			readToken(t);
@@ -133,28 +134,29 @@ struct PEGLexer {
 					curr_t.push_back(Token(lex->tokens[lex->eol].second, { cpos,cpos }, Substr(s + pos, 0), false));
 					nlines++;
 					return;
-				} else if (spec && lex->indent >= 0 && t->has(lex->indent)) { // Если увеличение отступа допустимо, то оно читается вне зависимости от того, что дальше 
+				}
+				if (spec && s[pos] && lex->indent >= 0 && t->has(lex->indent)) { // Если увеличение отступа допустимо, то оно читается вне зависимости от того, что дальше 
 					if (indents.back().col != cprev.col || indents.back().line != cprev.line) {     // Запрещено читать 2 раза подряд увеличение отступа с одной и той же позиции
 						indents.push_back(IndentSt{ false, cprev.line, cprev.col, indents.back().col + 1 }); // иначе может произойти зацикливание, если неправильная грамматика, например, есть правило A -> indent A ...
 						curr_t.push_back(Token(lex->tokens[lex->indent].second, { cprev, cprev }, Substr(s + pos, 0), false));
-					}
-					return;
-				} else if (lex->dedent >= 0 && t->has(lex->dedent)) { // Уменьшение отступа
-					if (cpos.col < indents.back().col) {
-						indents.pop_back();
-						if (!indents.back().fix) { 
-							indents.back().fix = true;  
-							indents.back().col = max(indents.back().col, cpos.col); 
-						}
-						curr_t.push_back(Token(lex->tokens[lex->dedent].second, { cpos, cpos }, Substr(s + pos, 0), false));
 						return;
 					}
-				} else if (cpos.line > cprev.line && lex->check_indent >= 0 && t->has(lex->check_indent)) { // Проверка отступа
+				}
+				if (cpos.col < indents.back().col && lex->dedent >= 0 && t->has(lex->dedent)) { // Уменьшение отступа
+					indents.pop_back();
+					if (!indents.back().fix) {
+						indents.back().fix = true;
+						indents.back().col = max(indents.back().col, cpos.col);
+					}
+					curr_t.push_back(Token(lex->tokens[lex->dedent].second, { cpos, cpos }, Substr(s + pos, 0), false));
+					return;
+				}
+				if (s[pos] && lex->check_indent >= 0 && t->has(lex->check_indent)) { // Проверка отступа
 					auto &b = indents.back();
 					bool indented = false;
 					if (cpos.col >= b.col) {
 						if (cpos.line > b.line) {
-							if (!b.fix) 
+							if (!b.fix)
 								b.fix = true,
 								b.col = cpos.col;
 							if (b.col == cpos.col) indented = true;
@@ -179,7 +181,7 @@ struct PEGLexer {
 			int imax = -1;
 			int best = -1, b1 = -1;
 			for (int ni = 0; ni < (int)lex->tokens.size(); ni++) {
-				if (t && !t->has(ni))continue;
+				if ((t && !t->has(ni))||lex->special.has(ni))continue;
 				//lex->_counter[ni]++;
 				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
 				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos/*shifted(end)*/ }, Substr{ s + bpos, end - bpos }, true});
@@ -207,8 +209,23 @@ struct PEGLexer {
 			if(!n || p0 < imax) {
 				if (best < 0) {
 					Pos ccpos = shifted(lex->packrat.errpos);
-					string msg = "Unknown token at " + to_string(cpos.line) + ":" + to_string(cpos.col) + " : '" + string(s + bpos, strcspn(s + bpos, "\n")) + "',\n"
-						"PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
+					string msg = "Unknown token at " + to_string(cpos.line) + ":" + to_string(cpos.col) + " : '" + string(s + bpos, strcspn(s + bpos, "\n")) + "',\n";
+					if (t) {
+						_accepted = true;
+						readToken();
+						_accepted = false;
+						msg += "it may be ";
+						bool fst = true;
+						for (auto &t : curr_t) {
+							if (!fst)msg += ", "; fst = false;
+							msg += lex->_ten[lex->internalNum(t.type)];
+						}
+						msg += " but expected one of: "; fst = true;
+						for (int i : *t) {
+							if (!fst)msg += ", "; fst = false;
+							msg += lex->_ten[i];
+						}
+					} else msg+="PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
 					throw SyntaxError(msg);
 				} else if (m > 1) {
 					throw SyntaxError("Lexer conflict: `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: "+lex->_ten[best]+" or "+lex->_ten[b1]);
@@ -302,7 +319,9 @@ struct PEGLexer {
 			if (_ten[*_pnum] == nm) return *_pnum;
 			else throw GrammarError(intname + " token already declared with name `" + _ten[*_pnum] + "`");
 		}
-		return *_pnum = declareNCToken(nm, ext_num);
+		*_pnum = declareNCToken(nm, ext_num, true);
+		special.add(*_pnum);
+		return *_pnum;
 	}
 	int declareIndentToken(const std::string &nm, int ext_num) {
 		return _declareSpecToken(nm, ext_num, &indent, "indent");
@@ -328,10 +347,10 @@ struct PEGLexer {
 		packrat.add_rule(nt, e, to_begin);
 		if (ext_num)declareNCToken(nt,ext_num);
 	}
-	int declareNCToken(const string& nm, int num) {
+	int declareNCToken(const string& nm, int num, bool spec = false) {
 		int t = _ten[nm];
 		int a = packrat._en.num(nm);
-		if (a < 0)throw Exception("Cannot declare token `" + nm + "` when no rules exists");
+		if (!spec && a < 0)throw Exception("Cannot declare token `" + nm + "` when no rules exists");
 		if (t >= (int)tokens.size())
 			tokens.resize(t+1,make_pair(-1,-1));
 		tokens[t] = make_pair(a,num);

@@ -27,11 +27,12 @@ struct ParseNode {
 	int nt;               // Номер терминала или нетерминала
 	int B = -1;           // Номер промежуточного нетерминала в случае свёртки nt <- B <- rule
 	int rule=-1;          // Номер правила (-1 => терминал)
+	int rule_id = -1;     // Внешний номер правила
 	string term;          // Строковое значение (если терминал)
 	//ParseTree* tree = 0;  // Ссылка на дерево разбора
 	//ParseNode* p = 0;     // Ссылка на родительский узел
 	int size = 1;
-	VectorF<ParseNode* /*,BinAlloc<ParseNode>*/,4> ch; // Дочерние узлы
+	vector<ParseNode* /*,BinAlloc<ParseNode>*/> ch; // Дочерние узлы
 	Location loc;         // Размещение фрагмента в тексте
 	bool isTerminal()const {
 		return rule < 0;
@@ -63,7 +64,13 @@ struct ParseTree {
 	}
 	~ParseTree() { del(root); }
 	ParseTree() {}
-	ParseTree(ParseTree && t):root(t.root) { t.root = 0; }
+	ParseTree(ParseTree && t):root(t.root),_alloc(move(t._alloc)) { t.root = 0; }
+	ParseTree& operator=(ParseTree && t) {
+		if (root != t.root)del(root);
+		_alloc = std::move(t._alloc);
+		root = t.root; t.root = 0;
+		return *this;
+	}
 	void del(ParseNode *r) { 
 		for (ParseNode *curr = r, *next = 0; curr; curr = next) {
 			next = 0;
@@ -180,6 +187,7 @@ struct CFGRule {
 	vector<RuleElem> rhs; 
 	int used;
 	SemanticAction action;
+	int ext_id = -1;
 };
 
 template<class T>
@@ -241,7 +249,10 @@ struct GrammarState {
 
 	void addLexerRule(const string& term, const string& re, bool tok=false, bool to_begin = false);
 	void addToken(const string& term, const string& re) { addLexerRule(term, re, true); }
-	bool addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction());
+	bool addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction(), int id=-1);
+	bool addRule(const string &lhs, const vector<string> &rhs, int id) {
+		return addRule(lhs, rhs, SemanticAction(), id);
+	}
 	bool addRule(const CFGRule &r);
 
 	bool addLexerRule(const ParseNode *tokenDef, bool tok, bool to_begin=false);
@@ -256,6 +267,7 @@ struct GrammarState {
 		res->rule = r;
 		res->B = nt;
 		res->nt = nt1;
+		res->rule_id = rules[r].ext_id;
 		int szp = 0;
 		for (int i = 0; i < sz; i++)
 			szp += rules[r].rhs[i].save;

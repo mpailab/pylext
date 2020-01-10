@@ -463,7 +463,7 @@ void GrammarState::addLexerRule(const string & term, const string & rhs, bool to
 	lex.addPEGRule(term, rhs, n, to_begin);
 }
 
-bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, SemanticAction act) {
+bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, SemanticAction act, int id) {
 	if (debug_pr) {
 		std::cout << "!!! Add rule  : " << lhs << " = ";
 		for (auto&x : rhs)std::cout << " " << x;
@@ -520,7 +520,7 @@ bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, Semant
 		if(!rule.rhs[0].cterm)
 			tf.addRuleBeg_t(lex.curr.pos, rule.A, lex.internalNum(rule.rhs[0].num));
 	} else tf.addRuleBeg(lex.curr.pos, rule.A, rule.rhs[0].num, len(rule.rhs));
-
+	rule.ext_id = id;
 	rules.emplace_back(move(rule));
 
 	return true;
