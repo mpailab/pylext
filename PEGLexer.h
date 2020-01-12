@@ -113,10 +113,14 @@ struct PEGLexer {
 			//	rit.push_back(regex_iterator<const char*>(s, s + text.size(), *p.first));
 			readToken(t);
 		}
-		void readToken(const NTSet *t=0) {
+		void readToken(const NTSet *t = 0) {
 			Assert(_accepted);
-			curr_t.clear();
+			readToken_p(t);
 			_accepted = false;
+		}
+		void readToken_p(const NTSet *t/*, int pos*/) {
+			curr_t.clear();
+			//_accepted = false;
 			bool spec = t && t->intersects(lex->special);
 
 			if (lex->ws_token >= 0 && rdws) {
@@ -184,7 +188,7 @@ struct PEGLexer {
 				if ((t && !t->has(ni))||lex->special.has(ni))continue;
 				//lex->_counter[ni]++;
 				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
-				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos/*shifted(end)*/ }, Substr{ s + bpos, end - bpos }, true});
+				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos }, Substr{ s + bpos, end - bpos }, true});
 				if (end > imax) {
 					best = ni;
 					m = 1;
@@ -211,9 +215,9 @@ struct PEGLexer {
 					Pos ccpos = shifted(lex->packrat.errpos);
 					string msg = "Unknown token at " + to_string(cpos.line) + ":" + to_string(cpos.col) + " : '" + string(s + bpos, strcspn(s + bpos, "\n")) + "',\n";
 					if (t) {
-						_accepted = true;
+						//_accepted = true;
 						readToken();
-						_accepted = false;
+						//_accepted = false;
 						msg += "it may be ";
 						bool fst = true;
 						for (auto &t : curr_t) {
@@ -235,18 +239,20 @@ struct PEGLexer {
 				//curr = { lex->tokens[best].second, { beg,cpos }, Substr{ s + bpos, end - bpos } };
 			}
 			rdws = true;
-			_accepted = false;
+			//_accepted = false;
 		}
 		void acceptToken(Token& tok) {
 			if (_accepted) {
 				Assert(curr_t[0].type==tok.type && curr_t[0].text.b == tok.text.b && curr_t[0].text.len == tok.text.len);
 				return;
 			}
-			Assert(s + pos == tok.text.b);
-			curr_t.resize(1); curr_t[0] = tok;
+			Assert(s + pos <= tok.text.b);
+			shift(int(tok.text.b - (s+pos)));
+			tok.loc.beg = cpos;
 			if (tok.type == lex->eof)_at_end = true;
 			shift(tok.text.len);
 			tok.loc.end = cpos;
+			curr_t.resize(1); curr_t[0] = tok;
 			_accepted = true;
 		}
 		const vector<Token>& operator*()const {
