@@ -152,6 +152,7 @@ struct PEGLexer {
 		struct State {
 			int nlines = 0;
 			int pos = 0;
+			bool rdws = true;
 			Pos cpos, cprev;
 			bool at_end = true;
 		};
@@ -161,6 +162,7 @@ struct PEGLexer {
 			res.pos = pos;
 			res.cpos = cpos;
 			res.cprev = cprev;
+			res.rdws = rdws;
 			res.at_end = _at_end;
 			return res;
 		}
@@ -169,6 +171,7 @@ struct PEGLexer {
 			pos     = st.pos;
 			cpos    = st.cpos;
 			cprev   = st.cprev;
+			rdws    = st.rdws;
 			_at_end = st.at_end;
 		}
 
@@ -262,6 +265,7 @@ struct PEGLexer {
 			int end = 0;
 			if (lex->packrat.parse(lex->tokens[t].first, pos, end, 0)) {
 				*res = Token{ lex->tokens[t].second, { cpos, cpos }, Substr{ s + pos, end - pos }, Token::NonConst };
+				rdws = true;
 				return true;
 			}
 			return false;
@@ -281,9 +285,10 @@ struct PEGLexer {
 			curr_t.clear();
 			if (t.intersects(lex->composite)) {
 				auto st = state();
-				Token res, rr; bool ok = true;
+				Token res, rr; 
 				int bpos = -1, imax = -1, i1=-1, m = 0;
 				for (int i : t & lex->composite) {
+					bool ok = true;
 					for (auto[nc, tok] : lex->compTokens[i].t) {
 						readWs();
 						if (nc) {
@@ -297,6 +302,7 @@ struct PEGLexer {
 								ok = false;
 								break;
 							}
+							rdws = true;
 						}
 					}
 					if (ok) {
@@ -316,7 +322,7 @@ struct PEGLexer {
 				}
 				if (imax >= 0) {
 					if (m > 1) {
-						throw SyntaxError("Lexer conflict: `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: " + lex->_ten[imax] + " or " + lex->_ten[i1]);
+						throw SyntaxError("Lexer conflict at " + cpos.str() + ": `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: " + lex->_ten[imax] + " or " + lex->_ten[i1]);
 					}
 					curr_t.push_back(rr); // Составной токен (если прочитан) имеет приоритет перед обычным. Поэтому в случае успеха сразу возвращаем результат
 					_accepted = false;
@@ -396,6 +402,7 @@ struct PEGLexer {
 					imax = end;
 				} else if (end == imax) {
 					m++;
+					b1 = ni;
 				}
 			}
 			if (curr_t.size() > 1)sort(curr_t.begin(), curr_t.end(), [](const Token& x, const Token& y) {return x.text.len > y.text.len; });
@@ -435,8 +442,8 @@ struct PEGLexer {
 						} else msg += "PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
 					} else msg+="PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
 					throw SyntaxError(msg);
-				} else if (m > 1) {
-					throw SyntaxError("Lexer conflict: `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: "+lex->_ten[best]+" or "+lex->_ten[b1]);
+				} else if (t && m > 1) {
+					throw SyntaxError("Lexer conflict at " + cpos.str() + ": `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: "+lex->_ten[best]+" or "+lex->_ten[b1]);
 				}
 				//auto beg = cpos;
 				//shift(end - bpos);
@@ -460,6 +467,7 @@ struct PEGLexer {
 						Assert(tryNCToken(tok, &r));
 					} else {
 						Assert(lex->cterms(s,pos));
+						rdws = true;
 					}
 				}
 				Assert(tok.text.b + tok.text.len == s + pos);

@@ -95,6 +95,8 @@ struct PEGExpr {
 		if (type == Empty)return *this = move(e);
 		if (type == OrdAlt) {
 			subexprs.emplace_back(move(e));
+		} else if (type == Terminal && e.type == Terminal) {
+			t_mask |= e.t_mask;
 		} else {
 			subexprs = { std::move(*this), std::move(e) };
 			type = OrdAlt;
@@ -116,8 +118,6 @@ struct PEGExpr {
 				subexprs.back().s += e.s;
 				subexprs.back().id = -1;
 			} else subexprs.emplace_back(move(e));
-		} else if (type == Terminal&&e.type == Terminal) {
-			t_mask |= e.t_mask;
 		} else if (type == String&&e.type == String) {
 			s += e.s;
 		} else {

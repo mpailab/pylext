@@ -401,50 +401,57 @@ ParseTree parse(GrammarState & g, const std::string& text) {
 	s0.v[0].M = g.tf.fst[g.nts[""]];
 	s0.v[0].v = &g.root;
 	ss.s.emplace_back(std::move(s0));
-	for(g.lex.start(text, &g.tf.fst_t[g.start]); !g.lex.atEnd();) {
-		for (int ti = 0; ti < len(g.lex.tok()); ti++){
-			auto t = g.lex.tok()[ti];
-			if (debug_pr) {
-				std::cout << "token of type " << g.ts[t.type] << ": `" << t.str() << "` at " << t.loc << endl;
-			}
-			if (shift(g, ss.s.back(), s0, t.type, true)) {
+	try {
+		for (g.lex.start(text, &g.tf.fst_t[g.start]); !g.lex.atEnd();) {
+			for (int ti = 0; ti < len(g.lex.tok()); ti++) {
+				auto t = g.lex.tok()[ti];
 				if (debug_pr) {
-					std::cout << "Shift by " << g.ts[t.type] << ": ";
-					printstate(std::cout, g, s0) << "\n";
+					std::cout << "token of type " << g.ts[t.type] << ": `" << t.str() << "` at " << t.loc << endl;
 				}
-				ss.s.emplace_back(move(s0));
-				g.lex.acceptToken(t);
-				
-				sp.s.emplace_back(termnode(t,pt));
-
-				//if (!reduce0(g, ss, sp, pt))
-				//	throw SyntaxError("Cannot shift or reduce after terminal " + g.ts[t.type] + " = `" + t.short_str() + "` at " + t.loc.beg.str(), prstack(g, ss, sp));
-
-				nextTok(g, ss);
-				//g.lex.go_next();
-				break;
-			} else {
-				bool r = reduce(g, ss, sp, t.type, pt);
-				if (!r) {
-					if (ti < len(g.lex.tok())-1) {
-						if (debug_pr) {
-							std::cout << "Retry with same token of type " << g.ts[g.lex.tok()[ti+1].type] << endl;
-						}
-						continue;
+				if (shift(g, ss.s.back(), s0, t.type, true)) {
+					if (debug_pr) {
+						std::cout << "Shift by " << g.ts[t.type] << ": ";
+						printstate(std::cout, g, s0) << "\n";
 					}
-					auto &t1 = g.lex.tok()[0];
-					throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t1.type] + " = `" + t1.short_str() + "` at " + t1.loc.beg.str(), prstack(g, ss, sp));
+					ss.s.emplace_back(move(s0));
+					g.lex.acceptToken(t);
+
+					sp.s.emplace_back(termnode(t, pt));
+
+					//if (!reduce0(g, ss, sp, pt))
+					//	throw SyntaxError("Cannot shift or reduce after terminal " + g.ts[t.type] + " = `" + t.short_str() + "` at " + t.loc.beg.str(), prstack(g, ss, sp));
+
+					nextTok(g, ss);
+					//g.lex.go_next();
+					break;
+				} else {
+					bool r = reduce(g, ss, sp, t.type, pt);
+					if (!r) {
+						if (ti < len(g.lex.tok()) - 1) {
+							if (debug_pr) {
+								std::cout << "Retry with same token of type " << g.ts[g.lex.tok()[ti + 1].type] << endl;
+							}
+							continue;
+						}
+						auto &t1 = g.lex.tok()[0];
+						throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t1.type] + " = `" + t1.short_str() + "` at " + t1.loc.beg.str(), prstack(g, ss, sp));
+					}
+					if (debug_pr) {
+						std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
+					}
+					g.lex.acceptToken(t);
+					break;
 				}
-				if (debug_pr) {
-					std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
-				}
-				g.lex.acceptToken(t);
-				break;
 			}
 		}
+		if (!reduce(g, ss, sp, 0, pt))
+			throw SyntaxError("Unexpected end of file", prstack(g, ss, sp));
+	} catch (SyntaxError &e) {
+		if (e.stack_info.empty()) {
+			e.stack_info = prstack(g, ss, sp);
+		}
+		throw e;
 	}
-	if (!reduce(g, ss, sp, 0, pt))
-		throw SyntaxError("Unexpected end of file",prstack(g,ss,sp));
 	Assert(ss.s.size() == 2);
 	Assert(sp.s.size() == 1);
 	pt.root = sp.s[0];

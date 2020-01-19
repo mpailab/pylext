@@ -248,8 +248,14 @@ int main(int argc, char*argv[]) {
 			cout << "    Average production length     :    " << total*1./g->rules.size() << endl;
 			cout << "=================================================================" << endl;
 			});
-		//addRule(st, "text -> new_rule text", [](GrammarState*, ParseNode&n) {n = move(n[1]); });
-
+		addRule(st, "new_syntax_expr -> '%' 'print'", [](GrammarState* g, ParseNode&) {
+			cout << "=====================    Grammar rules   ========================" << endl;
+			g->print_rules(cout);
+			cout << "=================================================================" << endl;
+			//addRule(st, "text -> new_rule text", [](GrammarState*, ParseNode&n) {n = move(n[1]); });
+			});
+		addRule(st, "new_syntax_expr -> '%' 'debug' 'on'", [](GrammarState* g, ParseNode&) { setDebug(1); });
+		addRule(st, "new_syntax_expr -> '%' 'debug' 'off'", [](GrammarState* g, ParseNode&) { setDebug(0); });
 		cout << "Const rules:\n";
 		st.print_rules(cout);
 		cout << "\n";
