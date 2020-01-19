@@ -209,7 +209,7 @@ struct dvector {
 	}
 };
 
-void setDebug(bool b);
+void setDebug(int b);
 struct GrammarState {
 	unordered_map<int, NTSet> tFirstMap;   // По терминалу возвращает, какие нетерминалы могут начинаться с данного терминала
 	vector<vector<NTTreeNode*>> ntRules;   // Каждому нетерминалу сопоставляется список финальных вершин, соответствующих правилам для данного нетерминала
@@ -249,14 +249,23 @@ struct GrammarState {
 
 	void addLexerRule(const string& term, const string& re, bool tok=false, bool to_begin = false);
 	void addToken(const string& term, const string& re) { addLexerRule(term, re, true); }
-	bool addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction(), int id=-1);
+	bool addRule(const string &lhs, const vector<vector<string>> &rhs, SemanticAction act = SemanticAction(), int id=-1);
+	bool addRule(const string &lhs, const vector<vector<string>> &rhs, int id) {
+		return addRule(lhs, rhs, SemanticAction(), id);
+	}
+	bool addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction(), int id = -1) {
+		vector<vector<string>> vrhs(rhs.size());
+		for (int i = 0; i < (int)rhs.size(); i++)
+			vrhs[i] = { rhs[i] };
+		return addRule(lhs, vrhs, act, id);
+	}
 	bool addRule(const string &lhs, const vector<string> &rhs, int id) {
 		return addRule(lhs, rhs, SemanticAction(), id);
 	}
 	bool addRule(const CFGRule &r);
 
 	bool addLexerRule(const ParseNode *tokenDef, bool tok, bool to_begin=false);
-	bool addRule(const ParseNode *ruleDef);
+	//bool addRule(const ParseNode *ruleDef);
 	GrammarState() {
 		ts[""];  // Резервируем нулевой номер терминала, чтобы все терминалы имели ненулевой номер.
 		nts[""]; // Резервируем нулевой номер нетерминала, чтобы все нетерминалы имели ненулевой номер.

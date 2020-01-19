@@ -3,8 +3,8 @@
 #include <sstream>
 #include "Parser.h"
 
-bool debug_pr = false;
-void setDebug(bool b) { debug_pr = b; }
+int debug_pr = false;
+void setDebug(int b) { debug_pr = b; }
 ParseNode* termnode(const Token& t, ParseTree &pt) {
 	ParseNode* res = pt.newnode();// std::make_unique<ParseNode>();
 	res->nt = t.type;
@@ -428,7 +428,7 @@ ParseTree parse(GrammarState & g, const std::string& text) {
 				if (!r) {
 					if (ti < len(g.lex.tok())-1) {
 						if (debug_pr) {
-							std::cout << "Retry with same token of type " << g.ts[(&t)[1].type] << endl;
+							std::cout << "Retry with same token of type " << g.ts[g.lex.tok()[ti+1].type] << endl;
 						}
 						continue;
 					}
@@ -463,24 +463,57 @@ void GrammarState::addLexerRule(const string & term, const string & rhs, bool to
 	lex.addPEGRule(term, rhs, n, to_begin);
 }
 
-bool GrammarState::addRule(const string & lhs, const vector<string>& rhs, SemanticAction act, int id) {
+bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs, SemanticAction act, int id) {
 	if (debug_pr) {
 		std::cout << "!!! Add rule  : " << lhs << " = ";
-		for (auto&x : rhs)std::cout << " " << x;
+		for (auto&x : rhs) {
+			if (x.size() == 0)std::cout << " <ERROR: empty element>";
+			else{
+				std::cout << " " << x[0];
+				for(int i=1; i<(int)x.size(); i++)
+					std::cout << "+" << x[i];
+			}
+		}
 		std::cout << "\n";
 	}
 	CFGRule rule;
 	rule.A = nts[lhs];
 	rule.action = act;
-	for (auto &x : rhs) {
-		if (x[0] == '\'') {
-			if (ts.num(x) < 0) {
-				lex.addCToken(ts[x], x.substr(1,x.size()-2));
+	for (auto &y : rhs) {
+		if (y.size() > 1) {
+			string nm;
+			bool nc = false;
+			vector<pair<bool, string>> yy(y.size());
+			for (int i = 0; i < (int)y.size(); i++) {
+				if(i)nm += " + ";
+				nm += y[i];
+				if (y[i][0] == '\'') {
+					yy[i].first = false;
+					yy[i].second = y[i].substr(1, y[i].size() - 2);
+					if (ts.num(y[i]) < 0) {
+						lex.addCToken(ts[y[i]], yy[i].second);
+					}
+				} else {
+					yy[i].first = true;
+					nc = true;
+					if (ts.num(y[i]) >= 0)yy[i].second = y[i];
+					else throw GrammarError("terminal `"+y[i]+"` not declared");
+				}
 			}
-			rule.rhs.push_back(RuleElem{ ts[x],true,true,false });                      // Константный терминал
-		} else if (ts.num(x) >= 0)rule.rhs.push_back(RuleElem{ ts[x],false,true,true }); // Неконстантный терминал
+			lex.declareCompToken(yy, ts[nm]); 
+			rule.rhs.push_back(RuleElem{ ts[nm],false,true,nc });
+		} else if (y.size() == 0) continue;
 		else {
-			rule.rhs.push_back(RuleElem{ nts[x],false,false,true });                     // Нетерминал
+			auto &x = y[0];
+			if (x[0] == '\'') {
+				if (ts.num(x) < 0) {
+					lex.addCToken(ts[x], x.substr(1, x.size() - 2));
+				}
+				rule.rhs.push_back(RuleElem{ ts[x],true,true,false });                      // Константный терминал
+			} else if (ts.num(x) >= 0)rule.rhs.push_back(RuleElem{ ts[x],false,true,true }); // Неконстантный терминал
+			else {
+				rule.rhs.push_back(RuleElem{ nts[x],false,false,true });                     // Нетерминал
+			}
 		}
 	}
 	rule.used = 0;
@@ -572,7 +605,7 @@ bool GrammarState::addLexerRule(const ParseNode * tokenDef, bool tok, bool to_be
 	addLexerRule(tokenDef->ch[0]->term, (tokenDef->ch[1]->term), tok, to_begin);
 	return true;
 }
-
+/*
 bool GrammarState::addRule(const ParseNode * ruleDef) {
 	if (ruleDef->ch.size() < 2) {
 		error("syntax definition must have at least 2 nodes");
@@ -594,7 +627,7 @@ bool GrammarState::addRule(const ParseNode * ruleDef) {
 	}
 	addRule(ruleDef->ch[0]->term, res);
 	return true;
-}
+}*/
 #if 0
 template<class T>
 class Queue {

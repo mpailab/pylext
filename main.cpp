@@ -91,7 +91,7 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 	ofstream log(logfile);
 	ofstream fail(failed);
 	int total = 0, success = 0, skip = 0;
-	//setDebug(true);
+	//setDebug(1);
 	cout << "\n=========================================================================\n";
 	for (auto it = directory_iterator(path(dir)); it != directory_iterator(); ++it) {
 		const directory_entry& e = *it;
@@ -133,7 +133,8 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 enum SynType {
 	Or=1,
 	Maybe,
-	Concat
+	Concat,
+	Plus
 };
 template<class T>
 vector<T>& operator +=(vector<T> &x, const vector<T> &y) {
@@ -144,8 +145,8 @@ template<class T>
 vector<T> operator +(vector<T> x, const vector<T> &y) {
 	return x += y;
 }
-vector<vector<string>> getVariants(ParseNode *n) {
-	vector<vector<string>> res;
+vector<vector<vector<string>>> getVariants(ParseNode *n) {
+	vector<vector<vector<string>>> res;
 	while (!n->isTerminal() && n->ch.size() == 1 && n->rule_id<0)
 		n = n->ch[0];
 	switch (n->rule_id) {
@@ -165,9 +166,15 @@ vector<vector<string>> getVariants(ParseNode *n) {
 					res.push_back(u + v);
 		}
 		return res;
+	case Plus:
+		res = {{{}}};
+		for (auto *m : n->ch) {
+			res[0][0] += getVariants(m)[0][0];
+		}
+		return res;
 	}
 	Assert(n->isTerminal());
-	return { {n->term} };
+	return { { {n->term} } };
 }
 
 int main(int argc, char*argv[]) {
@@ -190,41 +197,23 @@ int main(int argc, char*argv[]) {
 		//st.addToken("sq_string", ("'(?:[^'\\\\]|\\\\.)*'"));
 		addRule(st, "string -> sq_string");
 		addRule(st, "string -> dq_string");
-		addRule(st, "rule_symbol -> ident"); 
-		addRule(st, "rule_symbol -> sq_string");
+		addRule(st, "token_sum -> ident");
+		addRule(st, "token_sum -> sq_string");
+		addRule(st, "token_sum -> token_sum '+' token_sum", Plus);
+		addRule(st, "rule_symbol -> token_sum"); 
+		//addRule(st, "rule_symbol -> sq_string");
 		addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](GrammarState*g, ParseNode&n) { n = std::move(n[0]); });// TODO: ѕотенциальна€ утечка пам€ти -- проверить !!!
 		addRule(st, "rule_symbol -> '[' rule_rhs ']'", Maybe);
 		addRule(st, "rule_rhs_seq -> rule_symbol");
-		addRule(st, "rule_rhs_seq -> rule_rhs_seq rule_symbol", /*[](GrammarState*g, ParseNode&n) {
-			if (n[0].rule_id == Concat) {
-				n[0].ch.push_back(n.ch[1]);
-				n = move(n[0]); // TODO: ѕотенциальна€ утечка пам€ти -- проверить !!!
-			} 
-		},*/ Concat);
+		addRule(st, "rule_rhs_seq -> rule_rhs_seq rule_symbol", Concat);
 		addRule(st, "rule_rhs -> rule_rhs_seq");
-		addRule(st, "rule_rhs -> rule_rhs_seq '|' rule_rhs", /*[](GrammarState*g, ParseNode&n) {
-			if (n[1].rule_id == Or) {
-				n[1].ch.push_back(n.ch[0]);
-				n = move(n[1]); // TODO: ѕотенциальна€ утечка пам€ти -- проверить !!!
-			}
-		},*/ Or);
+		addRule(st, "rule_rhs -> rule_rhs_seq '|' rule_rhs", Or);
 
 		addRule(st, "new_syntax_expr -> '%' 'syntax' ':' ident '->' rule_rhs", [](GrammarState*g, ParseNode&n) { 
 			Assert(n[0].isTerminal());
 			for (auto &x : getVariants(n.ch[1])) {
 				g->addRule(n[0].term, x);
 			}
-			/*if (n[1].rule_id == Or) {
-				for (auto *nn : n[1].ch) {
-					vector<string> rhs;
-					Assert(nn->isTerminal() || nn->rule_id == 1);
-					if (nn->rule_id == Concat)
-						for (auto *m : nn->ch)
-							rhs.push_back(m->term);
-					else rhs.push_back(nn->term);
-					g->addRule(n[0].term, rhs);
-				}
-			} else g->addRule(&n); */
 		});
 	
 		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });

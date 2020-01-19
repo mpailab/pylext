@@ -29,10 +29,16 @@ struct Location {
 };
 
 struct Token {
+	enum TType {
+		Const=0,
+		Special,
+		NonConst,
+		Composite
+	};
 	int type = 0, type2 = -1;
 	Location loc;
 	Substr text;
-	int nonconst = true;
+	TType nonconst = NonConst;
 	string str()const { return string(text.b, text.len); }
 	string short_str()const { 
 		if (text.len <= 80)return str();
@@ -42,7 +48,7 @@ struct Token {
 		return string(text.b, n1)+" <...> "+string(text.b+n2+1,text.len-n2-1); 
 	}
 	Token() {}
-	Token(int t, Location l, Substr s, bool nc) :type(t), loc(l), text(s), nonconst(nc) { loc.end.col--; }
+	Token(int t, Location l, Substr s, TType nc) :type(t), loc(l), text(s), nonconst(nc) { loc.end.col--; }
 };
 
 struct PEGLexer {
@@ -52,6 +58,22 @@ struct PEGLexer {
 		int start_col; // Столбец, в котором было прочитано увеличение отступа
 		int col;  // Величина отступа
 	};
+	struct CompositeToken {
+		vector<pair<bool,int>> t; // Номера токенов, из которых состоит составной токен
+	};
+	vector<CompositeToken> compTokens;
+	int cmpcomp(int i1, int i2) {
+		int l1 = (int)compTokens[i1].t.size(), l2 = (int)compTokens[i2].t.size(), l = min(l1, l2), r=0;
+		for (int i = 0; i < l; i++) {
+			auto [nc1, tok1] = compTokens[i1].t[i];
+			auto [nc2, tok2] = compTokens[i2].t[i];
+			int s1 = nc1&&special.has(compTokens[i1].t[i].second), s2 = nc2&&special.has(compTokens[i2].t[i].second);
+			if (s1 != s2)return 2*(s1 - s2);
+			if (!r && nc1 != nc2)r = nc1 ? 1 : -1;
+		}
+		if (l1 != l2)return l1 > l2 ? 1 : -1;
+		return r;
+	}
 	string text;
 	PackratParser packrat;
 	//vector<pair<unique_ptr<regex>, int>> ncterms;
@@ -67,7 +89,9 @@ struct PEGLexer {
 	int ws_token=-1;
 	int indent = -1, dedent = -1, check_indent = -1; // Токены для отслеживания отступов: indent -- увеличить отступ, dedent -- уменьшить отступ, check_indent -- проверить отступ
 	int eol = -1, eof = -1; // Токены для конца строки и конца файла
-	NTSet special; // Имеющиеся специальные токены (отступы, начала / концы строк)
+	NTSet special;   // Имеющиеся специальные токены (отступы, начала / концы строк)
+	NTSet composite; // Составные токены
+	NTSet simple;    // Простые токены (не являющиеся составными)
 
 	PEGLexer() { 
 		//_ten[""]; // Резервируем нулевой номер токена, чтобы номер любого токена был отличен от нуля
@@ -77,6 +101,46 @@ struct PEGLexer {
 		//vector<regex_iterator<const char*>> rit;
 		//regex_iterator<const char*> rend;
 		vector<IndentSt> indents;
+		struct StAction {
+			enum Type {
+				Push,
+				Pop,
+				Change
+			} type;
+			IndentSt data;
+		};
+		vector<StAction> undo_stack;
+		void undo(const StAction &a) {
+			switch (a.type) {
+			case StAction::Push:
+				indents.pop_back();
+				break;
+			case StAction::Pop:
+				indents.push_back(a.data);
+				break;
+			case StAction::Change:
+				indents.back() = a.data;
+			}
+		}
+		void undo_all() {
+			for (int i = (int)undo_stack.size(); i--;)
+				undo(undo_stack[i]);
+			undo_stack.clear();
+		}
+
+		IndentSt pop_indent() {
+			undo_stack.push_back(StAction{ StAction::Pop, indents.back() });
+			indents.pop_back();
+			return undo_stack.back().data;
+		}
+		void push_indent(const IndentSt &st) {
+			undo_stack.push_back(StAction{ StAction::Push, IndentSt() });
+			indents.push_back(st);
+		}
+		void change_indent(const IndentSt &st) {
+			undo_stack.push_back(StAction{ StAction::Change, indents.back() });
+			indents.back() = st;
+		}
 		PEGLexer *lex = 0;
 		const char *s = 0;
 		Pos cpos, cprev;
@@ -85,7 +149,29 @@ struct PEGLexer {
 		int pos = 0;
 		bool _accepted = true;
 		bool _at_end = true;
-		
+		struct State {
+			int nlines = 0;
+			int pos = 0;
+			Pos cpos, cprev;
+			bool at_end = true;
+		};
+		State state()const {
+			State res;
+			res.nlines = nlines;
+			res.pos = pos;
+			res.cpos = cpos;
+			res.cprev = cprev;
+			res.at_end = _at_end;
+			return res;
+		}
+		void restoreState(const State &st) {
+			nlines  = st.nlines;
+			pos     = st.pos;
+			cpos    = st.cpos;
+			cprev   = st.cprev;
+			_at_end = st.at_end;
+		}
+
 		bool atEnd() const { return _at_end;/* !lex || pos >= (int)lex->text.size();curr.text.b;*/ }
 		vector<Token> curr_t;
 		void shift(int d) {
@@ -111,11 +197,135 @@ struct PEGLexer {
 			cprev.line = 0;
 			//for (auto &p : lex->ncterms)
 			//	rit.push_back(regex_iterator<const char*>(s, s + text.size(), *p.first));
-			readToken(t);
+			if(t)
+				readToken(*t);
+			else readToken(lex->simple);
 		}
 		void readToken(const NTSet *t = 0) {
 			Assert(_accepted);
 			readToken_p(t);
+			_accepted = false;
+		}
+		bool tryNCToken(int t, Token *res) {
+			if (lex->special.has(t)) {
+				if (t==lex->eol){
+					if (cpos.line > cprev.line + nlines && lex->eol >= 0 && t == lex->eol) { // Переход на новую строку (считается, если после чтения пробелов/комментариев привело к увеличению номера строки
+						*res = Token(lex->tokens[lex->eol].second, { cpos,cpos }, Substr(s + pos, 0), Token::Special);
+						nlines++;
+						return true;
+					}
+				} else if (t==lex->indent) {
+					if(s[pos] && lex->indent >= 0 // Если увеличение отступа допустимо, то оно читается вне зависимости от того, что дальше 
+					          && (indents.back().col != cprev.col || indents.back().line != cprev.line)) {     // Запрещено читать 2 раза подряд увеличение отступа с одной и той же позиции
+						push_indent(IndentSt{ false, cprev.line, cprev.col, indents.back().col + 1 }); // иначе может произойти зацикливание, если неправильная грамматика, например, есть правило A -> indent A ...
+						*res = Token(lex->tokens[lex->indent].second, { cprev, cprev }, Substr(s + pos, 0), Token::Special);
+						return true;
+					}
+				} else if (t == lex->dedent) {
+					if (cpos.col < indents.back().col) { // Уменьшение отступа
+						pop_indent();
+						if (!indents.back().fix) {
+							auto st = indents.back();
+							st.fix = true;
+							st.col = max(st.col, cpos.col);
+							change_indent(st);
+						}
+						*res = Token(lex->tokens[lex->dedent].second, { cpos, cpos }, Substr(s + pos, 0), Token::Special);
+						return true;
+					}
+				} else if (t == lex->check_indent) {
+					if (s[pos]) { // Проверка отступа
+						auto b = indents.back();
+						bool indented = false;
+						if (cpos.col >= b.col) {
+							if (cpos.line > b.line) {
+								if (!b.fix) {
+									b.fix = true, b.col = cpos.col;
+									change_indent(b);
+								}
+								if (b.col == cpos.col) indented = true;
+							} else indented = (b.start_col == cprev.col);  // Текст начался в той же строке, что и блок с отступами
+							if (indented) {
+								*res = Token(lex->tokens[lex->check_indent].second, { cpos, cpos }, Substr(s + pos, 0), Token::Special);
+								return true;
+							}
+						}
+					}
+				} else if (t == lex->eof) {
+					if (!s[pos]) {
+						*res = Token(lex->tokens[lex->eof].second, { cpos, cpos }, Substr(s + pos, 0), Token::Special);
+						return true;
+					}
+				}
+				return false;
+			}
+			int end = 0;
+			if (lex->packrat.parse(lex->tokens[t].first, pos, end, 0)) {
+				*res = Token{ lex->tokens[t].second, { cpos, cpos }, Substr{ s + pos, end - pos }, Token::NonConst };
+				return true;
+			}
+			return false;
+		}
+		void readWs() {
+			if (lex->ws_token >= 0 && rdws) {
+				cprev = cpos;
+				int end = 0;
+				if (lex->packrat.parse(lex->ws_token, pos, end, 0) && end > pos)
+					shift(end - pos);
+				rdws = false; nlines = 0;
+				if (!s[pos] && cpos.col > 1) { cpos.line++; cpos.col = 1; } // Для корректного завершения блока отступов в конце файла виртуально добавляем пустую строку в конец
+			}
+		}
+		void readToken(const NTSet &t) {
+			Assert(_accepted);
+			curr_t.clear();
+			if (t.intersects(lex->composite)) {
+				auto st = state();
+				Token res, rr; bool ok = true;
+				int bpos = -1, imax = -1, i1=-1, m = 0;
+				for (int i : t & lex->composite) {
+					for (auto[nc, tok] : lex->compTokens[i].t) {
+						readWs();
+						if (nc) {
+							if (!tryNCToken(tok, &res)) {
+								ok = false;
+								break;
+							}
+						} else {
+							const int *n = lex->cterms(s, pos);
+							if (!n || *n != tok) {
+								ok = false;
+								break;
+							}
+						}
+					}
+					if (ok) {
+						int c = imax < 0 ? 2 : lex->cmpcomp(i, imax);
+						if (c == 2 || c>=0 && pos > bpos-c) {
+							imax = i;
+							bpos = pos;
+							m = 1;
+							rr = Token(lex->tokens[i].second, Location{ st.cpos,cpos }, Substr{ s + st.pos,pos - st.pos }, Token::Composite);
+						} else if (c == 0 && pos == bpos) {
+							m++;
+							i1 = i;
+						}
+					}
+					undo_all();
+					restoreState(st);
+				}
+				if (imax >= 0) {
+					if (m > 1) {
+						throw SyntaxError("Lexer conflict: `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: " + lex->_ten[imax] + " or " + lex->_ten[i1]);
+					}
+					curr_t.push_back(rr); // Составной токен (если прочитан) имеет приоритет перед обычным. Поэтому в случае успеха сразу возвращаем результат
+					_accepted = false;
+					return;
+				}
+				//restoreState(st);
+			}
+			readWs();
+			readToken_p(&t);
 			_accepted = false;
 		}
 		void readToken_p(const NTSet *t/*, int pos*/) {
@@ -123,26 +333,17 @@ struct PEGLexer {
 			//_accepted = false;
 			bool spec = t && t->intersects(lex->special);
 
-			if (lex->ws_token >= 0 && rdws) {
-				cprev = cpos;
-				int end = 0;
-				if (lex->packrat.parse(lex->ws_token, pos, end, 0) && end > pos)
-					shift(end - pos);
-				rdws = false; nlines = 0;
-				if (!s[pos] && cpos.col>1) { cpos.line++; cpos.col = 1; } // Для корректного завершения блока отступов в конце файла виртуально добавляем пустую строку в конец
-			}
-			
 			//auto prev = cpos;
 			if (spec) { // Чтение специальных токенов
 				if (cpos.line > cprev.line + nlines && lex->eol >= 0 && t->has(lex->eol)) { // Переход на новую строку (считается, если после чтения пробелов/комментариев привело к увеличению номера строки
-					curr_t.push_back(Token(lex->tokens[lex->eol].second, { cpos,cpos }, Substr(s + pos, 0), false));
+					curr_t.push_back(Token(lex->tokens[lex->eol].second, { cpos,cpos }, Substr(s + pos, 0), Token::Special));
 					nlines++;
 					return;
 				}
 				if (spec && s[pos] && lex->indent >= 0 && t->has(lex->indent)) { // Если увеличение отступа допустимо, то оно читается вне зависимости от того, что дальше 
 					if (indents.back().col != cprev.col || indents.back().line != cprev.line) {     // Запрещено читать 2 раза подряд увеличение отступа с одной и той же позиции
 						indents.push_back(IndentSt{ false, cprev.line, cprev.col, indents.back().col + 1 }); // иначе может произойти зацикливание, если неправильная грамматика, например, есть правило A -> indent A ...
-						curr_t.push_back(Token(lex->tokens[lex->indent].second, { cprev, cprev }, Substr(s + pos, 0), false));
+						curr_t.push_back(Token(lex->tokens[lex->indent].second, { cprev, cprev }, Substr(s + pos, 0), Token::Special));
 						return;
 					}
 				}
@@ -152,7 +353,7 @@ struct PEGLexer {
 						indents.back().fix = true;
 						indents.back().col = max(indents.back().col, cpos.col);
 					}
-					curr_t.push_back(Token(lex->tokens[lex->dedent].second, { cpos, cpos }, Substr(s + pos, 0), false));
+					curr_t.push_back(Token(lex->tokens[lex->dedent].second, { cpos, cpos }, Substr(s + pos, 0), Token::Special));
 					return;
 				}
 				if (s[pos] && lex->check_indent >= 0 && t->has(lex->check_indent)) { // Проверка отступа
@@ -166,7 +367,7 @@ struct PEGLexer {
 							if (b.col == cpos.col) indented = true;
 						} else indented = (b.start_col == cprev.col);  // Текст начался в той же строке, что и блок с отступами
 						if (indented) {
-							curr_t.push_back(Token(lex->tokens[lex->check_indent].second, { cpos, cpos }, Substr(s + pos, 0), false));
+							curr_t.push_back(Token(lex->tokens[lex->check_indent].second, { cpos, cpos }, Substr(s + pos, 0), Token::Special));
 							return;
 						}
 					}
@@ -175,7 +376,7 @@ struct PEGLexer {
 
 			if (!s[pos]) {
 				if(spec && lex->eof>=0 && t->has(lex->eof))
-					curr_t.push_back(Token(lex->tokens[lex->eof].second, { cpos, cpos }, Substr(s + pos, 0), false));
+					curr_t.push_back(Token(lex->tokens[lex->eof].second, { cpos, cpos }, Substr(s + pos, 0), Token::Special));
 				else _at_end = true;
 				return;
 			}
@@ -184,11 +385,11 @@ struct PEGLexer {
 			int m = 0, end = 0;
 			int imax = -1;
 			int best = -1, b1 = -1;
-			for (int ni = 0; ni < (int)lex->tokens.size(); ni++) {
-				if ((t && !t->has(ni))||lex->special.has(ni))continue;
+			for (int ni : t ? *t & lex->simple : lex->simple) { //= 0; ni < (int)lex->tokens.size(); ni++) {
+				if (/*(t && !t->has(ni))||*/lex->special.has(ni))continue;
 				//lex->_counter[ni]++;
 				if (!lex->packrat.parse(lex->tokens[ni].first, pos, end, 0)) continue;
-				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos }, Substr{ s + bpos, end - bpos }, true});
+				curr_t.push_back(Token{ lex->tokens[ni].second, { cpos, cpos }, Substr{ s + bpos, end - bpos }, Token::NonConst});
 				if (end > imax) {
 					best = ni;
 					m = 1;
@@ -202,11 +403,11 @@ struct PEGLexer {
 				if (p0 >= imax) {
 					auto beg = cpos;
 					//shift(p0 - pos);
-					curr_t.insert(curr_t.begin(), Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos }, false });
+					curr_t.insert(curr_t.begin(), Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos }, Token::Const });
 					//if (p0 == imax && best >= 0 && m<2)
 					//	curr.type2 = lex->tokens[best].second;
 				} else { 
-					curr_t.push_back(Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos }, false }); 
+					curr_t.push_back(Token{ *n,{ cpos,shifted(p0) }, Substr{ s + bpos, p0 - bpos }, Token::Const }); 
 					sort(curr_t.begin(), curr_t.end(), [](const Token& x, const Token& y) {return x.text.len > y.text.len; });
 				}
 			} 
@@ -216,19 +417,22 @@ struct PEGLexer {
 					string msg = "Unknown token at " + to_string(cpos.line) + ":" + to_string(cpos.col) + " : '" + string(s + bpos, strcspn(s + bpos, "\n")) + "',\n";
 					if (t) {
 						//_accepted = true;
-						readToken();
-						//_accepted = false;
-						msg += "it may be ";
-						bool fst = true;
-						for (auto &t : curr_t) {
-							if (!fst)msg += ", "; fst = false;
-							msg += lex->_ten[lex->internalNum(t.type)];
-						}
-						msg += " but expected one of: "; fst = true;
-						for (int i : *t) {
-							if (!fst)msg += ", "; fst = false;
-							msg += lex->_ten[i];
-						}
+						lex->packrat.reseterr();
+						readToken_p(0);
+						if (!curr_t.empty()) {
+							//_accepted = false;
+							msg += "it may be ";
+							bool fst = true;
+							for (auto &t : curr_t) {
+								if (!fst)msg += ", "; fst = false;
+								msg += lex->_ten[lex->internalNum(t.type)];
+							}
+							msg += " but expected one of: "; fst = true;
+							for (int i : *t) {
+								if (!fst)msg += ", "; fst = false;
+								msg += lex->_ten[i];
+							}
+						} else msg += "PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
 					} else msg+="PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
 					throw SyntaxError(msg);
 				} else if (m > 1) {
@@ -247,10 +451,24 @@ struct PEGLexer {
 				return;
 			}
 			Assert(s + pos <= tok.text.b);
-			shift(int(tok.text.b - (s+pos)));
-			tok.loc.beg = cpos;
-			if (tok.type == lex->eof)_at_end = true;
-			shift(tok.text.len);
+			
+			if (tok.nonconst == Token::Composite) {
+				Token r, rr;
+				for (auto[nc, tok] : lex->compTokens[lex->internalNum(tok.type)].t) {
+					readWs();
+					if (nc) {
+						Assert(tryNCToken(tok, &r));
+					} else {
+						Assert(lex->cterms(s,pos));
+					}
+				}
+				Assert(tok.text.b + tok.text.len == s + pos);
+			} else {
+				shift(int(tok.text.b - (s + pos)));
+				tok.loc.beg = cpos;
+				if (tok.type == lex->eof)_at_end = true;
+				shift(tok.text.len);
+			}
 			tok.loc.end = cpos;
 			curr_t.resize(1); curr_t[0] = tok;
 			_accepted = true;
@@ -265,7 +483,7 @@ struct PEGLexer {
 		}
 		iterator& go_next(const NTSet &t) {
 			if (!_at_end)
-				readToken(&t);
+				readToken(t);
 			return *this;
 		}
 		bool operator==(const iterator& it)const {
@@ -360,6 +578,34 @@ struct PEGLexer {
 		if (t >= (int)tokens.size())
 			tokens.resize(t+1,make_pair(-1,-1));
 		tokens[t] = make_pair(a,num);
+		simple.add(t);
+		return _intnum[num] = t;
+	}
+	int declareCompToken(const vector<pair<bool,string>>&toks, int num) {
+		Assert(toks.size()>1);
+		CompositeToken ct;
+		for (auto &s : toks) {
+			if (!s.first) {
+				if (const int *n = cterms(s.second.c_str()))
+					ct.t.push_back(make_pair(false, *n));
+				else throw Exception("Token `" + s.second + "` (part of composite token) not declared");
+			} else {
+				if (_ten.has(s.second))
+					ct.t.push_back(make_pair(true, _ten[s.second]));
+				else throw Exception("Token `" + s.second + "` (part of composite token) not declared");
+			}
+		}
+		string nm=toks[0].second;
+		for (int i = 1; i < (int)toks.size(); i++)
+			(nm += " + ") += toks[i].second;
+		int t = _ten[nm];
+		int a = packrat._en.num(nm);
+		if (t >= (int)tokens.size())
+			tokens.resize(t + 1, make_pair(-1, -1));
+		tokens[t] = make_pair(a, num);
+		if ((int)compTokens.size() <= t)compTokens.resize(t + 1);
+		compTokens[t] = move(ct);
+		composite.add(t);
 		return _intnum[num] = t;
 	}
 	int internalNum(const string& nm) {

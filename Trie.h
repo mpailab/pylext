@@ -35,8 +35,8 @@ struct TrieM {
 	const T* operator()(const char *m)const {
 		const TrieM<T>* curr = this;
 		for (; *m; m++) {
-			if (next.empty())return 0;
-			curr = &next[(unsigned char)m[0]];
+			if (curr->next.empty())return 0;
+			curr = &curr->next[(unsigned char)m[0]];
 		}
 		return curr->final ? &curr->val : 0;
 	}
@@ -49,6 +49,9 @@ struct TrieM {
 		_size += !curr->final;
 		curr->final = true;
 		return curr->val;
+	}
+	T& operator[](const std::string& m) {
+		return (*this)[m.c_str()];
 	}
 	const T*operator()(const char *m, int &pos)const {
 		const T*res = 0;
