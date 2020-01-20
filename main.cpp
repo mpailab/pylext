@@ -4,7 +4,7 @@
 #include "Parser.h"
 using namespace std;
 
-bool addRule(GrammarState &gr, const string &s, SemanticAction act=SemanticAction()) {
+bool addRule(GrammarState &gr, const string &s, SemanticAction act=SemanticAction(), int id=-1) {
 	int pos = 0, i=0;
 	string A;
 	vector<string> rhs;
@@ -34,14 +34,29 @@ bool addRule(GrammarState &gr, const string &s, SemanticAction act=SemanticActio
 			pos = q;
 		} else throw Exception("Error : unexpected symbol '"s + s[pos] + "'");
 	}
-	gr.addRule(A, rhs, act);
+	gr.addRule(A, rhs, act, id);
 	return true;
 }
-
+bool addRule(GrammarState &gr, const string &s,int id) {
+	return addRule(gr, s, SemanticAction(), id);
+}
 string loadfile(const string &fn) {
 	ifstream f(fn);
 	if (!f.is_open())throw Exception("cannot open file `"+fn+"`");
 	return string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+}
+
+std::string read_whole_file(const std::string &fn) {
+	std::ifstream file(fn, std::ios::binary);
+	file.seekg(0, std::istream::end);
+	std::size_t size(static_cast<size_t>(file.tellg()));
+
+	file.seekg(0, std::istream::beg);
+
+	std::string result(size, 0);
+	file.read(&result[0], size);
+
+	return result;
 }
 
 #include <chrono>  // for high_resolution_clock
@@ -71,19 +86,18 @@ struct Timer {
 	}
 };
 
-
 using namespace filesystem;
 int testDir(GrammarState &g, const string& dir, const string &logfile, const string &failed = "failed.txt") {
 	ofstream log(logfile);
 	ofstream fail(failed);
 	int total = 0, success = 0, skip = 0;
-	//setDebug(true);
+	//setDebug(1);
 	cout << "\n=========================================================================\n";
 	for (auto it = directory_iterator(path(dir)); it != directory_iterator(); ++it) {
 		const directory_entry& e = *it;
 		if (!e.is_regular_file())continue;
 		try {
-			string text = loadfile(e.path().string());
+			string text = read_whole_file(e.path().string());
 			bool unicode = false;
 			for (char c : text)if (c <= 0)unicode = true;
 			if (0&&unicode) {
@@ -95,8 +109,8 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 			auto N = parse(g, text);
 			double t = tm.stop();
 			cout << setprecision(3);
-			log  << e.path().filename() << ":\t Success :\t time = " << t << "\t(" << text.size()/t*1e-6 << " MB/s)\n";
-			cout << e.path().filename() << ":\t Success :\t time = " << t << "\t(" << text.size() / t * 1e-6 << " MB/s)\n";
+			log << e.path().filename() << ":\t Success :\t " << N.root->size << " nodes\t time = " << t << "\t(" << text.size() / t * 1e-6 << " MB/s)\n";
+			cout << e.path().filename() << ":\t Success :\t " << N.root->size << " nodes\t time = " << t << "\t(" << text.size() / t * 1e-6 << " MB/s)\n";
 			success++;
 		} catch (SyntaxError & ex) {
 			log << e.path().filename() << ":\t Failed  :\t" << ex.what()<<"\n";
@@ -116,14 +130,59 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 	cout << success << " / " << total << " (" << success * 100. / total << "%) passed\n" << (total - success) << " failed\n\n";
 	return 0;
 }
-
+enum SynType {
+	Or=1,
+	Maybe,
+	Concat,
+	Plus
+};
+template<class T>
+vector<T>& operator +=(vector<T> &x, const vector<T> &y) {
+	x.insert(x.end(), y.begin(), y.end());
+	return x;
+}
+template<class T>
+vector<T> operator +(vector<T> x, const vector<T> &y) {
+	return x += y;
+}
+vector<vector<vector<string>>> getVariants(ParseNode *n) {
+	vector<vector<vector<string>>> res;
+	while (!n->isTerminal() && n->ch.size() == 1 && n->rule_id<0)
+		n = n->ch[0];
+	switch (n->rule_id) {
+	case Or: for (auto *m : n->ch)res += getVariants(m);
+		return res;
+	case Maybe:
+		res = getVariants(n->ch[0]);
+		res.push_back({});
+		return res;
+	case Concat:
+		res = { {} };
+		for (auto *m : n->ch) {
+			auto x = getVariants(m);
+			auto t = res; res.clear();
+			for (auto &u : t)
+				for (auto &v : x)
+					res.push_back(u + v);
+		}
+		return res;
+	case Plus:
+		res = {{{}}};
+		for (auto *m : n->ch) {
+			res[0][0] += getVariants(m)[0][0];
+		}
+		return res;
+	}
+	Assert(n->isTerminal());
+	return { { {n->term} } };
+}
 
 int main(int argc, char*argv[]) {
 #ifndef _DEBUG
 	try {
 #endif
 		GrammarState st;
-		st.setNtNames("text", "new_token", "new_rule");
+		st.setStart("text");// , "new_token", "new_rule");
 		st.setWsToken("ws");
 		st.addLexerRule("ws", "([ \\t\\n\\r] / comment)*");
 		//st.addLexerRule("comment", "'#' [^\\n]*");
@@ -138,12 +197,24 @@ int main(int argc, char*argv[]) {
 		//st.addToken("sq_string", ("'(?:[^'\\\\]|\\\\.)*'"));
 		addRule(st, "string -> sq_string");
 		addRule(st, "string -> dq_string");
-		addRule(st, "rule_symbol -> ident"); 
-		addRule(st, "rule_symbol -> sq_string");
-		addRule(st, "rule_rhs -> rule_symbol");
-		addRule(st, "rule_rhs -> rule_rhs rule_symbol");
+		addRule(st, "token_sum -> ident");
+		addRule(st, "token_sum -> sq_string");
+		addRule(st, "token_sum -> token_sum '+' token_sum", Plus);
+		addRule(st, "rule_symbol -> token_sum"); 
+		//addRule(st, "rule_symbol -> sq_string");
+		addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](GrammarState*g, ParseNode&n) { n = std::move(n[0]); });// TODO: ѕотенциальна€ утечка пам€ти -- проверить !!!
+		addRule(st, "rule_symbol -> '[' rule_rhs ']'", Maybe);
+		addRule(st, "rule_rhs_seq -> rule_symbol");
+		addRule(st, "rule_rhs_seq -> rule_rhs_seq rule_symbol", Concat);
+		addRule(st, "rule_rhs -> rule_rhs_seq");
+		addRule(st, "rule_rhs -> rule_rhs_seq '|' rule_rhs", Or);
 
-		addRule(st, "new_syntax_expr -> '%' 'syntax' ':' ident '->' rule_rhs", [](GrammarState*g, ParseNode&n) { g->addRule(&n); });
+		addRule(st, "new_syntax_expr -> '%' 'syntax' ':' ident '->' rule_rhs", [](GrammarState*g, ParseNode&n) { 
+			Assert(n[0].isTerminal());
+			for (auto &x : getVariants(n.ch[1])) {
+				g->addRule(n[0].term, x);
+			}
+		});
 	
 		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
 		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
@@ -151,8 +222,16 @@ int main(int argc, char*argv[]) {
 
 		addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
 		addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, false); });
+		
+		addRule(st, "new_syntax_expr -> '%' 'indent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setIndentToken(n[0].term); });
+		addRule(st, "new_syntax_expr -> '%' 'dedent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setDedentToken(n[0].term); });
+		addRule(st, "new_syntax_expr -> '%' 'check_indent' ':' ident", [](GrammarState*g, ParseNode&n) { g->setCheckIndentToken(n[0].term); });
+		addRule(st, "new_syntax_expr -> '%' 'eol' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOLToken(n[0].term); });
+		addRule(st, "new_syntax_expr -> '%' 'eof' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOFToken(n[0].term); });
+		
 		addRule(st, "new_syntax -> new_syntax_expr ';'");
-		addRule(st, "text -> new_syntax text", [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); });
+		addRule(st, "text -> new_syntax text");// , [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); }); // TODO: ѕотенциальна€ утечка пам€ти -- проверить !!!
+
 		addRule(st, "new_syntax_expr -> '%' 'stats'", [](GrammarState* g, ParseNode&) {
 			cout << "===================== Grammar statistics ========================" << endl;
 			cout << "    Number of constant tokens     :    " << g->lex.cterms.size() << endl;
@@ -169,13 +248,20 @@ int main(int argc, char*argv[]) {
 			cout << "    Average production length     :    " << total*1./g->rules.size() << endl;
 			cout << "=================================================================" << endl;
 			});
-		//addRule(st, "text -> new_rule text", [](GrammarState*, ParseNode&n) {n = move(n[1]); });
-
+		addRule(st, "new_syntax_expr -> '%' 'print'", [](GrammarState* g, ParseNode&) {
+			cout << "=====================    Grammar rules   ========================" << endl;
+			g->print_rules(cout);
+			cout << "=================================================================" << endl;
+			//addRule(st, "text -> new_rule text", [](GrammarState*, ParseNode&n) {n = move(n[1]); });
+			});
+		addRule(st, "new_syntax_expr -> '%' 'debug' 'on'", [](GrammarState* g, ParseNode&) { setDebug(1); });
+		addRule(st, "new_syntax_expr -> '%' 'debug' 'off'", [](GrammarState* g, ParseNode&) { setDebug(0); });
 		cout << "Const rules:\n";
 		st.print_rules(cout);
 		cout << "\n";
 		string text, dir;
-		if (argv[1] == "-d"s || argv[1] == "--dir"s) {
+		//setDebug(true);
+		if (argc>1 && (argv[1] == "-d"s || argv[1] == "--dir"s)) {
 			if (argc < 3)throw Exception("dir argument expected");
 			dir = argv[2];
 			argv += 2;
@@ -190,7 +276,7 @@ int main(int argc, char*argv[]) {
 		if (!text.empty()) {
 			Timer tm("Parsing");
 			tm.start();
-			ParseNode res = parse(st, text);
+			ParseTree res = parse(st, text);
 			tm.stop_pr();
 			cout << "Parser finished successfully\n";
 		}

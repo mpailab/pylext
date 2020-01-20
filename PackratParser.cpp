@@ -125,6 +125,8 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 		if (int a = parse(e.num, pos)) {		
 			return a < 0 ? 0 : a;
 		}
+	case PEGExpr::Empty:
+		return 0;
 	}
 	return 0;
 }

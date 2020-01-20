@@ -30,7 +30,7 @@
     <ProjectGuid>{B8639F00-E755-45B0-8E0F-B6449597E0E2}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>parser</RootNamespace>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -169,6 +169,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='StaticRelease|Win32'">
@@ -210,6 +211,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='StaticRelease|x64'">
@@ -242,12 +244,15 @@
   <ItemGroup>
     <ClInclude Include="common.h" />
     <ClInclude Include="Exception.h" />
+    <ClInclude Include="Hash.h" />
     <ClInclude Include="Lexer.h" />
+    <ClInclude Include="Alloc.h" />
     <ClInclude Include="NTSet.h" />
     <ClInclude Include="PackratParser.h" />
     <ClInclude Include="Parser.h" />
     <ClInclude Include="PEGLexer.h" />
     <ClInclude Include="Trie.h" />
+    <ClInclude Include="Vector.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

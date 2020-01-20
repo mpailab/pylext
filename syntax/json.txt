@@ -4,24 +4,14 @@
 
 %syntax: text -> value;
 
-%syntax: value -> object;
-%syntax: value -> array;
-%syntax: value -> string;
-%syntax: value -> number;
-%syntax: value -> 'true';
-%syntax: value -> 'false';
-%syntax: value -> 'null';
+%syntax: value -> object | array | string | number | 'true' | 'false' | 'null';
 
-%syntax: object -> '{' '}';
-%syntax: object -> '{' members '}';
+%syntax: object -> '{' [members] '}';
 
-%syntax: members -> member;
-%syntax: members -> member ',' members;
+%syntax: members -> member [',' members];
 
 %syntax: member -> string ':' value;
 
-%syntax: array -> '[' ']';
-%syntax: array -> '[' elements ']';
+%syntax: array -> '[' [elements] ']';
 
-%syntax: elements -> value;
-%syntax: elements -> value ',' elements;
+%syntax: elements -> value [',' elements];

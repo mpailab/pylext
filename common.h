@@ -21,6 +21,9 @@ struct Enumerator {
 		if (it == _m.end())return -1;
 		return it->second;
 	}
+	bool has(const T& x) const {
+		return _m.count(x) > 0;
+	}
 };
 
 template<class T>
