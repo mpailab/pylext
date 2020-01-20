@@ -9,11 +9,15 @@
 
 %syntax: new_syntax -> INDENTED new_syntax_expr ';';
 
-%token: stringliteral   =  `(([fF][rR]/[rR][fF]/[rufRUF])?(shortstring / longstring))+`;
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#%syntax: if_stmt         -> if_stmt_noelse [INDENTED+'else' ':' suite];
+
+%token: stringliteral   =  `(([fF][rR]/[rR][fF]/[rufRUF])?(longstring / shortstring))+`;
 %pexpr: shortstring     =  `'\'' ('\\'[^] / [^\\\n'])* '\'' / '"' ('\\'[^] / [^\\\n"])* '"'`;
 %token: longstring      =  `'\'\'\'' ('\\'[^] / !('\'\'\'')[^\\])* '\'\'\'' / '"""' ('\\'[^] / !('"""')[^\\])* '"""'`;
 
-%token: bytesliteral    =  `([bB][rR]? / [rR][bB]) (shortstring / longstring)`;
+%token: bytesliteral    =  `([bB][rR]? / [rR][bB]) (longstring / shortstring)`;
+%syntax: text -> stringliteral | bytesliteral;
 
 %token: integer      =  `decinteger / bininteger / octinteger / hexinteger`;
 %pexpr: decinteger   =  `[1-9] ('_'?[0-9])* / '0'+ ('_' '0')*`;
@@ -25,6 +29,7 @@
 %pexpr: digitpart     =  `[0-9] ('_'?[0-9])*`;
 %pexpr: pointfloat    =  `digitpart? '.' digitpart / digitpart '.'`;
 %pexpr: exponentfloat =  `(digitpart / pointfloat) [Ee][+\-]? digitpart`;
+
 
 %token: imagnumber = `(floatnumber / digitpart)[jJ]`;
 
@@ -42,12 +47,26 @@
 
 %syntax: parameters -> '(' [typedargslist] ')';
 
+# The following definition for typedarglist is equivalent to this set of rules:
+#
+#     arguments = argument (',' [TYPE_COMMENT] argument)*
+#     argument = tfpdef ['=' test]
+#     kwargs = '**' tfpdef [','] [TYPE_COMMENT]
+#     args = '*' [tfpdef]
+#     kwonly_kwargs = (',' [TYPE_COMMENT] argument)* (TYPE_COMMENT | [',' [TYPE_COMMENT] [kwargs]])
+#     args_kwonly_kwargs = args kwonly_kwargs | kwargs
+#     poskeyword_args_kwonly_kwargs = arguments ( TYPE_COMMENT | [',' [TYPE_COMMENT] [args_kwonly_kwargs]])
+#     typedargslist_no_posonly  = poskeyword_args_kwonly_kwargs | args_kwonly_kwargs
+#     typedarglist = (arguments ',' [TYPE_COMMENT] '/' [',' [[TYPE_COMMENT] typedargslist_no_posonly]])|(typedargslist_no_posonly)"
+#
+# It needs to be fully expanded to allow our LL(1) parser to work on it.
+
+
 %syntax: arguments -> argument | arguments ',' [longstring] argument;
 %syntax: argument -> tfpdef ['=' test];
 %syntax: kwargs -> '**' tfpdef [','] [longstring];
-%syntax: args -> '*';
-%syntax: args -> '*' tfpdef;
-%syntax: kwonly_kwargs -> ',' [longstring] argument kwonly_kwargs | longstring;
+%syntax: args -> '*' [tfpdef];
+%syntax: kwonly_kwargs -> ',' [longstring] argument [kwonly_kwargs] | longstring;
 %syntax: kwonly_kwargs -> ',' [longstring] [kwargs];
 %syntax: args_kwonly_kwargs -> args [kwonly_kwargs] | kwargs;
 %syntax: poskeyword_args_kwonly_kwargs -> arguments [longstring];
@@ -59,7 +78,7 @@
 
  ########################################################################
 
-%syntax: arguments1    -> argument1 [',' arguments1];
+%syntax: arguments1    -> [arguments1 ','] argument1;
 %syntax: argument1     -> ident ['=' test];
 %syntax: kwargs1       -> '**' ident [','];
 %syntax: args1         -> '*' [ident];
@@ -88,7 +107,7 @@
 %syntax: dotted_as_names -> dotted_as_name [',' dotted_as_names];
 
 %syntax: assignlist -> '=' (yield_expr | testlist_star_expr) [longstring] | '=' (yield_expr | testlist_star_expr) assignlist;
-%syntax: expr_stmt -> testlist_star_expr (annassign | augassign (yield_expr | testlist) | assignlist);
+%syntax: expr_stmt -> testlist_star_expr [annassign | augassign (yield_expr | testlist) | assignlist];
 %syntax: annassign -> ':' test ['=' (yield_expr | testlist_star_expr)];
 
 %syntax: testlist_star_expr -> (test | star_expr) [',' [testlist_star_expr]];
@@ -113,18 +132,20 @@
 
 %syntax: compound_stmt   -> if_stmt | while_stmt | for_stmt | try_stmt | with_stmt | funcdef | classdef | decorated | async_stmt;
 %syntax: async_stmt      -> 'async' (funcdef | with_stmt | for_stmt);
-%syntax: if_stmt_noelse  -> 'if' identdexpr_test ':' suite | if_stmt_noelse INDENTED 'elif' identdexpr_test ':' suite;
-%syntax: if_stmt         -> if_stmt_noelse [INDENTED 'else' ':' suite];
-%syntax: while_stmt      -> 'while' identdexpr_test ':' suite [INDENTED 'else' ':' suite];
-%syntax: for_stmt        -> 'for' exprlist 'in' testlist ':' [longstring] suite [INDENTED 'else' ':' suite];
-%syntax: try_stmt        -> 'try' ':' suite INDENTED 'finally' ':' suite
-				          | 'try' ':' suite excepts [INDENTED 'else' ':' suite] [INDENTED 'finally' ':' suite];
+%syntax: if_stmt_noelse  -> 'if' identdexpr_test ':' suite | if_stmt_noelse INDENTED+'elif' identdexpr_test ':' suite;
+##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+%syntax: if_stmt         -> if_stmt_noelse [INDENTED+'else' ':' suite];
+
+%syntax: while_stmt      -> 'while' identdexpr_test ':' suite [INDENTED+'else' ':' suite];
+%syntax: for_stmt        -> 'for' exprlist 'in' testlist ':' [longstring] suite [INDENTED+'else' ':' suite];
+%syntax: try_stmt        -> 'try' ':' suite INDENTED+'finally' ':' suite
+				          | 'try' ':' suite excepts [INDENTED+'else' ':' suite] [INDENTED+'finally' ':' suite];
 %syntax: excepts         -> except_clause ':' suite | excepts except_clause ':' suite;
 %syntax: with_items      -> [with_items ','] with_item;
 %syntax: with_stmt       -> 'with' with_items ':' [longstring] suite;
 %syntax: with_item       -> test ['as' expr];
 
-%syntax: except_clause   -> INDENTED 'except' [test ['as' ident]];
+%syntax: except_clause   -> INDENTED + 'except' [test ['as' ident]];
   
 %syntax: stmts1          -> INDENTED stmt | stmts1 INDENTED stmt;
   
@@ -149,7 +170,7 @@
 %syntax: atom            -> '(' [yield_expr | testlist_comp] ')'
                           | '[' [testlist_comp] ']' 
 				          | '{' [dictorsetmaker] '}' 
-				          | ident | NUMBER | stringliteral | '...' | 'None' | 'True' | 'False';
+				          | ident | NUMBER | stringliteral | bytesliteral | '...' | 'None' | 'True' | 'False';
 %syntax: identd_or_star  -> identdexpr_test | star_expr;
 %syntax: identd_or_star_list -> [identd_or_star_list ','] identd_or_star;
 %syntax: testlist_comp   -> identd_or_star comp_for |  identd_or_star_list [','];
@@ -157,7 +178,7 @@
 
 %syntax: trailer        -> '(' [arglist] ')' | '[' subscriptlist ']' | '.' ident;
 %syntax: subscriptlist  -> subscript [',' [subscriptlist]];
-%syntax: subscript      -> test | [test] ':' [[test] ':' [test]];
+%syntax: subscript      -> test | [test] ':' [test] [':' [test]];
 %syntax: exprlist       -> (expr | star_expr) [',' [exprlist]];
 %syntax: testlist       -> test [',' [testlist]];
 %syntax: ds1            -> test ':' test | '**' expr;
@@ -193,3 +214,6 @@
 				          | longstring INDENT stmts1 DEDENT;
 
 %syntax: NUMBER  -> floatnumber | integer | imagnumber;
+#%print;
+%stats;
+#%debug on;
