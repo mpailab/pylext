@@ -45,3 +45,12 @@ x64
 *.psess
 *.user
 
+#CMake files
+lib
+obj
+bin
+Makefile
+CMakeFiles
+CMakeCache.txt
+*.cmake
+
