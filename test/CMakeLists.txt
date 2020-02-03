@@ -1,2 +1,2 @@
-add_executable(test main.cpp)
-target_link_libraries(test parser)
+add_executable(ptest main.cpp)
+target_link_libraries(ptest parser)
