@@ -32,11 +32,14 @@ struct ParseNode {
 	//ParseTree* tree = 0;  // —сылка на дерево разбора
 	//ParseNode* p = 0;     // —сылка на родительский узел
 	int size = 1;
+	unsigned lpr = -1, rpr = -1; // Ћевый и правый приоритеты (если unsigned(-1), то приоритеты не заданы)
 	vector<ParseNode* /*,BinAlloc<ParseNode>*/> ch; // ƒочерние узлы
 	Location loc;         // –азмещение фрагмента в тексте
 	bool isTerminal()const {
 		return rule < 0;
 	}
+	bool haslpr()const { return (int)lpr != -1; }
+	bool hasrpr()const { return (int)rpr != -1; }
 	ParseNode& operator[](size_t i) { return *ch[int(i)<0 ? i+ch.size() : i]; }
 	const ParseNode& operator[](size_t i)const { return *ch[int(i)<0 ? i + ch.size() : i]; }
 	ParseNode() = default;
@@ -48,6 +51,24 @@ struct ParseNode {
 		size = 1;
 		for (auto *n : ch)
 			size += n->size;
+	}
+	ParseNode* balancePr() {		// TODO: обавить проверку, что нет неоднозначности свЄртки разных нетерминалов, которые не сравниваютс€ по приоритетам 						                            
+		if (haslpr() && nt == ch[0]->nt)					  //        this                           r
+			lpr = min(lpr, ch[0]->lpr);						  //       / .. \ 			              / \ 
+		if (hasrpr()) {										  //      x...   r			             .   .  
+			ParseNode *pn = ch.back(), *pp;					  //            / \ 		            .     .
+			if (pn->nt == nt && pn->lpr < rpr) {			  //           .   .     ==>           .........
+				do {										  //          .     .		          /
+					pn->lpr = min(pn->lpr, lpr);			  //         .........		         pp 
+					pp = pn; pn = pn->ch[0];				  //        /				       / .. \ 
+				} while (pn->nt == nt && pn->lpr < rpr);      //      pp				   this   ...y
+				ParseNode *l = pp->ch[0], *r = ch.back();     //    / .. \ 				  / .. \ 
+				pp->ch[0] = this;                             //   pn  ...y				 x...  pn
+				ch.back() = l;  
+				return r; // корнем становитс€ r
+			}
+		}
+		return this; // корень остаЄтс€ прежним
 	}
 	ParseNode& operator=(ParseNode&&) = default;
 	//void del();
@@ -173,21 +194,23 @@ struct TF {
 	}
 };
 
+// Ёлемент правой части правила (терминал или нетерминал)
 struct RuleElem {
-	int num;
-	bool cterm;
-	bool term;
-	bool save;
+	int num; // Ќомер
+	bool cterm; // дл€ терминала: €вл€етс€ ли он константным
+	bool term;  // true => терминал, false => нетерминал
+	bool save;  // —ледует ли данный элемент сохран€ть в дереве разбора; по умолчанию save = !cterm, поскольку только неконстантные элементы имеет смысл сохран€ть
 };
 struct GrammarState;
 typedef function<void(GrammarState *g, ParseNode&)> SemanticAction;
 
 struct CFGRule {
-	int A;
-	vector<RuleElem> rhs; 
+	int A; // Ќетерминал в левой части правила
+	vector<RuleElem> rhs; // ѕрава€ часть правила 
 	int used;
 	SemanticAction action;
 	int ext_id = -1;
+	int lpr = -1, rpr = -1; // левый и правый приоритеты правила; у инфиксной операции задаютс€ оба, у префиксной -- только правый, а у постфиксной -- только левый
 };
 
 template<class T>
@@ -249,15 +272,24 @@ struct GrammarState {
 
 	void addLexerRule(const string& term, const string& re, bool tok=false, bool to_begin = false);
 	void addToken(const string& term, const string& re) { addLexerRule(term, re, true); }
-	bool addRule(const string &lhs, const vector<vector<string>> &rhs, SemanticAction act = SemanticAction(), int id=-1);
-	bool addRule(const string &lhs, const vector<vector<string>> &rhs, int id) {
-		return addRule(lhs, rhs, SemanticAction(), id);
+	bool addRule(const string &lhs, const vector<vector<string>> &rhs, SemanticAction act = SemanticAction(), int id = -1, unsigned lpr = -1, unsigned rpr = -1);
+	bool addRule(const string &lhs, const vector<vector<string>> &rhs, int id, unsigned lpr = -1, unsigned rpr = -1) {
+		return addRule(lhs, rhs, SemanticAction(), id, lpr, rpr);
 	}
-	bool addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction(), int id = -1) {
+	bool addRuleAssoc(const string &lhs, const vector<vector<string>> &rhs, int id, unsigned pr, int assoc = 0) { // assoc>0 ==> left-to-right, assoc<0 ==> right-to-left, assoc=0 ==> not assotiative or unary
+		return addRule(lhs, rhs, SemanticAction(), id, pr * 2 + assoc > 0, pr * 2 + assoc < 0);
+	}
+	bool addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction(), int id = -1, unsigned lpr = -1, unsigned rpr = -1) {
 		vector<vector<string>> vrhs(rhs.size());
 		for (int i = 0; i < (int)rhs.size(); i++)
 			vrhs[i] = { rhs[i] };
-		return addRule(lhs, vrhs, act, id);
+		return addRule(lhs, vrhs, act, id, lpr, rpr);
+	}
+	bool addRule(const string &lhs, const vector<string> &rhs, int id, unsigned lpr, unsigned rpr) {
+		return addRule(lhs, rhs, SemanticAction(), id, lpr, rpr);
+	}
+	bool addRuleAssoc(const string &lhs, const vector<string> &rhs, int id, unsigned pr, int assoc = 0) { // assoc>0 ==> left-to-right, assoc<0 ==> right-to-left, assoc=0 ==> not assotiative or unary
+		return addRule(lhs, rhs, SemanticAction(), id, pr*2+assoc>0, pr*2+assoc<0);
 	}
 	bool addRule(const string &lhs, const vector<string> &rhs, int id) {
 		return addRule(lhs, rhs, SemanticAction(), id);
@@ -281,6 +313,8 @@ struct GrammarState {
 		for (int i = 0; i < sz; i++)
 			szp += rules[r].rhs[i].save;
 		res->ch.resize(szp);
+		res->lpr = rules[r].lpr;
+		res->rpr = rules[r].rpr;
 		res->loc.beg = pn[0]->loc.beg;
 		res->loc.end = pn[sz - 1]->loc.end;
 		for (int i = 0, j = 0; i < sz; i++)
@@ -289,9 +323,9 @@ struct GrammarState {
 			else if(pn[i])pt.del(pn[i]);
 		//res->loc.beg = res->ch[0].
 		res->updateSize();
-		if (rules[r].action)
+		if (rules[r].action) // ƒл€ узлов с приоритетом в текущей версии не допускаютс€ семантические действи€ (должно провер€тьс€ при добавлении правил)
 			rules[r].action(this, *res);
-		return res;
+		return res->balancePr();
 	}
 	void setStart(const string&start){ //, const string& token, const string &syntax) {
 		int S0 = nts[""];

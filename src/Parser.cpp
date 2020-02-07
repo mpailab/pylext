@@ -470,7 +470,7 @@ void GrammarState::addLexerRule(const string & term, const string & rhs, bool to
 	lex.addPEGRule(term, rhs, n, to_begin);
 }
 
-bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs, SemanticAction act, int id) {
+bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs, SemanticAction act, int id, unsigned lpr, unsigned rpr) {
 	if (debug_pr) {
 		std::cout << "!!! Add rule  : " << lhs << " = ";
 		for (auto&x : rhs) {
@@ -486,6 +486,10 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 	CFGRule rule;
 	rule.A = nts[lhs];
 	rule.action = act;
+	rule.lpr = lpr; bool haslpr = rule.lpr != unsigned(-1);
+	rule.rpr = rpr; bool hasrpr = rule.rpr != unsigned(-1);
+	if(rule.action && (haslpr || hasrpr))
+		throw GrammarError("semantic actions not supported for rules with priorities");
 	for (auto &y : rhs) {
 		if (y.size() > 1) {
 			string nm;
@@ -560,6 +564,20 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 		if(!rule.rhs[0].cterm)
 			tf.addRuleBeg_t(lex.curr.pos, rule.A, lex.internalNum(rule.rhs[0].num));
 	} else tf.addRuleBeg(lex.curr.pos, rule.A, rule.rhs[0].num, len(rule.rhs));
+
+	bool can_have_lpr = (!rule.rhs[0].term && rule.rhs[0].num == rule.A);
+	bool can_have_rpr = (!rule.rhs.back().term && rule.rhs.back().num == rule.A);
+
+	if (haslpr && rpr == lpr && (can_have_lpr != can_have_rpr)) { // Допустим лишь один приоритет, но заданы оба одинаковые, в этом случае удаляем лишний приоритет
+		if (!can_have_lpr)rule.lpr = unsigned(-1); // Если не должно быть левого приоритета
+		else rule.rpr = unsigned(-1);              // Если не должно быть правого приоритета
+	} else {
+		if (haslpr && !can_have_lpr)
+			throw GrammarError("Left priority can be specified only for rules with right part starting from nonterminal from left side (A -> A B1 ... Bn)");
+
+		if (hasrpr && !can_have_rpr)
+			throw GrammarError("Right priority can be specified only for rules with right part ending by nonterminal from left side (A -> B1 ... Bn A)");
+	}
 	rule.ext_id = id;
 	rules.emplace_back(move(rule));
 

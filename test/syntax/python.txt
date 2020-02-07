@@ -165,7 +165,17 @@
 # sake of a __future__ import described in PEP 401 (which really works :-)
 %syntax: comp_op         -> '<'|'>'|'=='|'>='|'<='|'<>'|'!='|'in'|'not' 'in'|'is'|'is' 'not';
 %syntax: star_expr       -> '*' expr;
-%syntax: expr            -> atom_expr | expr ('*' | '@' | '/' | '%' | '//' | '+' | '-' | '**' | '<<' | '>>' | '&' | '|' | '^') expr | ('+' | '-' | '~') expr;
+
+%prefix(expr,10) : '+' | '-' | '~';
+%infxr(expr,7) : '**';
+%infxl(expr,6) : '*' | '@' | '/' | '%' | '//';
+%infxl(expr,5) : '+' | '-';
+%infxl(expr,4) : '<<' | '>>';
+%infxl(expr,3) : '&';
+%infxl(expr,2) : '^';
+%infxl(expr,1) : '|';
+
+%syntax: expr            -> atom_expr; # | expr ('*' | '@' | '/' | '%' | '//' | '+' | '-' | '**' | '<<' | '>>' | '&' | '|' | '^') expr | ('+' | '-' | '~') expr;
 %syntax: atom_expr       -> ['await'] atom | atom_expr trailer;
 %syntax: atom            -> '(' [yield_expr | testlist_comp] ')'
                           | '[' [testlist_comp] ']' 

@@ -192,6 +192,7 @@ int main(int argc, char*argv[]) {
 		st.addLexerRule("peg_expr", "ws peg_concat_expr (ws '/' ws peg_concat_expr)*");
 		st.addToken("sq_string", ("'\\'' ('\\\\' [^] / [^\\n'])* '\\''"));
 		st.addToken("dq_string", ("(ws '\"' ('\\\\' [^] / [^\\n\"])* '\"')+"));
+		st.addToken("syn_int", "[0-9]+");
 		st.addToken("peg_expr_def", "'`' ws peg_expr ws '`'");
 		//st.addToken("ident", ("\\b[_[:alpha:]]\\w*\\b"));
 		//st.addToken("token_def", ("\\(\\?\\:[^#\\n]*\\)(?=\\s*($|#))"));
@@ -216,7 +217,44 @@ int main(int argc, char*argv[]) {
 				g->addRule(n[0].term, x);
 			}
 		});
-	
+		addRule(st, "new_syntax_expr -> '%' 'infxl' '(' ident ',' syn_int ')' ':' rule_rhs", [](GrammarState*g, ParseNode&n) {
+			Assert(n[0].isTerminal());
+			Assert(n[1].isTerminal());
+			unsigned pr = atoi(n[1].term.c_str());
+			for (auto &x : getVariants(n.ch[2])) {
+				x.insert(x.begin(), { n[0].term });
+				x.push_back({ n[0].term });
+				g->addRuleAssoc(n[0].term, x, pr, 1);
+			}
+		});
+		addRule(st, "new_syntax_expr -> '%' 'infxr' '(' ident ',' syn_int ')' ':' rule_rhs", [](GrammarState*g, ParseNode&n) {
+			Assert(n[0].isTerminal());
+			Assert(n[1].isTerminal());
+			unsigned pr = atoi(n[1].term.c_str());
+			for (auto &x : getVariants(n.ch[2])) {
+				x.insert(x.begin(), { n[0].term });
+				x.push_back({ n[0].term });
+				g->addRuleAssoc(n[0].term, x, pr, -1);
+			}
+		});
+		addRule(st, "new_syntax_expr -> '%' 'postfix' '(' ident ',' syn_int ')' ':' rule_rhs", [](GrammarState*g, ParseNode&n) {
+			Assert(n[0].isTerminal());
+			Assert(n[1].isTerminal());
+			unsigned pr = atoi(n[1].term.c_str());
+			for (auto &x : getVariants(n.ch[2])) {
+				x.insert(x.begin(), { n[0].term });
+				g->addRuleAssoc(n[0].term, x, pr, 0);
+			}
+		});
+		addRule(st, "new_syntax_expr -> '%' 'prefix' '(' ident ',' syn_int ')' ':' rule_rhs", [](GrammarState*g, ParseNode&n) {
+			Assert(n[0].isTerminal());
+			Assert(n[1].isTerminal());
+			unsigned pr = atoi(n[1].term.c_str());
+			for (auto &x : getVariants(n.ch[2])) {
+				x.push_back({ n[0].term });
+				g->addRuleAssoc(n[0].term, x, pr, 0);
+			}
+		});
 		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
 		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '/=' peg_expr_def", [](GrammarState*g, ParseNode&n) { g->addLexerRule(&n, true); });
 		addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '\\=' peg_expr_def", [](GrammarState* g, ParseNode& n) { g->addLexerRule(&n, true,true); });
@@ -292,5 +330,6 @@ int main(int argc, char*argv[]) {
 		cout << "Exception: " << e.what() << "\n";
 	}
 #endif
+	//system("pause");
 	return 0;
 }
