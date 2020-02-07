@@ -53,17 +53,17 @@ struct ParseNode {
 			size += n->size;
 	}
 	ParseNode* balancePr() {		// TODO: обавить проверку, что нет неоднозначности свёртки разных нетерминалов, которые не сравниваются по приоритетам 						                            
-		if (haslpr() && nt == ch[0]->nt)					  //        this                           r
-			lpr = min(lpr, ch[0]->lpr);						  //       / .. \ 			              / \ 
-		if (hasrpr()) {										  //      x...   r			             .   .  
-			ParseNode *pn = ch.back(), *pp;					  //            / \ 		            .     .
-			if (pn->nt == nt && pn->lpr < rpr) {			  //           .   .     ==>           .........
-				do {										  //          .     .		          /
-					pn->lpr = min(pn->lpr, lpr);			  //         .........		         pp 
-					pp = pn; pn = pn->ch[0];				  //        /				       / .. \ 
-				} while (pn->nt == nt && pn->lpr < rpr);      //      pp				   this   ...y
-				ParseNode *l = pp->ch[0], *r = ch.back();     //    / .. \ 				  / .. \ 
-				pp->ch[0] = this;                             //   pn  ...y				 x...  pn
+		if (haslpr() && nt == ch[0]->nt)					  /*        this                           r        */
+			lpr = min(lpr, ch[0]->lpr);						  /*       / .. \ 			              / \ 		*/
+		if (hasrpr()) {										  /*      x...   r			             .   .  	*/
+			ParseNode *pn = ch.back(), *pp;					  /*            / \ 		            .     .		*/
+			if (pn->nt == nt && pn->lpr < rpr) {			  /*           .   .     ==>           .........	*/
+				do {										  /*          .     .		          /				*/
+					pn->lpr = min(pn->lpr, lpr);			  /*         .........		         pp 			*/
+					pp = pn; pn = pn->ch[0];				  /*        /				       / .. \ 			*/
+				} while (pn->nt == nt && pn->lpr < rpr);      /*      pp				   this   ...y			*/
+				ParseNode *l = pp->ch[0], *r = ch.back();     /*    / .. \ 				  / .. \ 				*/
+				pp->ch[0] = this;                             /*   pn  ...y				 x...  pn				*/
 				ch.back() = l;  
 				return r; // корнем становится r
 			}

@@ -307,7 +307,7 @@ struct PEGLexer {
 					}
 					if (ok) {
 						int c = imax < 0 ? 2 : lex->cmpcomp(i, imax);
-						if (c == 2 || c>=0 && pos > bpos-c) {
+						if (c == 2 || (c>=0 && pos > bpos-c)) {
 							imax = i;
 							bpos = pos;
 							m = 1;
