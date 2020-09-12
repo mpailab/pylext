@@ -204,7 +204,7 @@ int main(int argc, char*argv[]) {
 		addRule(st, "token_sum -> token_sum '+' token_sum", Plus);
 		addRule(st, "rule_symbol -> token_sum"); 
 		//addRule(st, "rule_symbol -> sq_string");
-		addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](GrammarState*g, ParseNode&n) { n = std::move(n[0]); });// TODO: Ïîòåíöèàëüíàÿ óòå÷êà ïàìÿòè -- ïðîâåðèòü !!!
+		addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](GrammarState*g, ParseNode&n) { n = std::move(n[0]); });// TODO: Ñ•Ð¾Ñ‚ÐµÐ½Ñ†Ð¸Ð°Ð»ÑŒÐ½Ð°Â¤ ÑƒÑ‚ÐµÑ‡ÐºÐ° Ð¿Ð°Ð¼Â¤Ñ‚Ð¸ -- Ð¿Ñ€Ð¾Ð²ÐµÑ€Ð¸Ñ‚ÑŒ !!!
 		addRule(st, "rule_symbol -> '[' rule_rhs ']'", Maybe);
 		addRule(st, "rule_rhs_seq -> rule_symbol");
 		addRule(st, "rule_rhs_seq -> rule_rhs_seq rule_symbol", Concat);
@@ -269,7 +269,7 @@ int main(int argc, char*argv[]) {
 		addRule(st, "new_syntax_expr -> '%' 'eof' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOFToken(n[0].term); });
 		
 		addRule(st, "new_syntax -> new_syntax_expr ';'");
-		addRule(st, "text -> new_syntax text");// , [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); }); // TODO: Ïîòåíöèàëüíàÿ óòå÷êà ïàìÿòè -- ïðîâåðèòü !!!
+		addRule(st, "text -> new_syntax text");// , [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); }); // TODO: Ñ•Ð¾Ñ‚ÐµÐ½Ñ†Ð¸Ð°Ð»ÑŒÐ½Ð°Â¤ ÑƒÑ‚ÐµÑ‡ÐºÐ° Ð¿Ð°Ð¼Â¤Ñ‚Ð¸ -- Ð¿Ñ€Ð¾Ð²ÐµÑ€Ð¸Ñ‚ÑŒ !!!
 
 		addRule(st, "new_syntax_expr -> '%' 'stats'", [](GrammarState* g, ParseNode&) {
 			cout << "===================== Grammar statistics ========================" << endl;

@@ -30,8 +30,8 @@ void PackratParser::setText(const string & t) {
 	//accepted = vector<vector<int>>(t.size());
 }
 
-static constexpr int iterMemStart = 8; // Начинаем запоминать после 8-го прочитанного элемента 
-static constexpr int cmplxThresh = 16; // Запоминаем выражение со сложностью выше этого значения 
+static constexpr int iterMemStart = 8; // РќР°С‡РёРЅР°РµРј Р·Р°РїРѕРјРёРЅР°С‚СЊ РїРѕСЃР»Рµ 8-РіРѕ РїСЂРѕС‡РёС‚Р°РЅРЅРѕРіРѕ СЌР»РµРјРµРЅС‚Р° 
+static constexpr int cmplxThresh = 16; // Р—Р°РїРѕРјРёРЅР°РµРј РІС‹СЂР°Р¶РµРЅРёРµ СЃРѕ СЃР»РѕР¶РЅРѕСЃС‚СЊСЋ РІС‹С€Рµ СЌС‚РѕРіРѕ Р·РЅР°С‡РµРЅРёСЏ 
 
 int PackratParser::parse0(const PEGExpr & e, int pos) {
 	if (!_updated)_ops++;
@@ -148,7 +148,7 @@ int PackratParser::parse(int nt, int pos) {
 	int &a = accepted(pos, nt);
 	if (a == -2)throw Exception("Left recursion not allowed in PEG, detected at position "+to_string(pos)+" in nonterminal "+_en[nt]);
 	if (a)return a;
-	a = -2; // Помечаем, что начали разбирать нетерминал nt на позиции pos, чтобы можно было обнаружить зацикливание по рекурсии.
+	a = -2; // РџРѕРјРµС‡Р°РµРј, С‡С‚Рѕ РЅР°С‡Р°Р»Рё СЂР°Р·Р±РёСЂР°С‚СЊ РЅРµС‚РµСЂРјРёРЅР°Р» nt РЅР° РїРѕР·РёС†РёРё pos, С‡С‚РѕР±С‹ РјРѕР¶РЅРѕ Р±С‹Р»Рѕ РѕР±РЅР°СЂСѓР¶РёС‚СЊ Р·Р°С†РёРєР»РёРІР°РЅРёРµ РїРѕ СЂРµРєСѓСЂСЃРёРё.
 	//if (nt >= (int)accepted.size())
 	//	accepted.resize(nt + 100);
 	//else if(pos >= (int)accepted[nt].size())

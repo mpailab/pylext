@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 using namespace std;
-/// Префиксное дерево, как множество
+/// РџСЂРµС„РёРєСЃРЅРѕРµ РґРµСЂРµРІРѕ, РєР°Рє РјРЅРѕР¶РµСЃС‚РІРѕ
 struct Trie {
 	bool final = false;
 	vector<Trie> next;
@@ -24,7 +24,7 @@ struct Trie {
 	}
 };
 
-/// Префиксное дерево, как map
+/// РџСЂРµС„РёРєСЃРЅРѕРµ РґРµСЂРµРІРѕ, РєР°Рє map
 template<class T>
 struct TrieM {
 	bool final = false;

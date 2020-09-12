@@ -168,7 +168,7 @@ struct Lexer {
 			if (!curr.atEnd())
 				curr.rit.resize(e);
 			addedNcTokens.resize(i + 1);
-			//TODO: Реализовать корректное удаление константных терминалов из Trie
+			//TODO: вЂ“РµР°Р»РёР·РѕРІР°С‚СЊ РєРѕСЂСЂРµРєС‚РЅРѕРµ СѓРґР°Р»РµРЅРёРµ РєРѕРЅСЃС‚Р°РЅС‚РЅС‹С… С‚РµСЂРјРёРЅР°Р»РѕРІ РёР· Trie
 		} else addedNcTokens.resize(i + 2);
 	}
 	iterator curr;

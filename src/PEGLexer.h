@@ -53,13 +53,13 @@ struct Token {
 
 struct PEGLexer {
 	struct IndentSt {
-		bool fix = true; // Была ли уже строка, где величина отступа зафиксирована
-		int line; // Строка, где начался блок с отступом
-		int start_col; // Столбец, в котором было прочитано увеличение отступа
-		int col;  // Величина отступа
+		bool fix = true; // Р‘С‹Р»Р° Р»Рё СѓР¶Рµ СЃС‚СЂРѕРєР°, РіРґРµ РІРµР»РёС‡РёРЅР° РѕС‚СЃС‚СѓРїР° Р·Р°С„РёРєСЃРёСЂРѕРІР°РЅР°
+		int line; // РЎС‚СЂРѕРєР°, РіРґРµ РЅР°С‡Р°Р»СЃСЏ Р±Р»РѕРє СЃ РѕС‚СЃС‚СѓРїРѕРј
+		int start_col; // РЎС‚РѕР»Р±РµС†, РІ РєРѕС‚РѕСЂРѕРј Р±С‹Р»Рѕ РїСЂРѕС‡РёС‚Р°РЅРѕ СѓРІРµР»РёС‡РµРЅРёРµ РѕС‚СЃС‚СѓРїР°
+		int col;  // Р’РµР»РёС‡РёРЅР° РѕС‚СЃС‚СѓРїР°
 	};
 	struct CompositeToken {
-		vector<pair<bool,int>> t; // Номера токенов, из которых состоит составной токен
+		vector<pair<bool,int>> t; // РќРѕРјРµСЂР° С‚РѕРєРµРЅРѕРІ, РёР· РєРѕС‚РѕСЂС‹С… СЃРѕСЃС‚РѕРёС‚ СЃРѕСЃС‚Р°РІРЅРѕР№ С‚РѕРєРµРЅ
 	};
 	vector<CompositeToken> compTokens;
 	int cmpcomp(int i1, int i2) {
@@ -77,24 +77,24 @@ struct PEGLexer {
 	string text;
 	PackratParser packrat;
 	//vector<pair<unique_ptr<regex>, int>> ncterms;
-	vector<pair<int,int>> tokens; // Внутренний номер токена -> (номер packrat, внешний номер)
-	Enumerator<string, unordered_map> _ten; // Внутренняя нумерация неконстантных токенов
+	vector<pair<int,int>> tokens; // Р’РЅСѓС‚СЂРµРЅРЅРёР№ РЅРѕРјРµСЂ С‚РѕРєРµРЅР° -> (РЅРѕРјРµСЂ packrat, РІРЅРµС€РЅРёР№ РЅРѕРјРµСЂ)
+	Enumerator<string, unordered_map> _ten; // Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ РЅСѓРјРµСЂР°С†РёСЏ РЅРµРєРѕРЅСЃС‚Р°РЅС‚РЅС‹С… С‚РѕРєРµРЅРѕРІ
 	unordered_map<int, int> _intnum;
 	TrieM<int> cterms;
 	//int token(const string &x)const { return _ten.num(x); }
 	//const string& token(int n)const { return _ten[n]; }
 	vector<pair<int, int>> addedNcTokens;
 	vector<pair<int, string>> addedCTokens;
-	unordered_map<int, int> _counter; // !!!!!! Для отладки !!!!!!
+	unordered_map<int, int> _counter; // !!!!!! Р”Р»СЏ РѕС‚Р»Р°РґРєРё !!!!!!
 	int ws_token=-1;
-	int indent = -1, dedent = -1, check_indent = -1; // Токены для отслеживания отступов: indent -- увеличить отступ, dedent -- уменьшить отступ, check_indent -- проверить отступ
-	int eol = -1, eof = -1; // Токены для конца строки и конца файла
-	NTSet special;   // Имеющиеся специальные токены (отступы, начала / концы строк)
-	NTSet composite; // Составные токены
-	NTSet simple;    // Простые токены (не являющиеся составными)
+	int indent = -1, dedent = -1, check_indent = -1; // РўРѕРєРµРЅС‹ РґР»СЏ РѕС‚СЃР»РµР¶РёРІР°РЅРёСЏ РѕС‚СЃС‚СѓРїРѕРІ: indent -- СѓРІРµР»РёС‡РёС‚СЊ РѕС‚СЃС‚СѓРї, dedent -- СѓРјРµРЅСЊС€РёС‚СЊ РѕС‚СЃС‚СѓРї, check_indent -- РїСЂРѕРІРµСЂРёС‚СЊ РѕС‚СЃС‚СѓРї
+	int eol = -1, eof = -1; // РўРѕРєРµРЅС‹ РґР»СЏ РєРѕРЅС†Р° СЃС‚СЂРѕРєРё Рё РєРѕРЅС†Р° С„Р°Р№Р»Р°
+	NTSet special;   // РРјРµСЋС‰РёРµСЃСЏ СЃРїРµС†РёР°Р»СЊРЅС‹Рµ С‚РѕРєРµРЅС‹ (РѕС‚СЃС‚СѓРїС‹, РЅР°С‡Р°Р»Р° / РєРѕРЅС†С‹ СЃС‚СЂРѕРє)
+	NTSet composite; // РЎРѕСЃС‚Р°РІРЅС‹Рµ С‚РѕРєРµРЅС‹
+	NTSet simple;    // РџСЂРѕСЃС‚С‹Рµ С‚РѕРєРµРЅС‹ (РЅРµ СЏРІР»СЏСЋС‰РёРµСЃСЏ СЃРѕСЃС‚Р°РІРЅС‹РјРё)
 
 	PEGLexer() { 
-		//_ten[""]; // Резервируем нулевой номер токена, чтобы номер любого токена был отличен от нуля
+		//_ten[""]; // Р РµР·РµСЂРІРёСЂСѓРµРј РЅСѓР»РµРІРѕР№ РЅРѕРјРµСЂ С‚РѕРєРµРЅР°, С‡С‚РѕР±С‹ РЅРѕРјРµСЂ Р»СЋР±РѕРіРѕ С‚РѕРєРµРЅР° Р±С‹Р» РѕС‚Р»РёС‡РµРЅ РѕС‚ РЅСѓР»СЏ
 	}
 
 	struct iterator {
@@ -212,20 +212,20 @@ struct PEGLexer {
 		bool tryNCToken(int t, Token *res) {
 			if (lex->special.has(t)) {
 				if (t==lex->eol){
-					if (cpos.line > cprev.line + nlines && lex->eol >= 0 && t == lex->eol) { // Переход на новую строку (считается, если после чтения пробелов/комментариев привело к увеличению номера строки
+					if (cpos.line > cprev.line + nlines && lex->eol >= 0 && t == lex->eol) { // РџРµСЂРµС…РѕРґ РЅР° РЅРѕРІСѓСЋ СЃС‚СЂРѕРєСѓ (СЃС‡РёС‚Р°РµС‚СЃСЏ, РµСЃР»Рё РїРѕСЃР»Рµ С‡С‚РµРЅРёСЏ РїСЂРѕР±РµР»РѕРІ/РєРѕРјРјРµРЅС‚Р°СЂРёРµРІ РїСЂРёРІРµР»Рѕ Рє СѓРІРµР»РёС‡РµРЅРёСЋ РЅРѕРјРµСЂР° СЃС‚СЂРѕРєРё
 						*res = Token(lex->tokens[lex->eol].second, { cpos,cpos }, Substr(s + pos, 0), Token::Special);
 						nlines++;
 						return true;
 					}
 				} else if (t==lex->indent) {
-					if(s[pos] && lex->indent >= 0 // Если увеличение отступа допустимо, то оно читается вне зависимости от того, что дальше 
-					          && (indents.back().col != cprev.col || indents.back().line != cprev.line)) {     // Запрещено читать 2 раза подряд увеличение отступа с одной и той же позиции
-						push_indent(IndentSt{ false, cprev.line, cprev.col, indents.back().col + 1 }); // иначе может произойти зацикливание, если неправильная грамматика, например, есть правило A -> indent A ...
+					if(s[pos] && lex->indent >= 0 // Р•СЃР»Рё СѓРІРµР»РёС‡РµРЅРёРµ РѕС‚СЃС‚СѓРїР° РґРѕРїСѓСЃС‚РёРјРѕ, С‚Рѕ РѕРЅРѕ С‡РёС‚Р°РµС‚СЃСЏ РІРЅРµ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ С‚РѕРіРѕ, С‡С‚Рѕ РґР°Р»СЊС€Рµ 
+					          && (indents.back().col != cprev.col || indents.back().line != cprev.line)) {     // Р—Р°РїСЂРµС‰РµРЅРѕ С‡РёС‚Р°С‚СЊ 2 СЂР°Р·Р° РїРѕРґСЂСЏРґ СѓРІРµР»РёС‡РµРЅРёРµ РѕС‚СЃС‚СѓРїР° СЃ РѕРґРЅРѕР№ Рё С‚РѕР№ Р¶Рµ РїРѕР·РёС†РёРё
+						push_indent(IndentSt{ false, cprev.line, cprev.col, indents.back().col + 1 }); // РёРЅР°С‡Рµ РјРѕР¶РµС‚ РїСЂРѕРёР·РѕР№С‚Рё Р·Р°С†РёРєР»РёРІР°РЅРёРµ, РµСЃР»Рё РЅРµРїСЂР°РІРёР»СЊРЅР°СЏ РіСЂР°РјРјР°С‚РёРєР°, РЅР°РїСЂРёРјРµСЂ, РµСЃС‚СЊ РїСЂР°РІРёР»Рѕ A -> indent A ...
 						*res = Token(lex->tokens[lex->indent].second, { cprev, cprev }, Substr(s + pos, 0), Token::Special);
 						return true;
 					}
 				} else if (t == lex->dedent) {
-					if (cpos.col < indents.back().col) { // Уменьшение отступа
+					if (cpos.col < indents.back().col) { // РЈРјРµРЅСЊС€РµРЅРёРµ РѕС‚СЃС‚СѓРїР°
 						pop_indent();
 						if (!indents.back().fix) {
 							auto st = indents.back();
@@ -237,7 +237,7 @@ struct PEGLexer {
 						return true;
 					}
 				} else if (t == lex->check_indent) {
-					if (s[pos]) { // Проверка отступа
+					if (s[pos]) { // РџСЂРѕРІРµСЂРєР° РѕС‚СЃС‚СѓРїР°
 						auto b = indents.back();
 						bool indented = false;
 						if (cpos.col >= b.col) {
@@ -247,7 +247,7 @@ struct PEGLexer {
 									change_indent(b);
 								}
 								if (b.col == cpos.col) indented = true;
-							} else indented = (b.start_col == cprev.col);  // Текст начался в той же строке, что и блок с отступами
+							} else indented = (b.start_col == cprev.col);  // РўРµРєСЃС‚ РЅР°С‡Р°Р»СЃСЏ РІ С‚РѕР№ Р¶Рµ СЃС‚СЂРѕРєРµ, С‡С‚Рѕ Рё Р±Р»РѕРє СЃ РѕС‚СЃС‚СѓРїР°РјРё
 							if (indented) {
 								*res = Token(lex->tokens[lex->check_indent].second, { cpos, cpos }, Substr(s + pos, 0), Token::Special);
 								return true;
@@ -277,7 +277,7 @@ struct PEGLexer {
 				if (lex->packrat.parse(lex->ws_token, pos, end, 0) && end > pos)
 					shift(end - pos);
 				rdws = false; nlines = 0;
-				if (!s[pos] && cpos.col > 1) { cpos.line++; cpos.col = 1; } // Для корректного завершения блока отступов в конце файла виртуально добавляем пустую строку в конец
+				if (!s[pos] && cpos.col > 1) { cpos.line++; cpos.col = 1; } // Р”Р»СЏ РєРѕСЂСЂРµРєС‚РЅРѕРіРѕ Р·Р°РІРµСЂС€РµРЅРёСЏ Р±Р»РѕРєР° РѕС‚СЃС‚СѓРїРѕРІ РІ РєРѕРЅС†Рµ С„Р°Р№Р»Р° РІРёСЂС‚СѓР°Р»СЊРЅРѕ РґРѕР±Р°РІР»СЏРµРј РїСѓСЃС‚СѓСЋ СЃС‚СЂРѕРєСѓ РІ РєРѕРЅРµС†
 			}
 		}
 		void readToken(const NTSet &t) {
@@ -324,7 +324,7 @@ struct PEGLexer {
 					if (m > 1) {
 						throw SyntaxError("Lexer conflict at " + cpos.str() + ": `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: " + lex->_ten[imax] + " or " + lex->_ten[i1]);
 					}
-					curr_t.push_back(rr); // Составной токен (если прочитан) имеет приоритет перед обычным. Поэтому в случае успеха сразу возвращаем результат
+					curr_t.push_back(rr); // РЎРѕСЃС‚Р°РІРЅРѕР№ С‚РѕРєРµРЅ (РµСЃР»Рё РїСЂРѕС‡РёС‚Р°РЅ) РёРјРµРµС‚ РїСЂРёРѕСЂРёС‚РµС‚ РїРµСЂРµРґ РѕР±С‹С‡РЅС‹Рј. РџРѕСЌС‚РѕРјСѓ РІ СЃР»СѓС‡Р°Рµ СѓСЃРїРµС…Р° СЃСЂР°Р·Сѓ РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
 					_accepted = false;
 					return;
 				}
@@ -340,20 +340,20 @@ struct PEGLexer {
 			bool spec = t && t->intersects(lex->special);
 
 			//auto prev = cpos;
-			if (spec) { // Чтение специальных токенов
-				if (cpos.line > cprev.line + nlines && lex->eol >= 0 && t->has(lex->eol)) { // Переход на новую строку (считается, если после чтения пробелов/комментариев привело к увеличению номера строки
+			if (spec) { // Р§С‚РµРЅРёРµ СЃРїРµС†РёР°Р»СЊРЅС‹С… С‚РѕРєРµРЅРѕРІ
+				if (cpos.line > cprev.line + nlines && lex->eol >= 0 && t->has(lex->eol)) { // РџРµСЂРµС…РѕРґ РЅР° РЅРѕРІСѓСЋ СЃС‚СЂРѕРєСѓ (СЃС‡РёС‚Р°РµС‚СЃСЏ, РµСЃР»Рё РїРѕСЃР»Рµ С‡С‚РµРЅРёСЏ РїСЂРѕР±РµР»РѕРІ/РєРѕРјРјРµРЅС‚Р°СЂРёРµРІ РїСЂРёРІРµР»Рѕ Рє СѓРІРµР»РёС‡РµРЅРёСЋ РЅРѕРјРµСЂР° СЃС‚СЂРѕРєРё
 					curr_t.push_back(Token(lex->tokens[lex->eol].second, { cpos,cpos }, Substr(s + pos, 0), Token::Special));
 					nlines++;
 					return;
 				}
-				if (spec && s[pos] && lex->indent >= 0 && t->has(lex->indent)) { // Если увеличение отступа допустимо, то оно читается вне зависимости от того, что дальше 
-					if (indents.back().col != cprev.col || indents.back().line != cprev.line) {     // Запрещено читать 2 раза подряд увеличение отступа с одной и той же позиции
-						indents.push_back(IndentSt{ false, cprev.line, cprev.col, indents.back().col + 1 }); // иначе может произойти зацикливание, если неправильная грамматика, например, есть правило A -> indent A ...
+				if (spec && s[pos] && lex->indent >= 0 && t->has(lex->indent)) { // Р•СЃР»Рё СѓРІРµР»РёС‡РµРЅРёРµ РѕС‚СЃС‚СѓРїР° РґРѕРїСѓСЃС‚РёРјРѕ, С‚Рѕ РѕРЅРѕ С‡РёС‚Р°РµС‚СЃСЏ РІРЅРµ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ С‚РѕРіРѕ, С‡С‚Рѕ РґР°Р»СЊС€Рµ 
+					if (indents.back().col != cprev.col || indents.back().line != cprev.line) {     // Р—Р°РїСЂРµС‰РµРЅРѕ С‡РёС‚Р°С‚СЊ 2 СЂР°Р·Р° РїРѕРґСЂСЏРґ СѓРІРµР»РёС‡РµРЅРёРµ РѕС‚СЃС‚СѓРїР° СЃ РѕРґРЅРѕР№ Рё С‚РѕР№ Р¶Рµ РїРѕР·РёС†РёРё
+						indents.push_back(IndentSt{ false, cprev.line, cprev.col, indents.back().col + 1 }); // РёРЅР°С‡Рµ РјРѕР¶РµС‚ РїСЂРѕРёР·РѕР№С‚Рё Р·Р°С†РёРєР»РёРІР°РЅРёРµ, РµСЃР»Рё РЅРµРїСЂР°РІРёР»СЊРЅР°СЏ РіСЂР°РјРјР°С‚РёРєР°, РЅР°РїСЂРёРјРµСЂ, РµСЃС‚СЊ РїСЂР°РІРёР»Рѕ A -> indent A ...
 						curr_t.push_back(Token(lex->tokens[lex->indent].second, { cprev, cprev }, Substr(s + pos, 0), Token::Special));
 						return;
 					}
 				}
-				if (cpos.col < indents.back().col && lex->dedent >= 0 && t->has(lex->dedent)) { // Уменьшение отступа
+				if (cpos.col < indents.back().col && lex->dedent >= 0 && t->has(lex->dedent)) { // РЈРјРµРЅСЊС€РµРЅРёРµ РѕС‚СЃС‚СѓРїР°
 					indents.pop_back();
 					if (!indents.back().fix) {
 						indents.back().fix = true;
@@ -362,7 +362,7 @@ struct PEGLexer {
 					curr_t.push_back(Token(lex->tokens[lex->dedent].second, { cpos, cpos }, Substr(s + pos, 0), Token::Special));
 					return;
 				}
-				if (s[pos] && lex->check_indent >= 0 && t->has(lex->check_indent)) { // Проверка отступа
+				if (s[pos] && lex->check_indent >= 0 && t->has(lex->check_indent)) { // РџСЂРѕРІРµСЂРєР° РѕС‚СЃС‚СѓРїР°
 					auto &b = indents.back();
 					bool indented = false;
 					if (cpos.col >= b.col) {
@@ -371,7 +371,7 @@ struct PEGLexer {
 								b.fix = true,
 								b.col = cpos.col;
 							if (b.col == cpos.col) indented = true;
-						} else indented = (b.start_col == cprev.col);  // Текст начался в той же строке, что и блок с отступами
+						} else indented = (b.start_col == cprev.col);  // РўРµРєСЃС‚ РЅР°С‡Р°Р»СЃСЏ РІ С‚РѕР№ Р¶Рµ СЃС‚СЂРѕРєРµ, С‡С‚Рѕ Рё Р±Р»РѕРє СЃ РѕС‚СЃС‚СѓРїР°РјРё
 						if (indented) {
 							curr_t.push_back(Token(lex->tokens[lex->check_indent].second, { cpos, cpos }, Substr(s + pos, 0), Token::Special));
 							return;
@@ -653,7 +653,7 @@ struct PEGLexer {
 			if (!curr.atEnd())
 				curr.rit.resize(e);
 			addedNcTokens.resize(i + 1);
-			//TODO: Реализовать корректное удаление константных терминалов из Trie
+			//TODO: Р РµР°Р»РёР·РѕРІР°С‚СЊ РєРѕСЂСЂРµРєС‚РЅРѕРµ СѓРґР°Р»РµРЅРёРµ РєРѕРЅСЃС‚Р°РЅС‚РЅС‹С… С‚РµСЂРјРёРЅР°Р»РѕРІ РёР· Trie
 		} else addedNcTokens.resize(i + 2);
 	}*/
 	iterator curr;

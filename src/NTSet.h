@@ -1,7 +1,7 @@
 #pragma once
 #include <immintrin.h>
 #include "Exception.h"
-struct NTSetS { // Множество нетерминалов
+struct NTSetS { // С›РЅРѕР¶РµСЃС‚РІРѕ РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	unordered_set<int> s;
 	typedef unordered_set<int>::const_iterator iterator;
 	typedef int value_type;
@@ -20,7 +20,7 @@ struct NTSetS { // Множество нетерминалов
 			}
 		return res;
 	}
-	/// Фильтрация множества нетерминалов
+	/// вЂРёР»СЊС‚СЂР°С†РёВ¤ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	bool filter(NTSetS& y)const {
 		for (auto it = y.s.begin(); it != y.s.end();) {
 			if (s.count(*it))++it;
@@ -129,7 +129,7 @@ struct NTSetV {
 			}
 		return m;
 	}
-	/// Фильтрация множества нетерминалов
+	/// вЂРёР»СЊС‚СЂР°С†РёВ¤ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	bool filter(NTSetV& y)const {
 		//y &= *this;
 		int sz = (int)min(y.mask.size(), mask.size());
@@ -227,7 +227,7 @@ inline __m128i bitmask128(int i) {
 	return _mm_mask_set1_epi64(_mm_setzero_si128(), 1 << (i >> 6), 1ULL << (i & 63));
 }
 
-struct NTSetV8 { // Требует поддержки AVX-512
+struct NTSetV8 { // вЂњСЂРµР±СѓРµС‚ РїРѕРґРґРµСЂР¶РєРё AVX-512
 	__m512i x;
 	struct iterator {
 		typedef std::forward_iterator_tag iterator_category;
@@ -283,7 +283,7 @@ struct NTSetV8 { // Требует поддержки AVX-512
 		*B = *it;
 		return it.last() ? 1 : 2;
 	}
-	/// Фильтрация множества нетерминалов
+	/// вЂРёР»СЊС‚СЂР°С†РёВ¤ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	bool filter(NTSetV8& y)const {
 		y.x = _mm512_and_si512(x, y.x);
 		return !y.empty();
@@ -399,7 +399,7 @@ struct NTSetV4 {
 		*B = *it;
 		return it.last() ? 1 : 2;
 	}
-	/// Фильтрация множества нетерминалов
+	/// вЂРёР»СЊС‚СЂР°С†РёВ¤ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	bool filter(NTSetV4& y)const {
 		y.x = _mm256_and_si256(x, y.x);
 		return !y.empty();
@@ -507,7 +507,7 @@ struct NTSetV2 {
 		*B = *it;
 		return it.last() ? 1 : 2;
 	}
-	/// Фильтрация множества нетерминалов
+	/// вЂРёР»СЊС‚СЂР°С†РёВ¤ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	bool filter(NTSetV2& y)const {
 		y.x = _mm_and_si128(x, y.x);
 		return !y.empty();
@@ -633,7 +633,7 @@ struct NTSetV4 {
 		*B = *it;
 		return it.last() ? 1 : 2;
 	}
-	/// Фильтрация множества нетерминалов
+	/// вЂРёР»СЊС‚СЂР°С†РёВ¤ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	bool filter(NTSetV4& y)const {
 		y.x = _mm256_and_si256(x, y.x);
 		return !y.empty();
@@ -741,7 +741,7 @@ struct NTSetV2 {
 		*B = *it;
 		return it.last() ? 1 : 2;
 	}
-	/// Фильтрация множества нетерминалов
+	/// вЂРёР»СЊС‚СЂР°С†РёВ¤ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	bool filter(NTSetV2& y)const {
 		y.x = _mm_and_si128(x, y.x);
 		return !y.empty();
@@ -839,7 +839,7 @@ struct NTSetV1 {
 		*B = *it;
 		return it.last() ? 1 : 2;
 	}
-	/// Фильтрация множества нетерминалов
+	/// вЂРёР»СЊС‚СЂР°С†РёВ¤ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	bool filter(NTSetV1& y)const {
 		y.x &= x;
 		return !y.empty();
@@ -924,7 +924,7 @@ struct NTSetCmp {
 		}
 		return m1;
 	}
-	/// Фильтрация множества нетерминалов
+	/// вЂРёР»СЊС‚СЂР°С†РёВ¤ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
 	bool filter(S& y)const {
 		bool b1 = s1.filter(y.s1);
 		bool b2 = s2.filter(y.s2);

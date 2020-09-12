@@ -21,12 +21,12 @@ inline void get_union(NTSet &x, const unordered_map<int, NTSet> &m, int i) {
 bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) {
 	int sz = (int)s.v.size(), j = 0, k = 0;
 	bool r = false;
-	for (int i = 0; i < sz; i++) { // Для каждого слоя в текущем состоянии ищем, по какому ребру можно пройти по символу t
+	for (int i = 0; i < sz; i++) { // Р”Р»СЏ РєР°Р¶РґРѕРіРѕ СЃР»РѕСЏ РІ С‚РµРєСѓС‰РµРј СЃРѕСЃС‚РѕСЏРЅРёРё РёС‰РµРј, РїРѕ РєР°РєРѕРјСѓ СЂРµР±СЂСѓ РјРѕР¶РЅРѕ РїСЂРѕР№С‚Рё РїРѕ СЃРёРјРІРѕР»Сѓ t
 		auto &ed = term ? s.v[i].v->termEdges : s.v[i].v->ntEdges;
-		auto it = ed.find(t); // TODO: заменить unordered_map на структуру с битовыми масками, по крайней мере, для нетерминалов
-		if ((it != ed.end())&&it->second->phi.intersects(s.v[i].M)) { // Проверяем, проходит ли через следующую вершину хотябы одно правило для текущего множества нетерминалов s.v[i].M
-			s.v[i].sh = it->second.get(); // Помечаем, что в i-м слое можно идти в следующую вершину
-			r = true; // Помечаем, что сдвиг по нетерминалу t возможен
+		auto it = ed.find(t); // TODO: Р·Р°РјРµРЅРёС‚СЊ unordered_map РЅР° СЃС‚СЂСѓРєС‚СѓСЂСѓ СЃ Р±РёС‚РѕРІС‹РјРё РјР°СЃРєР°РјРё, РїРѕ РєСЂР°Р№РЅРµР№ РјРµСЂРµ, РґР»СЏ РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ
+		if ((it != ed.end())&&it->second->phi.intersects(s.v[i].M)) { // РџСЂРѕРІРµСЂСЏРµРј, РїСЂРѕС…РѕРґРёС‚ Р»Рё С‡РµСЂРµР· СЃР»РµРґСѓСЋС‰СѓСЋ РІРµСЂС€РёРЅСѓ С…РѕС‚СЏР±С‹ РѕРґРЅРѕ РїСЂР°РІРёР»Рѕ РґР»СЏ С‚РµРєСѓС‰РµРіРѕ РјРЅРѕР¶РµСЃС‚РІР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ s.v[i].M
+			s.v[i].sh = it->second.get(); // РџРѕРјРµС‡Р°РµРј, С‡С‚Рѕ РІ i-Рј СЃР»РѕРµ РјРѕР¶РЅРѕ РёРґС‚Рё РІ СЃР»РµРґСѓСЋС‰СѓСЋ РІРµСЂС€РёРЅСѓ
+			r = true; // РџРѕРјРµС‡Р°РµРј, С‡С‚Рѕ СЃРґРІРёРі РїРѕ РЅРµС‚РµСЂРјРёРЅР°Р»Сѓ t РІРѕР·РјРѕР¶РµРЅ
 			k++;
 		} else s.v[i].sh = 0;
 	}
@@ -42,27 +42,27 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 	res.la.clear();
 	for (int i = 0; i < sz; i++) {
 		auto &p = (*sv)[i];
-		if (p.sh) { // Если переход возможен в i-м слое
-			auto *x = res.v[j].v = p.sh; // Добавляем в новый фрейм соответствующий слой
+		if (p.sh) { // Р•СЃР»Рё РїРµСЂРµС…РѕРґ РІРѕР·РјРѕР¶РµРЅ РІ i-Рј СЃР»РѕРµ
+			auto *x = res.v[j].v = p.sh; // Р”РѕР±Р°РІР»СЏРµРј РІ РЅРѕРІС‹Р№ С„СЂРµР№Рј СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РёР№ СЃР»РѕР№
 			res.v[j].M = p.M;
 			for (auto &nn : x->ntEdges)
 				if (nn.second->phi.intersects(p.M)) {
-					res.v[k].M |= g.tf.fst[nn.first]; // Добавляем в новый слой те нетерминалы, которые могут начинаться в данной позиции в i-м слое
+					res.v[k].M |= g.tf.fst[nn.first]; // Р”РѕР±Р°РІР»СЏРµРј РІ РЅРѕРІС‹Р№ СЃР»РѕР№ С‚Рµ РЅРµС‚РµСЂРјРёРЅР°Р»С‹, РєРѕС‚РѕСЂС‹Рµ РјРѕРіСѓС‚ РЅР°С‡РёРЅР°С‚СЊСЃСЏ РІ РґР°РЅРЅРѕР№ РїРѕР·РёС†РёРё РІ i-Рј СЃР»РѕРµ
 					LAInfo pla;
-					//auto &pla = res.la[nn.first]; // Информация о предпросмотре при свёртке по символу nn.first
+					//auto &pla = res.la[nn.first]; // РРЅС„РѕСЂРјР°С†РёСЏ Рѕ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂРµ РїСЂРё СЃРІС‘СЂС‚РєРµ РїРѕ СЃРёРјРІРѕР»Сѓ nn.first
 					for (int nt : nn.second->phi & p.M) {
-						get_union(pla.t, nn.second->next_mt, nt);        // Пополняем множество предпросмотра терминалов (для случая свёртки по символу nn.first)
-						get_union(pla.nt, nn.second->next_mnt, nt);      // Пополняем множество предпросмотра нетерминалов (для случая свёртки по символу nn.first)
+						get_union(pla.t, nn.second->next_mt, nt);        // РџРѕРїРѕР»РЅСЏРµРј РјРЅРѕР¶РµСЃС‚РІРѕ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂР° С‚РµСЂРјРёРЅР°Р»РѕРІ (РґР»СЏ СЃР»СѓС‡Р°СЏ СЃРІС‘СЂС‚РєРё РїРѕ СЃРёРјРІРѕР»Сѓ nn.first)
+						get_union(pla.nt, nn.second->next_mnt, nt);      // РџРѕРїРѕР»РЅСЏРµРј РјРЅРѕР¶РµСЃС‚РІРѕ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂР° РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ (РґР»СЏ СЃР»СѓС‡Р°СЏ СЃРІС‘СЂС‚РєРё РїРѕ СЃРёРјРІРѕР»Сѓ nn.first)
 					}
 					auto &q = *nn.second;
 					if (q.finalNT.intersects(p.M)) {
 						NTSet M;
 						for (int i : p.M & q.finalNT)
-							M |= g.tf.T[i];   // Вычисляем M -- множество нетерминалов, по которым можно свернуть
-						auto &mm = *(&s - p.v->pos); // ????? Может быть здесь индекс на 1 должен отличаться
+							M |= g.tf.T[i];   // Р’С‹С‡РёСЃР»СЏРµРј M -- РјРЅРѕР¶РµСЃС‚РІРѕ РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ, РїРѕ РєРѕС‚РѕСЂС‹Рј РјРѕР¶РЅРѕ СЃРІРµСЂРЅСѓС‚СЊ
+						auto &mm = *(&s - p.v->pos); // ????? РњРѕР¶РµС‚ Р±С‹С‚СЊ Р·РґРµСЃСЊ РёРЅРґРµРєСЃ РЅР° 1 РґРѕР»Р¶РµРЅ РѕС‚Р»РёС‡Р°С‚СЊСЃСЏ
 						for (int x : M) {
 							if (auto *y = g.root.nextN(x)) {
-								for (int z : y->phi & p.M) { // !!!!!!!! Тройной цикл по множеству допустимых нетерминалов !!!!!!!! По-другому не понятно как (разве что кешировать всё)
+								for (int z : y->phi & p.M) { // !!!!!!!! РўСЂРѕР№РЅРѕР№ С†РёРєР» РїРѕ РјРЅРѕР¶РµСЃС‚РІСѓ РґРѕРїСѓСЃС‚РёРјС‹С… РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ !!!!!!!! РџРѕ-РґСЂСѓРіРѕРјСѓ РЅРµ РїРѕРЅСЏС‚РЅРѕ РєР°Рє (СЂР°Р·РІРµ С‡С‚Рѕ РєРµС€РёСЂРѕРІР°С‚СЊ РІСЃС‘)
 									get_union(pla.t, y->next_mt, z);
 									get_union(pla.nt, y->next_mnt, z);
 								}
@@ -71,7 +71,7 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 							pla.t |= y.t;
 							pla.nt |= y.nt;
 							/*auto it = mm.la.find(x);
-							if (it != mm.la.end()) { // Достаём информацию о допустимых символах из предыдущих фреймов
+							if (it != mm.la.end()) { // Р”РѕСЃС‚Р°С‘Рј РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РґРѕРїСѓСЃС‚РёРјС‹С… СЃРёРјРІРѕР»Р°С… РёР· РїСЂРµРґС‹РґСѓС‰РёС… С„СЂРµР№РјРѕРІ
 								pla.t |= it->second.t;
 								pla.nt |= it->second.nt;
 							}*/
@@ -87,12 +87,12 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 		res.v.pop_back();
 	else {
 		res.v[k].v = &g.root;
-		// TODO: Сформировать множество допустимых терминалов для созданной вершины
-		// Оно должно состоять из:
-		//  - множества терминалов, исходящих из вершины
-		//  - для каждого нетерминала A из [psi] из терминалов, исходящих из вершины next(r,A) по нетерминалам из M
-		//  - для каждого нетерминала A из [psi] из множества с предыдущего уровня для свёртки по A 
-		//  - множества терминалов, с которых начинаются нетерминалы, исходящие из текущей вершины + нетерминалы, исходящие из вершины после свёртки по A
+		// TODO: РЎС„РѕСЂРјРёСЂРѕРІР°С‚СЊ РјРЅРѕР¶РµСЃС‚РІРѕ РґРѕРїСѓСЃС‚РёРјС‹С… С‚РµСЂРјРёРЅР°Р»РѕРІ РґР»СЏ СЃРѕР·РґР°РЅРЅРѕР№ РІРµСЂС€РёРЅС‹
+		// РћРЅРѕ РґРѕР»Р¶РЅРѕ СЃРѕСЃС‚РѕСЏС‚СЊ РёР·:
+		//  - РјРЅРѕР¶РµСЃС‚РІР° С‚РµСЂРјРёРЅР°Р»РѕРІ, РёСЃС…РѕРґСЏС‰РёС… РёР· РІРµСЂС€РёРЅС‹
+		//  - РґР»СЏ РєР°Р¶РґРѕРіРѕ РЅРµС‚РµСЂРјРёРЅР°Р»Р° A РёР· [psi] РёР· С‚РµСЂРјРёРЅР°Р»РѕРІ, РёСЃС…РѕРґСЏС‰РёС… РёР· РІРµСЂС€РёРЅС‹ next(r,A) РїРѕ РЅРµС‚РµСЂРјРёРЅР°Р»Р°Рј РёР· M
+		//  - РґР»СЏ РєР°Р¶РґРѕРіРѕ РЅРµС‚РµСЂРјРёРЅР°Р»Р° A РёР· [psi] РёР· РјРЅРѕР¶РµСЃС‚РІР° СЃ РїСЂРµРґС‹РґСѓС‰РµРіРѕ СѓСЂРѕРІРЅСЏ РґР»СЏ СЃРІС‘СЂС‚РєРё РїРѕ A 
+		//  - РјРЅРѕР¶РµСЃС‚РІР° С‚РµСЂРјРёРЅР°Р»РѕРІ, СЃ РєРѕС‚РѕСЂС‹С… РЅР°С‡РёРЅР°СЋС‚СЃСЏ РЅРµС‚РµСЂРјРёРЅР°Р»С‹, РёСЃС…РѕРґСЏС‰РёРµ РёР· С‚РµРєСѓС‰РµР№ РІРµСЂС€РёРЅС‹ + РЅРµС‚РµСЂРјРёРЅР°Р»С‹, РёСЃС…РѕРґСЏС‰РёРµ РёР· РІРµСЂС€РёРЅС‹ РїРѕСЃР»Рµ СЃРІС‘СЂС‚РєРё РїРѕ A
 	}
 	return true;
 }
@@ -175,7 +175,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
 		s--;
 		if (F[i].empty()) continue;
 		int A0 = -1;
-		for (int A : F[i]) { // Ищем нетерминал, по которому можно свернуть до данного i-го фрейма
+		for (int A : F[i]) { // РС‰РµРј РЅРµС‚РµСЂРјРёРЅР°Р», РїРѕ РєРѕС‚РѕСЂРѕРјСѓ РјРѕР¶РЅРѕ СЃРІРµСЂРЅСѓС‚СЊ РґРѕ РґР°РЅРЅРѕРіРѕ i-РіРѕ С„СЂРµР№РјР°
 			for (auto &p : s->v) {
 				auto it = p.v->ntEdges.find(A);
 				if (it == p.v->ntEdges.end() || !it->second->phi.intersects(p.M))continue;
@@ -201,7 +201,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
 			int k;
 			for (int j = i; j > 0; j = k) {
 				const NTTreeNode *u = 0;
-				for (auto &p : B[j]) { // Перебор по обратным стрелкам из j-го фрейма вверх. Смотрим, по какая из стрелок соответствует свёртке нетерминала A0
+				for (auto &p : B[j]) { // РџРµСЂРµР±РѕСЂ РїРѕ РѕР±СЂР°С‚РЅС‹Рј СЃС‚СЂРµР»РєР°Рј РёР· j-РіРѕ С„СЂРµР№РјР° РІРІРµСЂС…. РЎРјРѕС‚СЂРёРј, РїРѕ РєР°РєР°СЏ РёР· СЃС‚СЂРµР»РѕРє СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚ СЃРІС‘СЂС‚РєРµ РЅРµС‚РµСЂРјРёРЅР°Р»Р° A0
 					if (p.M.has(A0)) {
 						if (u)throw RRConflict("at "+g.lex.curr.cpos.str()+" conflict : 2 different ways to reduce NT="+g.nts[A0]+" : St["+to_string(j)+"] from St["+to_string(k)+"] or St["+to_string(p.i)+"]",prstack(g,ss,sp,j));
 						u = p.v;
@@ -239,7 +239,7 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
 			for (int j = (int)path.size(); j--;) {
 				int p = path[j].v->pos;
 				sp.s[sp.s.size() - p] = g.reduce(&sp.s[sp.s.size() - p], path[j].v, path[j].B, path[j].A, pt);
-				// TODO: добавить позицию в тексте и т.п.
+				// TODO: РґРѕР±Р°РІРёС‚СЊ РїРѕР·РёС†РёСЋ РІ С‚РµРєСЃС‚Рµ Рё С‚.Рї.
 				sp.s.resize(sp.s.size() - p + 1);
 			}
 			int p = (int)ss.s.size() - i;
@@ -342,7 +342,7 @@ string prstack(GrammarState&g, SStack&ss, PStack &sp, int k) {
 	return s.str();
 }
 
-bool nextTok(GrammarState &g, SStack &ss) { // Определяет множество допустимых токенов, и лексер пытается их прочитать
+bool nextTok(GrammarState &g, SStack &ss) { // РћРїСЂРµРґРµР»СЏРµС‚ РјРЅРѕР¶РµСЃС‚РІРѕ РґРѕРїСѓСЃС‚РёРјС‹С… С‚РѕРєРµРЅРѕРІ, Рё Р»РµРєСЃРµСЂ РїС‹С‚Р°РµС‚СЃСЏ РёС… РїСЂРѕС‡РёС‚Р°С‚СЊ
 	NTSet t, nt;
 	auto &s = ss.s.back();
 	for (auto &p : s.v) {
@@ -353,11 +353,11 @@ bool nextTok(GrammarState &g, SStack &ss) { // Определяет множество допустимых т
 		if (p.v->finalNT.intersects(p.M)) {
 			NTSet M;
 			for (int i : p.M & p.v->finalNT)
-				M |= g.tf.T[i];   // Вычисляем M -- множество нетерминалов, по которым можно свернуть
-			auto &mm = *(&s - p.v->pos); // ????? Может быть здесь индекс на 1 должен отличаться
+				M |= g.tf.T[i];   // Р’С‹С‡РёСЃР»СЏРµРј M -- РјРЅРѕР¶РµСЃС‚РІРѕ РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ, РїРѕ РєРѕС‚РѕСЂС‹Рј РјРѕР¶РЅРѕ СЃРІРµСЂРЅСѓС‚СЊ
+			auto &mm = *(&s - p.v->pos); // ????? РњРѕР¶РµС‚ Р±С‹С‚СЊ Р·РґРµСЃСЊ РёРЅРґРµРєСЃ РЅР° 1 РґРѕР»Р¶РµРЅ РѕС‚Р»РёС‡Р°С‚СЊСЃСЏ
 			for (int x : M) {
 				if (auto *y = g.root.nextN(x)) {
-					for (int z : y->phi & p.M) { // !!!!!!!! Двойной цикл по множеству допустимых нетерминалов на каждом шаге !!!!!!!!
+					for (int z : y->phi & p.M) { // !!!!!!!! Р”РІРѕР№РЅРѕР№ С†РёРєР» РїРѕ РјРЅРѕР¶РµСЃС‚РІСѓ РґРѕРїСѓСЃС‚РёРјС‹С… РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ РЅР° РєР°Р¶РґРѕРј С€Р°РіРµ !!!!!!!!
 						get_union(t, y->next_mt, z);
 						get_union(nt, y->next_mnt, z);
 					}
@@ -366,7 +366,7 @@ bool nextTok(GrammarState &g, SStack &ss) { // Определяет множество допустимых т
 				t |= y.t;
 				nt |= y.nt;
 				//auto it = mm.la.find(x);
-				//if (it != mm.la.end()) { // Достаём информацию о допустимых символах из предыдущих фреймов
+				//if (it != mm.la.end()) { // Р”РѕСЃС‚Р°С‘Рј РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РґРѕРїСѓСЃС‚РёРјС‹С… СЃРёРјРІРѕР»Р°С… РёР· РїСЂРµРґС‹РґСѓС‰РёС… С„СЂРµР№РјРѕРІ
 				//	t |= it->second.t;
 				//	nt |= it->second.nt;
 				//}
@@ -520,10 +520,10 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 				if (ts.num(x) < 0) {
 					lex.addCToken(ts[x], x.substr(1, x.size() - 2));
 				}
-				rule.rhs.push_back(RuleElem{ ts[x],true,true,false });                      // Константный терминал
-			} else if (ts.num(x) >= 0)rule.rhs.push_back(RuleElem{ ts[x],false,true,true }); // Неконстантный терминал
+				rule.rhs.push_back(RuleElem{ ts[x],true,true,false });                      // РљРѕРЅСЃС‚Р°РЅС‚РЅС‹Р№ С‚РµСЂРјРёРЅР°Р»
+			} else if (ts.num(x) >= 0)rule.rhs.push_back(RuleElem{ ts[x],false,true,true }); // РќРµРєРѕРЅСЃС‚Р°РЅС‚РЅС‹Р№ С‚РµСЂРјРёРЅР°Р»
 			else {
-				rule.rhs.push_back(RuleElem{ nts[x],false,false,true });                     // Нетерминал
+				rule.rhs.push_back(RuleElem{ nts[x],false,false,true });                     // РќРµС‚РµСЂРјРёРЅР°Р»
 			}
 		}
 	}
@@ -534,24 +534,24 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 	int pos = 0;
 	int nrule = (int)rules.size();
 	for (auto &r : rule.rhs) {
-		curr->next.add(rule.A); // TODO: сделать запоминание позиции, где было изменение
+		curr->next.add(rule.A); // TODO: СЃРґРµР»Р°С‚СЊ Р·Р°РїРѕРјРёРЅР°РЅРёРµ РїРѕР·РёС†РёРё, РіРґРµ Р±С‹Р»Рѕ РёР·РјРµРЅРµРЅРёРµ
 
 		if (r.term) {
-			if(!r.cterm) curr->next_mt[rule.A].add(lex.internalNum(r.num)); // Поддержка структуры для вычисления множества допустимых терминалов и нетерминалов для предпросмотра
+			if(!r.cterm) curr->next_mt[rule.A].add(lex.internalNum(r.num)); // РџРѕРґРґРµСЂР¶РєР° СЃС‚СЂСѓРєС‚СѓСЂС‹ РґР»СЏ РІС‹С‡РёСЃР»РµРЅРёСЏ РјРЅРѕР¶РµСЃС‚РІР° РґРѕРїСѓСЃС‚РёРјС‹С… С‚РµСЂРјРёРЅР°Р»РѕРІ Рё РЅРµС‚РµСЂРјРёРЅР°Р»РѕРІ РґР»СЏ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂР°
 		} else curr->next_mnt[rule.A].add(r.num);
 
-		if (!r.term)curr->nextnt.add(r.num); // TODO: сделать запоминание позиции, где было изменение
+		if (!r.term)curr->nextnt.add(r.num); // TODO: СЃРґРµР»Р°С‚СЊ Р·Р°РїРѕРјРёРЅР°РЅРёРµ РїРѕР·РёС†РёРё, РіРґРµ Р±С‹Р»Рѕ РёР·РјРµРЅРµРЅРёРµ
 		auto e = (r.term ? curr->termEdges[r.num] : curr->ntEdges[r.num]).get();
 		curr = e;
-		curr->phi.add(rule.A); // TODO: сделать запоминание позиции, где было изменение
+		curr->phi.add(rule.A); // TODO: СЃРґРµР»Р°С‚СЊ Р·Р°РїРѕРјРёРЅР°РЅРёРµ РїРѕР·РёС†РёРё, РіРґРµ Р±С‹Р»Рѕ РёР·РјРµРЅРµРЅРёРµ
 		curr->pos = ++pos;
 		if (curr->_frule < 0)curr->_frule = nrule;
 	}
-	if (!curr->finalNT.add_check(rule.A)) // TODO: сделать запоминание позиции, где добавлено правило
-		return false; // Если правило уже было в дереве, то выходим
+	if (!curr->finalNT.add_check(rule.A)) // TODO: СЃРґРµР»Р°С‚СЊ Р·Р°РїРѕРјРёРЅР°РЅРёРµ РїРѕР·РёС†РёРё, РіРґРµ РґРѕР±Р°РІР»РµРЅРѕ РїСЂР°РІРёР»Рѕ
+		return false; // Р•СЃР»Рё РїСЂР°РІРёР»Рѕ СѓР¶Рµ Р±С‹Р»Рѕ РІ РґРµСЂРµРІРµ, С‚Рѕ РІС‹С…РѕРґРёРј
 	curr->rules[rule.A] = nrule;
 	
-	// Добавляем финальную вершину в список для нетерминала rule.A
+	// Р”РѕР±Р°РІР»СЏРµРј С„РёРЅР°Р»СЊРЅСѓСЋ РІРµСЂС€РёРЅСѓ РІ СЃРїРёСЃРѕРє РґР»СЏ РЅРµС‚РµСЂРјРёРЅР°Р»Р° rule.A
 	if ((int)ntRules.size() <= rule.A)
 		ntRules.resize(rule.A + 1);
 	ntRules[rule.A].push_back(curr);
@@ -568,9 +568,9 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 	bool can_have_lpr = (!rule.rhs[0].term && rule.rhs[0].num == rule.A);
 	bool can_have_rpr = (!rule.rhs.back().term && rule.rhs.back().num == rule.A);
 
-	if (haslpr && rpr == lpr && (can_have_lpr != can_have_rpr)) { // Допустим лишь один приоритет, но заданы оба одинаковые, в этом случае удаляем лишний приоритет
-		if (!can_have_lpr)rule.lpr = unsigned(-1); // Если не должно быть левого приоритета
-		else rule.rpr = unsigned(-1);              // Если не должно быть правого приоритета
+	if (haslpr && rpr == lpr && (can_have_lpr != can_have_rpr)) { // Р”РѕРїСѓСЃС‚РёРј Р»РёС€СЊ РѕРґРёРЅ РїСЂРёРѕСЂРёС‚РµС‚, РЅРѕ Р·Р°РґР°РЅС‹ РѕР±Р° РѕРґРёРЅР°РєРѕРІС‹Рµ, РІ СЌС‚РѕРј СЃР»СѓС‡Р°Рµ СѓРґР°Р»СЏРµРј Р»РёС€РЅРёР№ РїСЂРёРѕСЂРёС‚РµС‚
+		if (!can_have_lpr)rule.lpr = unsigned(-1); // Р•СЃР»Рё РЅРµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ Р»РµРІРѕРіРѕ РїСЂРёРѕСЂРёС‚РµС‚Р°
+		else rule.rpr = unsigned(-1);              // Р•СЃР»Рё РЅРµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ РїСЂР°РІРѕРіРѕ РїСЂРёРѕСЂРёС‚РµС‚Р°
 	} else {
 		if (haslpr && !can_have_lpr)
 			throw GrammarError("Left priority can be specified only for rules with right part starting from nonterminal from left side (A -> A B1 ... Bn)");
@@ -589,19 +589,19 @@ bool GrammarState::addRule(const CFGRule & rule) {
 	int pos = 0;
 	int nrule = (int)rules.size();
 	for (auto &r : rule.rhs) {
-		curr->next.add(rule.A); // TODO: сделать запоминание позиции, где было изменение
-		if (!r.term)curr->nextnt.add(r.num); // TODO: сделать запоминание позиции, где было изменение
+		curr->next.add(rule.A); // TODO: СЃРґРµР»Р°С‚СЊ Р·Р°РїРѕРјРёРЅР°РЅРёРµ РїРѕР·РёС†РёРё, РіРґРµ Р±С‹Р»Рѕ РёР·РјРµРЅРµРЅРёРµ
+		if (!r.term)curr->nextnt.add(r.num); // TODO: СЃРґРµР»Р°С‚СЊ Р·Р°РїРѕРјРёРЅР°РЅРёРµ РїРѕР·РёС†РёРё, РіРґРµ Р±С‹Р»Рѕ РёР·РјРµРЅРµРЅРёРµ
 		auto e = (r.term ? curr->termEdges[r.num] : curr->ntEdges[r.num]).get();
 		curr = e;
-		curr->phi.add(rule.A); // TODO: сделать запоминание позиции, где было изменение
+		curr->phi.add(rule.A); // TODO: СЃРґРµР»Р°С‚СЊ Р·Р°РїРѕРјРёРЅР°РЅРёРµ РїРѕР·РёС†РёРё, РіРґРµ Р±С‹Р»Рѕ РёР·РјРµРЅРµРЅРёРµ
 		curr->pos = ++pos;
 		if (curr->_frule < 0)curr->_frule = nrule;
 	}
-	if (!curr->finalNT.add_check(rule.A)) // TODO: сделать запоминание позиции, где добавлено правило
-		return false; // Если правило уже было в дереве, то выходим
+	if (!curr->finalNT.add_check(rule.A)) // TODO: СЃРґРµР»Р°С‚СЊ Р·Р°РїРѕРјРёРЅР°РЅРёРµ РїРѕР·РёС†РёРё, РіРґРµ РґРѕР±Р°РІР»РµРЅРѕ РїСЂР°РІРёР»Рѕ
+		return false; // Р•СЃР»Рё РїСЂР°РІРёР»Рѕ СѓР¶Рµ Р±С‹Р»Рѕ РІ РґРµСЂРµРІРµ, С‚Рѕ РІС‹С…РѕРґРёРј
 	curr->rules[rule.A] = nrule;
 
-	// Добавляем финальную вершину в список для нетерминала rule.A
+	// Р”РѕР±Р°РІР»СЏРµРј С„РёРЅР°Р»СЊРЅСѓСЋ РІРµСЂС€РёРЅСѓ РІ СЃРїРёСЃРѕРє РґР»СЏ РЅРµС‚РµСЂРјРёРЅР°Р»Р° rule.A
 	if ((int)ntRules.size() <= rule.A)
 		ntRules.resize(rule.A + 1);
 	ntRules[rule.A].push_back(curr);
