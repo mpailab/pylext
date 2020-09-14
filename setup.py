@@ -1,20 +1,23 @@
 from Cython.Distutils import build_ext
 from setuptools import Extension, setup, find_packages
 from Cython.Build import cythonize
+import os
 
 ext_modules = [
     Extension(
         name = 'cfgexts.parser._wrap',
         sources = [
-            'cfgexts/parser/_wrap.pyx', 
-            'cfgexts/parser/src/apply.cpp', 
-            'cfgexts/parser/src/Exception.cpp', 
-            'cfgexts/parser/src/PackratParser.cpp', 
-            'cfgexts/parser/src/Parser.cpp'
+            os.path.join('cfgexts','parser','_wrap.pyx'), 
+            os.path.join('cfgexts','parser','src','apply.cpp'), 
+            os.path.join('cfgexts','parser','src','Exception.cpp'), 
+            os.path.join('cfgexts','parser','src','PackratParser.cpp'), 
+            os.path.join('cfgexts','parser','src','Parser.cpp')
+        ],
+        depends = [
+            os.path.join('cfgexts','parser','src','apply.h'),
         ],
         include_dirs=[
-            'D:/projects/cogen/ctest/cfgexts/parser', 
-            'D:/projects/cogen/ctest/cfgexts/parser/src'
+            os.path.join('cfgexts','parser','src') # ! here must be an absolute path
         ], 
         language='c++',
         extra_compile_args=['/std:c++17', '/O2', '/arch:AVX2'],
@@ -46,4 +49,5 @@ setup(
     python_requires='>=3.6',
     ext_modules=ext_modules,
     package_data={"cfgexts.parser": ["_wrap.pyx"]},
+    install_requires=["cython"],
 )
