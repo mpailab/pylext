@@ -1,9 +1,9 @@
 
 from libcpp.string cimport string
 
-cimport _wrap
+cimport parser
 
 def c_apply (text):
     cdef string s = text
-    s = _wrap.apply(s)
+    s = parser.apply(s)
     return s
