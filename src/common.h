@@ -24,6 +24,9 @@ struct Enumerator {
 	bool has(const T& x) const {
 		return _m.count(x) > 0;
 	}
+	int size()const {
+		return (int)_i.size();
+	}
 };
 
 template<class T>

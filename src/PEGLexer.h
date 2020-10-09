@@ -54,9 +54,9 @@ struct Token {
 struct PEGLexer {
 	struct IndentSt {
 		bool fix = true; // Была ли уже строка, где величина отступа зафиксирована
-		int line; // Строка, где начался блок с отступом
+		int line;       // Строка, где начался блок с отступом
 		int start_col; // Столбец, в котором было прочитано увеличение отступа
-		int col;  // Величина отступа
+		int col;      // Величина отступа
 	};
 	struct CompositeToken {
 		vector<pair<bool,int>> t; // Номера токенов, из которых состоит составной токен
@@ -67,7 +67,7 @@ struct PEGLexer {
 		for (int i = 0; i < l; i++) {
 			auto [nc1, tok1] = compTokens[i1].t[i];
 			auto [nc2, tok2] = compTokens[i2].t[i];
-			int s1 = nc1&&special.has(compTokens[i1].t[i].second), s2 = nc2&&special.has(compTokens[i2].t[i].second);
+			int s1 = nc1 && special.has(compTokens[i1].t[i].second), s2 = nc2 && special.has(compTokens[i2].t[i].second);
 			if (s1 != s2)return 2*(s1 - s2);
 			if (!r && nc1 != nc2)r = nc1 ? 1 : -1;
 		}
@@ -81,6 +81,7 @@ struct PEGLexer {
 	Enumerator<string, unordered_map> _ten; // Внутренняя нумерация неконстантных токенов
 	unordered_map<int, int> _intnum;
 	TrieM<int> cterms;
+	vector<string> ctokens;
 	//int token(const string &x)const { return _ten.num(x); }
 	//const string& token(int n)const { return _ten[n]; }
 	vector<pair<int, int>> addedNcTokens;
@@ -611,7 +612,8 @@ struct PEGLexer {
 		if (t >= (int)tokens.size())
 			tokens.resize(t + 1, make_pair(-1, -1));
 		tokens[t] = make_pair(a, num);
-		if ((int)compTokens.size() <= t)compTokens.resize(t + 1);
+		if ((int)compTokens.size() <= t)
+			compTokens.resize(t + 1);
 		compTokens[t] = move(ct);
 		composite.add(t);
 		return _intnum[num] = t;
@@ -624,6 +626,9 @@ struct PEGLexer {
 	}
 	void addCToken(int t, const string &x) {
 		cterms[x.c_str()] = t;
+		if (ctokens.size() <= t)
+			ctokens.resize(t + 1);
+		ctokens[t] = x;
 		if (!curr.atEnd()) {
 			addedCTokens.push_back(make_pair(curr.pos, x));
 		}

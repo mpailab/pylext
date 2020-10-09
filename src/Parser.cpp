@@ -1,6 +1,9 @@
+#include "Parser.h"
+#include "Parser.h"
 #include <iostream>
 #include <queue>
 #include <sstream>
+#include <fstream>
 #include "Parser.h"
 
 int debug_pr = false;
@@ -11,6 +14,91 @@ ParseNode* termnode(const Token& t, ParseTree &pt) {
 	res->loc = t.loc;
 	res->term = t.str();
 	return res;
+}
+
+struct PrintState {
+	int indent=0;
+	int tab = 4;
+	void endl(ostream& os) {
+		os << "\n";
+		os << string(indent * tab, ' ');
+	}
+};
+
+void printSpecial(ostream& os, int tn, GrammarState* g, PrintState& pst) {
+	if (tn == g->lex.indent) {
+		pst.indent++;
+		pst.endl(os);
+	} else if (tn == g->lex.dedent) {
+		pst.indent--;
+		pst.endl(os);
+	} else if (tn == g->lex.eol) {
+		pst.endl(os);
+	}
+}
+
+void printTerminal(std::ostream& os, int t, const string &tok, GrammarState* g, PrintState& pst) {
+	int tn = g->lex.internalNum(t);
+	if (g->lex.special.has(tn)) {
+		printSpecial(os, tn, g, pst);
+	} else if (tok.empty() && g->lex.composite.has(tn)) {
+		for (auto& x : g->lex.compTokens[tn].t) {
+			if (x.first) {
+				if (g->lex.special.has(x.second)) {
+					printSpecial(os, tn, g, pst);
+				}
+				cerr << "nonconst token, part of composite token" << endl;
+			} else {
+				printTerminal(os, x.second, string(), g, pst);
+				//os << g->lex.ctokens[x.second] << " ";
+			}
+		}
+	} else if (tok.empty() && t < g->lex.ctokens.size())
+		os << g->lex.ctokens[t]<<" ";
+	else
+		os << tok << " ";
+}
+
+void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& pst) {
+	if (n->isTerminal()) {
+		return printTerminal(os, n->nt, n->term, g, pst);
+	}
+	auto& r = g->rules[n->rule];
+	int pos = 0;
+	for (auto& x : r.rhs) {
+		if (x.save) {
+			tree2str_rec(os, n->ch[pos], g, pst);
+			pos++;
+		} else {
+			if (!x.term) {
+				g->print_rule(cerr << "Error: nonterminal " << g->nts[x.num] << " should be saved in ", r);
+				cerr << "\n";
+				continue;
+			}
+			if (!x.cterm) {
+				g->print_rule(cerr << "Error: nonconst terminal " << g->ts[x.num] << " should be saved in ", r);
+				cerr << "\n";
+				continue;
+			}
+			printTerminal(os, x.num, "", g, pst);
+		}
+	}
+}
+
+void print_tree(std::ostream& os, ParseTree &t, GrammarState* g) {
+	PrintState pst;
+	tree2str_rec(os, t.root, g, pst);
+}
+
+string tree2str(ParseTree& t, GrammarState* g) {
+	stringstream ss;
+	print_tree(ss, t, g);
+	return ss.str();
+}
+
+void tree2file(const string &fn, ParseTree& t, GrammarState* g) {
+	ofstream f(fn);
+	print_tree(f, t, g);
 }
 
 inline void get_union(NTSet &x, const unordered_map<int, NTSet> &m, int i) {
@@ -98,7 +186,7 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 }
 
 
-string prstack(GrammarState& g, SStack& ss, PStack& sp, int k=0);
+string prstack(GrammarState& g, const SStack& ss, const PStack& sp, int k=0);
 
 bool reduce1(GrammarState& g, SStack& ss, PStack& sp, ParseTree &pt) {
 	int B = -1;
@@ -279,7 +367,7 @@ ostream & operator<<(ostream &s, Location loc) {
 	return s << "("<<loc.beg.line << ":" << loc.beg.col << ")-(" << loc.end.line << ":" << loc.end.col << ")";
 }
 
-ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, PStack *ps=0) {
+ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, const PStack *ps=0) {
 	os << "{";
 	int i = 0;
 	for (auto &x : st.v) {
@@ -332,7 +420,7 @@ ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, PSta
 	return os;
 }
 
-string prstack(GrammarState&g, SStack&ss, PStack &sp, int k) {
+string prstack(GrammarState&g, const SStack&ss, const PStack &sp, int k) {
 	stringstream s;
 	for (int i = -k-10; i < -1; i++) {
 		if ((int)ss.s.size() + i >= 0)
@@ -392,11 +480,14 @@ bool nextTok(GrammarState &g, SStack &ss) { // Определяет множес
 	return g.lex.go_next(t);
 }
 
-ParseTree parse(GrammarState & g, const std::string& text) {
+ParseTree parse(GrammarState & g, const std::string& text, ParseErrorHandler *error_handler) {
 	SStack ss;
 	PStack sp;
 	ParseTree pt;
 	LR0State s0;
+	ParseErrorHandler eh;
+	if (!error_handler)
+		error_handler = &eh;
 	s0.v.resize(1);
 	s0.v[0].M = g.tf.fst[g.nts[""]];
 	s0.v[0].v = &g.root;
@@ -434,7 +525,11 @@ ParseTree parse(GrammarState & g, const std::string& text) {
 							continue;
 						}
 						auto &t1 = g.lex.tok()[0];
+						auto hint = error_handler->onNoShiftReduce(&g, ss, sp, t1);
+						if (hint.type == ParseErrorHandler::Hint::Uncorrectable)
+							throw SyntaxError();
 						throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t1.type] + " = `" + t1.short_str() + "` at " + t1.loc.beg.str(), prstack(g, ss, sp));
+						//TODO: use hint instead of throwing exception
 					}
 					if (debug_pr) {
 						std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
@@ -466,8 +561,12 @@ void GrammarState::error(const string & err) {
 void GrammarState::addLexerRule(const string & term, const string & rhs, bool tok, bool to_begin) {
 	if (debug_pr)
 		std::cout << "!!! Add lexer rule : " << term << " <- " << rhs << "\n";
+	int nterms = ts.size();
 	int n = tok ? ts[term] : 0;
 	lex.addPEGRule(term, rhs, n, to_begin);
+	if (n >= nterms) // Если добавился новый терминал
+		for (auto& action : on_new_t_actions)
+			action(this, term, n);
 }
 
 bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs, SemanticAction act, int id, unsigned lpr, unsigned rpr) {
@@ -483,6 +582,7 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 		}
 		std::cout << "\n";
 	}
+	int ntnum = nts.size();
 	CFGRule rule;
 	rule.A = nts[lhs];
 	rule.action = act;
@@ -580,6 +680,10 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 	}
 	rule.ext_id = id;
 	rules.emplace_back(move(rule));
+	if (on_new_nt_actions.size())
+		for (int i = ntnum, end = nts.size(); i < end; i++)
+			for (auto& action : on_new_nt_actions)
+				action(this, nts[i], i);
 
 	return true;
 }
@@ -587,6 +691,7 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 bool GrammarState::addRule(const CFGRule & rule) {
 	NTTreeNode *curr = &root;
 	int pos = 0;
+	int ntnum = nts.size();
 	int nrule = (int)rules.size();
 	for (auto &r : rule.rhs) {
 		curr->next.add(rule.A); // TODO: сделать запоминание позиции, где было изменение
@@ -614,6 +719,10 @@ bool GrammarState::addRule(const CFGRule & rule) {
 	} else tf.addRuleBeg(lex.curr.pos, rule.A, rule.rhs[0].num, len(rule.rhs));
 
 	rules.emplace_back(move(rule));
+	if (on_new_nt_actions.size())
+		for (int i = ntnum, end = nts.size(); i < end; i++)
+			for (auto& action : on_new_nt_actions)
+				action(this, nts[i], i);
 
 	return true;
 }
@@ -710,3 +819,13 @@ void ParseNode::del() {
 	}*/
 }
 #endif
+
+ParseErrorHandler::Hint ParseErrorHandler::onRRConflict(GrammarState* g, const SStack& ss, const PStack& sp, int term, int nt1, int nt2, int depth, int place) {
+	throw RRConflict("at " + g->lex.curr.cpos.str() + " RR-conflict("+to_string(place)+") : 2 different ways to reduce by " + g->ts[term] + ": NT = " + g->nts[nt1] + " or " + g->nts[nt2], prstack(*g, ss, sp, depth));
+	return Hint();
+}
+
+ParseErrorHandler::Hint ParseErrorHandler::onNoShiftReduce(GrammarState* g, const SStack &ss, const PStack &sp, const Token& tok) {
+	throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g->ts[tok.type] + " = `" + tok.short_str() + "` at " + tok.loc.beg.str(), prstack(*g, ss, sp));
+	return Hint();
+}

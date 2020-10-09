@@ -204,7 +204,7 @@ int main(int argc, char*argv[]) {
 		addRule(st, "token_sum -> token_sum '+' token_sum", Plus);
 		addRule(st, "rule_symbol -> token_sum"); 
 		//addRule(st, "rule_symbol -> sq_string");
-		addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](GrammarState*g, ParseNode&n) { n = std::move(n[0]); });// TODO: ѕотенциальна¤ утечка пам¤ти -- проверить !!!
+		addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](GrammarState*g, ParseNode&n) { n = std::move(n[0]); });// TODO: потенциальная утечка памяти -- проверить !!!
 		addRule(st, "rule_symbol -> '[' rule_rhs ']'", Maybe);
 		addRule(st, "rule_rhs_seq -> rule_symbol");
 		addRule(st, "rule_rhs_seq -> rule_rhs_seq rule_symbol", Concat);
@@ -269,7 +269,7 @@ int main(int argc, char*argv[]) {
 		addRule(st, "new_syntax_expr -> '%' 'eof' ':' ident", [](GrammarState*g, ParseNode&n) { g->setEOFToken(n[0].term); });
 		
 		addRule(st, "new_syntax -> new_syntax_expr ';'");
-		addRule(st, "text -> new_syntax text");// , [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); }); // TODO: ѕотенциальна¤ утечка пам¤ти -- проверить !!!
+		addRule(st, "text -> new_syntax text");// , [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); }); // TODO: потенциальная утечка памяти -- проверить !!!
 
 		addRule(st, "new_syntax_expr -> '%' 'stats'", [](GrammarState* g, ParseNode&) {
 			cout << "===================== Grammar statistics ========================" << endl;
@@ -318,6 +318,10 @@ int main(int argc, char*argv[]) {
 			ParseTree res = parse(st, text);
 			tm.stop_pr();
 			cout << "Parser finished successfully\n";
+			Timer tm1("Printing");
+			tm1.start();
+			tree2file("parse_out.txt", res, &st);
+			tm1.stop_pr();
 		}
 		if (!dir.empty()) {
 			return testDir(st, dir, "log.txt");

@@ -231,15 +231,21 @@ struct dvector {
 		mx = -1;
 	}
 };
-
 void setDebug(int b);
 struct GrammarState {
+	using NewNTAction = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления нового нетерминала
+	using NewTAction  = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления н6ового терминала
+
 	unordered_map<int, NTSet> tFirstMap;   // По терминалу возвращает, какие нетерминалы могут начинаться с данного терминала
 	vector<vector<NTTreeNode*>> ntRules;   // Каждому нетерминалу сопоставляется список финальных вершин, соответствующих правилам для данного нетерминала
 	NTTreeNode root;        // Корневая вершина дерева правил
 	Enumerator<string, unordered_map> nts; // Нумерация нетерминалов
 	Enumerator<string, unordered_map> ts;  // Нумерация терминалов
 	vector<CFGRule> rules;
+
+	vector<NewNTAction> on_new_nt_actions;
+	vector<NewTAction> on_new_t_actions;
+
 	struct Temp {
 		struct BElem {
 			int i;
@@ -363,15 +369,24 @@ struct GrammarState {
 	void setEOFToken(const std::string &nm) {
 		lex.declareEOFToken(nm, ts[nm]);
 	}
+	void print_rule(ostream& s, const CFGRule &r)const {
+		s << nts[r.A] << " -> ";
+		for (auto& rr : r.rhs) {
+			if (rr.term)s << ts[rr.num] << " ";
+			else s << nts[rr.num] << " ";
+		}
+	}
 	void print_rules(ostream &s) const{
 		for (auto &r : rules) {
-			s << nts[r.A] << " -> ";
-			for (auto& rr : r.rhs) {
-				if (rr.term)s << ts[rr.num] << " ";
-				else s << nts[rr.num] << " ";
-			}
+			print_rule(s, r);
 			s << "\n";
 		}
+	}
+	void addNewNTAction(const NewNTAction& action) {
+		on_new_nt_actions.push_back(action);
+	}
+	void addNewTAction(const NewTAction& action) {
+		on_new_t_actions.push_back(action);
 	}
 };
 
@@ -404,9 +419,31 @@ struct PStack {
 	vector<ParseNode*> s;
 };
 
-ParseTree parse(GrammarState & g, const std::string& text);
+class ParseErrorHandler {
+public:
+	struct Hint {
+		enum Type {
+			Uncorrectable,
+			SkipT,
+			SkipNT,
+			InsertT,
+			InsertNT
+		} type = Uncorrectable;
+		int added;
+	};
+	virtual Hint onRRConflict(GrammarState* state, const SStack& ss, const PStack& sp, int term, int nt1, int nt2, int depth, int place);
+	virtual Hint onNoShiftReduce(GrammarState* g, const SStack& s, const PStack& p, const Token& tok);
+};
+
+ParseTree parse(GrammarState & g, const std::string& text, ParseErrorHandler *error_handler=0);
 
 struct ParserError {
 	Location loc;
 	string err;
 };
+
+void print_tree(std::ostream& os, ParseTree& t, GrammarState* g);
+
+string tree2str(ParseTree& t, GrammarState* g);
+
+void tree2file(const string& fn, ParseTree& t, GrammarState* g);
