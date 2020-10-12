@@ -2,5 +2,5 @@
 
 string apply (string text)
 {
-    return text.append(" ");
+    return text.append(" world!");
 }

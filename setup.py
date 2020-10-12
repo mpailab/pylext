@@ -1,5 +1,10 @@
-from skbuild import setup
+import platform
 from setuptools import find_packages
+from skbuild import setup
+
+cmake_args=['-DBUILD_CFGEXTS=ON']
+if platform.system() == "Windows":
+    cmake_args.append('-GVisual Studio 16 2019')
 
 setup(
     name="cfgexts",
@@ -24,8 +29,5 @@ setup(
     python_requires='>=3.6',
     install_requires=['cython', 'scikit-build', 'setuptools'],
     packages=find_packages(),
-    cmake_args=[
-        '-GVisual Studio 16 2019',
-        '-DBUILD_CFGEXTS=ON'
-    ],
+    cmake_args=cmake_args,
 )
