@@ -38,6 +38,10 @@ void printSpecial(ostream& os, int tn, GrammarState* g, PrintState& pst) {
 }
 
 void printTerminal(std::ostream& os, int t, const string &tok, GrammarState* g, PrintState& pst) {
+	if (tok.empty() && t < g->lex.ctokens.size() && g->lex.ctokens[t].size()) {
+		os << g->lex.ctokens[t] << " ";
+		return;
+	}
 	int tn = g->lex.internalNum(t);
 	if (g->lex.special.has(tn)) {
 		printSpecial(os, tn, g, pst);
@@ -53,9 +57,7 @@ void printTerminal(std::ostream& os, int t, const string &tok, GrammarState* g, 
 				//os << g->lex.ctokens[x.second] << " ";
 			}
 		}
-	} else if (tok.empty() && t < g->lex.ctokens.size())
-		os << g->lex.ctokens[t]<<" ";
-	else
+	} else
 		os << tok << " ";
 }
 

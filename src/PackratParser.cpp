@@ -31,7 +31,7 @@ void PackratParser::setText(const string & t) {
 }
 
 static constexpr int iterMemStart = 8; // Начинаем запоминать после 8-го прочитанного элемента 
-static constexpr int cmplxThresh = 16; // Запоминаем выражение со сложностью выше этого значения 
+static constexpr unsigned int cmplxThresh = 16; // Запоминаем выражение со сложностью выше этого значения 
 
 int PackratParser::parse0(const PEGExpr & e, int pos) {
 	if (!_updated)_ops++;
@@ -141,7 +141,7 @@ int PackratParser::parse(int nt, int pos) {
 			update_props(); 
 	} else if (!rules[nt].t_mask[(unsigned char)text[pos - 1]])
 		return -1;
-	if (rules[nt]._cmplx <= cmplxThresh) {
+	if (rules[nt]._cmplx <= (int)cmplxThresh) {
 		int r = parse(rules[nt], pos);
 		return r ? r : -1;
 	}

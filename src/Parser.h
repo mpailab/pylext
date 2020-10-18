@@ -7,6 +7,7 @@
 #include <vector>
 #include <cctype>
 #include <algorithm>
+#include <any>
 #include <memory>
 #include <string>
 #include "Exception.h"
@@ -15,6 +16,7 @@
 #include "Hash.h"
 #include "Vector.h"
 #include "Alloc.h"
+#include "GCAlloc.h"
 //#include "BinAlloc.h"
 
 using namespace std;
@@ -24,6 +26,7 @@ using PParseNode = unique_ptr<ParseNode>;
 struct ParseTree;
 
 struct ParseNode {
+	int used = 0, refs = 0;
 	int nt;               // Номер терминала или нетерминала
 	int B = -1;           // Номер промежуточного нетерминала в случае свёртки nt <- B <- rule
 	int rule=-1;          // Номер правила (-1 => терминал)
@@ -75,11 +78,13 @@ struct ParseNode {
 	~ParseNode() {}
 };
 
+using ParseNodePtr = ParseNode*;
+
 struct ParseTree {
 	Alloc<ParseNode> _alloc;
-	ParseNode* root = 0;
+	ParseNodePtr root = 0;
 	template<class ... Args>
-	ParseNode *newnode(Args && ... args) {
+	ParseNode* newnode(Args && ... args) {
 		ParseNode*res = _alloc.allocate(args...);
 		return res;
 	}
@@ -233,6 +238,7 @@ struct dvector {
 };
 void setDebug(int b);
 struct GrammarState {
+	any data;
 	using NewNTAction = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления нового нетерминала
 	using NewTAction  = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления н6ового терминала
 
