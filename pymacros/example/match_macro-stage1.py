@@ -1,48 +1,48 @@
 ########### state1: список строк или вызовов функций раскрытия макросов -- результат работы парсера ###########
 ## элемент 1: строка, полученная из поддерева, не использующего макрорасширения
 def _syntax_rule_matchcase_0(pattern, action):
-	return (pattern, quasiquote(b'<бинарное представление дерева разбора квазицитаты `true`>', []), action)
+    return (pattern, quasiquote("expr", ["true"], []), action)
     
 def _syntax_rule_matchcase_1(pattern, cond, action):
-	return (pattern,cond,action)
+    return (pattern,cond,action)
 
 def _syntax_rule_matchcases_0(x):
     x = syn_expand(x)
-	return [x]
+    return [x]
 
 def _syntax_rule_matchcases_1(xs, x):
     xs = syn_expand(xs)
     x = syn_expand(x)
-	xs.append(x)
-	return xs
-	
+    xs.append(x)
+    return xs
+
 #Максимально упрощённый pattern-matching (просто сравнение на равенство)
 def match2cmp(x,pat):
     # tmatch(x, y) сравнивает верх дерева x с деревом y. На месте подстановочных символов (в квазицитате -- $_) в y могут быть поддеревья из x
-	if tmatch(pat, quasiquote(b'бинарное представление дерева развора выражения `_`'), [])): # должна быть встроенная функция, сравнивающая деревья разбора
-		return quasiquote(b'<бинарное представление дерева разбора квазицитаты `true`>', [])
+    if tmatch(pat, quasiquote("expr", ["_"], [])): # должна быть встроенная функция, сравнивающая деревья разбора
+        return quasiquote("expr", ["true"], [])
     # функция quasiquote(q, args) читает дерево из бинарного представления q, и листья, соответсвующие аргументам заменяет на аргументы из списка args		
-	return quasiquote(b'<бинарное представление дерева разбора квазицитаты $x==$pat>', [x, pat]) 
+    return quasiquote("expr", ["","==",""], [x, pat])
 
 def _macro_match(x, mc):
     mc = syn_expand(mc)
-	conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mc]
-	head = quasiquote(b'бинарное представление дерева разбора if_stmt_no_else(`if $a and $b: $c)`', [conds[0][0], conds[0][1], conds[0][2]])
-	for (c, cond, s) in conds[1:]:
-		head = quasiquote(b'бинарное представление дерева разбора `$a $$INDENTED elif $b and $c: $d`', [head, c, cond, s])
-	return head
+    conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mc]
+    head = quasiquote("if_stmt_no_else", ["if", " and ", ": ", ""], [conds[0][0], conds[0][1], conds[0][2]])
+    for (c, cond, s) in conds[1:]:
+        head = quasiquote("expr", ["", " $$INDENTED elif ", " and ", ": ", ""], [head, c, cond, s])
+    return head
 
 ###########################################################
 ##### элемент 2: вызов функции, раскрывающей макрос #######
 
 expand_macros(""" ### на этом месте на самом деле стоит просто идентификатор дерева разбора этого текста
 if __name__ == '__main__':
-	for x in range(10):
-		match x:
-			1: print(f'{x} -> a')
-			2: print(f'{x} -> b')
-			_ if x<5 or x>8: print(f'{x} -> c')
-			_: print(f'{x} -> d')
+    for x in range(10):
+        match x:
+            1: print(f'{x} -> a')
+            2: print(f'{x} -> b')
+            _ if x<5 or x>8: print(f'{x} -> c')
+            _: print(f'{x} -> d')
 """)
 
 ###########################################################
