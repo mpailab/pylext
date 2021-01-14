@@ -59,7 +59,7 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 	case PEGExpr::Many:
 		if (e.subexprs[0].type == PEGExpr::Terminal) {
 			constexpr int termMemFreq = 4 * iterMemStart;
-			int one = 0, i;
+			int i;
 			int p0 = pos;
 			auto& m = e.subexprs[0].t_mask;
 			for (i = 0; i < termMemFreq && pos <= lastpos; i++, pos++) {
@@ -70,7 +70,7 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 				auto mp = _manypos.size();
 				for (; pos<=lastpos; pos++) {
 					if (!m[(unsigned char)text[pos - 1]]) break;
-					if (!(pos & (termMemFreq - 1))) {
+					if (!(pos & (termMemFreq - 1u))) {
 						//int& aa = hmany(pos, id);
 						if (int aa = hmany(pos,id)) {
 							pos = aa; break;
@@ -79,7 +79,7 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 					}
 				}
 				for (auto j = mp; j < _manypos.size(); j++)hmany(_manypos[j],id) = pos;
-				hmany((p0 + termMemFreq - 1) & ~(termMemFreq - 1), id) = pos;
+				hmany((p0 + termMemFreq - 1u) & ~(termMemFreq - 1u), id) = pos;
 				_manypos.resize(mp);
 			}
 			return (pos > p0 || e.type == PEGExpr::Many || i>0) ? pos : 0;

@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib.h>
+#include <cstdlib>
 #include <memory>
 //#include <concepts>
 #include <iterator>
@@ -50,22 +50,28 @@ public:
 		if((_p = x._p))
 			_p->refs++;
 	}
-	GCPtr(GCPtr&& x) {
+	GCPtr(GCPtr&& x)  noexcept {
 		_p = x._p;
 		x._p = 0;
 	}
 	GCPtr& operator=(const GCPtr& x) {
 		if (_p)_p->refs--;
 		if ((_p = x._p))_p->refs++;
+		return *this;
 	}
-	GCPtr& operator=(GCPtr&& x) {
+	GCPtr& operator=(GCPtr&& x)  noexcept {
 		std::swap(_p, x._p);
+		return *this;
 	}
 	void reset(N* p = 0){
 		if (_p)_p->refs--;
 		if ((_p = p))p->refs++;
 	}
+	//operator N* ()const { return _p; }
+	N* get()const { return _p; }
 	N* operator->()const { return _p; }
+	N& operator*()const { return *_p; }
+	N& operator[](size_t i) { return *_p->ch[i]; }
 	~GCPtr() { if (_p)_p->refs--; }
 };
 
@@ -78,17 +84,23 @@ class GCAlloc {
 		};
 		bool free = true;
 	};
-	vector<GCAllocTp*> _temp_gc;
+	vector<T*> _temp_gc;
 	struct ListAllocNode {
 		size_t sz;
 		GCAllocTp* p;
 		ListAllocNode* next;
-		ListAllocNode(size_t n, ListAllocNode* nxt = 0) {
+		explicit ListAllocNode(size_t n, ListAllocNode* nxt = 0) {
 			//std::cout << "Allocate " << n << " nodes\n";
 			p = (GCAllocTp*)malloc(n * sizeof(GCAllocTp));
-			for (size_t i = 1; i < n; i++)
+			
+			for (size_t i = 1; i < n; i++) {
 				p[i - 1].next = p + i;
-			if (n)p[n - 1].next = 0;
+				p[i].free = true;
+			}
+			if (n) {
+				p[n - 1].next = 0;
+				p[0].free = true;
+			}
 			next = nxt;
 			sz = n;
 		}
@@ -102,7 +114,7 @@ class GCAlloc {
 			if (next)n+=next->mark_unused();
 			return n;
 		}
-		void find_top(vector<GCAllocTp*>& tmp, size_t &pos) {
+		void find_top(vector<T*>& tmp, size_t &pos) {
 			for (size_t i = 0; i < sz; i++)
 				if (!p[i].free && ((T*)(p + i))->refs > 0) {
 					T* pi = (T*)(p + i);
@@ -132,10 +144,15 @@ class GCAlloc {
 			del_unused(alloc);
 		}
 		~ListAllocNode() {
+			//cout << "~ListAllocNode:0" << std::endl;
 			for (size_t i = 0; i < sz; i++)
-				if (!p[i].free)
+				if (!p[i].free) {
+					//std::cout << "delete " << i << std::endl;
 					destroy_at((T*)(p + i));
+				}
+			//cout << "~ListAllocNode:1" << std::endl;
 			::free(p);
+			//cout << "~ListAllocNode:2" << std::endl;
 		}
 	};
 
@@ -147,7 +164,7 @@ class GCAlloc {
 	GCAllocTp* fr;
 	void _check() {
 		if (!fr) {
-			if (_aftergc * 2 >= _allocated)_rungc();
+			if (_aftergc*2 > _allocated)_rungc();
 			if (fr)return;
 			if (head)head = new ListAllocNode(int(head->sz * exp_coef) + 1, head);
 			else head = new ListAllocNode(start_size);
@@ -156,32 +173,36 @@ class GCAlloc {
 		}
 	}
 	void _rungc() {
+		//std::cout << "run gc: allocated = " << _allocated << ", aftergc = " << _aftergc << std::endl;
 		head->rungc(*this, _temp_gc);
 		_aftergc = 0;
+		//std::cout << "finished" << std::endl;
 	}
 	void destroy() {
+		//std::cout << "start destroy" << std::endl;
 		ListAllocNode* p = head;
 		for (; p; p = head) {
 			head = p->next;
 			delete p;
 		}
 		head = 0;
+		//std::cout << "finished destroy" << std::endl;
 	}
 public:
 	GCAlloc(const GCAlloc<T>&) = delete;
 	GCAlloc<T>& operator=(const GCAlloc<T>& a) = delete;
-	GCAlloc(GCAlloc<T>&& a) : exp_coef(a.exp_coef), start_size(a.start_size), head(a.head), fr(a.fr) {
+	GCAlloc(GCAlloc<T>&& a)  noexcept : exp_coef(a.exp_coef), start_size(a.start_size), head(a.head), fr(a.fr) {
 		a.head = 0;
 		a.fr = 0;
 	}
-	GCAlloc<T>& operator=(GCAlloc<T>&& a) {
+	GCAlloc<T>& operator=(GCAlloc<T>&& a)  noexcept {
 		std::swap(fr, a.fr);
 		std::swap(head, a.head);
 		std::swap(start_size, a.start_size);
 		std::swap(exp_coef, a.exp_coef);
 		return *this;
 	}
-	GCAlloc(size_t start_sz = 10, double k = 1.5) {
+	explicit GCAlloc(size_t start_sz = 10, double k = 1.5) {
 		start_size = start_sz;
 		exp_coef = k;
 		head = 0;
@@ -191,17 +212,20 @@ public:
 	T* allocate(Y && ... y) {
 		_check();
 		T* p = (T*)fr;
+		fr->free = false;
 		fr = fr->next;
 		::new(p) T(std::forward(y)...);
 		_aftergc++;
 		return p;
 	}
 	void deallocate(T* n) {
+		//if (((GCAllocTp*)n)->free) throw 0;
 #ifdef _DEBUG_ALLOCATION
 		if (!_check_node(n))throw "Alloc::free : node isn't from current allocator";
 #endif
 		std::destroy_at(n);
 		((GCAllocTp*)n)->next = fr;
+		((GCAllocTp*)n)->free = true;
 		fr = ((GCAllocTp*)n);
 	}
 	~GCAlloc() {

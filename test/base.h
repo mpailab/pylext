@@ -2,6 +2,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <iomanip>
 #include "Parser.h"
 using namespace std;
@@ -13,12 +14,13 @@ string loadfile(const string& fn);
 std::string read_whole_file(const std::string& fn);
 
 #include <chrono>  // for high_resolution_clock
+#include <utility>
 
 struct Timer {
 	decltype(std::chrono::high_resolution_clock::now()) _t0;
 	bool _started = false;
 	string name;
-	Timer(string nm = "") :name(nm) {}
+	explicit Timer(string nm = "") :name(std::move(nm)) {}
 	void start() {
 		_t0 = std::chrono::high_resolution_clock::now();
 		_started = true;
@@ -35,7 +37,7 @@ struct Timer {
 		return t;
 	}
 	~Timer() {
-		if (_started && name.size()) stop_pr();
+		if (_started && !name.empty()) stop_pr();
 	}
 };
 
@@ -57,4 +59,4 @@ vector<T> operator +(vector<T> x, const vector<T>& y) {
 }
 vector<vector<vector<string>>> getVariants(ParseNode* n);
 
-void init_base_grammar(GrammarState& st);
+void init_base_grammar(GrammarState& st, shared_ptr<GrammarState> target);

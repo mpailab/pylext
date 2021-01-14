@@ -33,7 +33,9 @@
 
 %token: imagnumber = `(floatnumber / digitpart)[jJ]`;
 
-%syntax: text -> stmts1;
+%syntax: text -> root_stmts;
+%syntax: root_stmts -> [root_stmts] INDENTED root_stmt;
+%syntax: root_stmt -> stmt;
 
 %syntax: decorator -> '@' dotted_ident ['(' [arglist] ')'];
 %syntax: decorators -> decorator [decorators];

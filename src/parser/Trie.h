@@ -31,7 +31,7 @@ struct TrieM {
 	int _size = 0;
 	T val{};
 	vector<TrieM<T>> next;
-	int size()const { return _size; }
+	[[nodiscard]] int size()const { return _size; }
 	const T* operator()(const char *m)const {
 		const TrieM<T>* curr = this;
 		for (; *m; m++) {

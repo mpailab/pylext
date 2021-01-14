@@ -1,15 +1,18 @@
 #include "Parser.h"
-#include "Parser.h"
 #include <iostream>
+#include <memory>
 #include <queue>
 #include <sstream>
 #include <fstream>
-#include "Parser.h"
+#include <utility>
+#include "format.h"
 
 int debug_pr = false;
+
 void setDebug(int b) { debug_pr = b; }
-ParseNode* termnode(const Token& t, ParseTree &pt) {
-	ParseNode* res = pt.newnode();// std::make_unique<ParseNode>();
+
+ParseNodePtr termnode(const Token& t, ParseContext &pt) {
+	ParseNodePtr res = pt.newnode();// std::make_unique<ParseNode>();
 	res->nt = t.type;
 	res->loc = t.loc;
 	res->term = t.str();
@@ -19,11 +22,46 @@ ParseNode* termnode(const Token& t, ParseTree &pt) {
 struct PrintState {
 	int indent=0;
 	int tab = 4;
-	void endl(ostream& os) {
+	void endl(ostream& os) const {
 		os << "\n";
 		os << string(indent * tab, ' ');
 	}
 };
+
+struct S {
+	vector<unsigned char>& v;
+	explicit S(vector<unsigned char>& vv) :v(vv) {}
+	template<class I, class=std::enable_if_t<std::is_integral_v<I>>>
+	S& operator<<(I x) {
+		v.resize(v.size() + sizeof(x));
+		*((I*)(v.data() + v.size()) - 1) = x;
+		return *this;
+	}
+	S& operator<<(const Pos& pos) {
+		return *this << pos.col << pos.line;
+	}
+	S& operator<<(const Location& loc) {
+		return *this << loc.beg << loc.end;
+	}
+	S& operator<<(const string& s) {
+		*this << (int)s.size();
+		size_t sz = v.size();
+		v.resize(sz + s.size());
+		memcpy(v.data() + sz, s.c_str(), s.size());
+		return *this;
+	}
+	S& operator<<(ParseNode* n) {
+		*this << n->nt << n->B << n->rule << n->rule_id << n->loc << n->lpr << n->rpr << n->term<<n->ch.size();
+		for (ParseNode* x : n->ch)
+			(*this) << x;
+		return *this;
+	}
+};
+
+void ParseNode::serialize(vector<unsigned char>& res) {
+	S s(res);
+	s << this;
+}
 
 void printSpecial(ostream& os, int tn, GrammarState* g, PrintState& pst) {
 	if (tn == g->lex.indent) {
@@ -38,7 +76,7 @@ void printSpecial(ostream& os, int tn, GrammarState* g, PrintState& pst) {
 }
 
 void printTerminal(std::ostream& os, int t, const string &tok, GrammarState* g, PrintState& pst) {
-	if (tok.empty() && t < g->lex.ctokens.size() && g->lex.ctokens[t].size()) {
+	if (tok.empty() && t < g->lex.ctokens.size() && !g->lex.ctokens[t].empty()) {
 		os << g->lex.ctokens[t] << " ";
 		return;
 	}
@@ -89,7 +127,7 @@ void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& p
 
 void print_tree(std::ostream& os, ParseTree &t, GrammarState* g) {
 	PrintState pst;
-	tree2str_rec(os, t.root, g, pst);
+	tree2str_rec(os, t.root.get(), g, pst);
 }
 
 string tree2str(ParseTree& t, GrammarState* g) {
@@ -138,8 +176,7 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 			for (auto &nn : x->ntEdges)
 				if (nn.second->phi.intersects(p.M)) {
 					res.v[k].M |= g.tf.fst[nn.first]; // Добавляем в новый слой те нетерминалы, которые могут начинаться в данной позиции в i-м слое
-					LAInfo pla;
-					//auto &pla = res.la[nn.first]; // Информация о предпросмотре при свёртке по символу nn.first
+					LAInfo pla;                       // Информация о предпросмотре при свёртке по символу nn.first
 					for (int nt : nn.second->phi & p.M) {
 						get_union(pla.t, nn.second->next_mt, nt);        // Пополняем множество предпросмотра терминалов (для случая свёртки по символу nn.first)
 						get_union(pla.nt, nn.second->next_mnt, nt);      // Пополняем множество предпросмотра нетерминалов (для случая свёртки по символу nn.first)
@@ -147,24 +184,19 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 					auto &q = *nn.second;
 					if (q.finalNT.intersects(p.M)) {
 						NTSet M;
-						for (int i : p.M & q.finalNT)
-							M |= g.tf.T[i];   // Вычисляем M -- множество нетерминалов, по которым можно свернуть
+						for (int ii : p.M & q.finalNT)
+							M |= g.tf.T[ii];   // Вычисляем M -- множество нетерминалов, по которым можно свернуть
 						auto &mm = *(&s - p.v->pos); // ????? Может быть здесь индекс на 1 должен отличаться
-						for (int x : M) {
-							if (auto *y = g.root.nextN(x)) {
+						for (int w : M) {
+							if (auto *y = g.root.nextN(w)) {
 								for (int z : y->phi & p.M) { // !!!!!!!! Тройной цикл по множеству допустимых нетерминалов !!!!!!!! По-другому не понятно как (разве что кешировать всё)
 									get_union(pla.t, y->next_mt, z);
 									get_union(pla.nt, y->next_mnt, z);
 								}
 							}
-							auto &y = mm.la.find(x);
+							auto &y = mm.la.find(w);
 							pla.t |= y.t;
 							pla.nt |= y.nt;
-							/*auto it = mm.la.find(x);
-							if (it != mm.la.end()) { // Достаём информацию о допустимых символах из предыдущих фреймов
-								pla.t |= it->second.t;
-								pla.nt |= it->second.nt;
-							}*/
 						}
 					}
 					if (!pla.nt.empty() || !pla.t.empty())
@@ -190,8 +222,9 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 
 string prstack(GrammarState& g, const SStack& ss, const PStack& sp, int k=0);
 
-bool reduce1(GrammarState& g, SStack& ss, PStack& sp, ParseTree &pt) {
+bool reduce1(SStack& ss, PStack& sp, ParseContext &pt) {
 	int B = -1;
+	GrammarState& g = *pt.g;
 	LR0State* s = &ss.s.back() - 1;
 	int r = 0;
 	const NTTreeNode* u = 0;
@@ -210,9 +243,10 @@ bool reduce1(GrammarState& g, SStack& ss, PStack& sp, ParseTree &pt) {
 	return shift(g, *(s - 1), *s, B, false);
 }
 
-bool reduce0(GrammarState& g, SStack& ss, PStack& sp/*, NTSet &M1*/, ParseTree &pt) {
+bool reduce0(SStack& ss, PStack& sp/*, NTSet &M1*/, ParseContext &pt) {
 	int B = -1, C = -1;
-	for (;ss.s.size();) {
+	GrammarState& g = *pt.g;
+	for (;!ss.s.empty();) {
 		LR0State* s = &ss.s.back() - 1;
 		int r = 0;
 		const NTTreeNode* u = 0;
@@ -241,9 +275,9 @@ bool reduce0(GrammarState& g, SStack& ss, PStack& sp/*, NTSet &M1*/, ParseTree &
 	return true;
 }
 
-bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
+bool reduce(SStack &ss, PStack& sp, int a, ParseContext &pt) {
 	LR0State *s = &ss.s.back();
-
+	GrammarState& g = *pt.g;
 	g.tmp.clear();
 	auto& B = g.tmp.B;
 	auto& F = g.tmp.F;
@@ -279,7 +313,9 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
 					}
 					if (!ok)continue;
 				}
-				if (A0 >= 0)throw RRConflict("at " + g.lex.curr.cpos.str() + " conflict : 2 different ways to reduce by " + g.ts[a] + ": may be NT = "+g.nts[A]+" or "+g.nts[A0], prstack(g, ss, sp));
+				if (A0 >= 0)throw RRConflict("at {} conflict : 2 different ways to reduce by {}: may be NT = {} or {}"_fmt(
+                            g.lex.curr.cpos, g.ts[a], g.nts[A], g.nts[A0]
+				        ), prstack(g, ss, sp));
 				A0 = A;
 				break;
 			}
@@ -293,7 +329,9 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
 				const NTTreeNode *u = 0;
 				for (auto &p : B[j]) { // Перебор по обратным стрелкам из j-го фрейма вверх. Смотрим, по какая из стрелок соответствует свёртке нетерминала A0
 					if (p.M.has(A0)) {
-						if (u)throw RRConflict("at "+g.lex.curr.cpos.str()+" conflict : 2 different ways to reduce NT="+g.nts[A0]+" : St["+to_string(j)+"] from St["+to_string(k)+"] or St["+to_string(p.i)+"]",prstack(g,ss,sp,j));
+						if (u)throw RRConflict("at {} conflict : 2 different ways to reduce NT={} : St[{}] from St[{}] or St[{}]"_fmt(
+                                    g.lex.curr.cpos, g.nts[A0], j, k, p.i
+						        ),prstack(g,ss,sp,j));
 						u = p.v;
 						k = p.i;
 					}
@@ -304,17 +342,17 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
 				if (!k) {
 					u1 = u;
 					int r = g.tf.inv[A0].intersects(u->finalNT, &Bb);
-					if(r > 1)throw RRConflict("at " + g.lex.curr.cpos.str() + " conflict : 2 different ways to reduce by " + g.ts[a] + ": 3", prstack(g, ss, sp));
+					if(r > 1)throw RRConflict("at {} conflict : 2 different ways to reduce by {}: 3"_fmt(g.lex.curr.cpos,g.ts[a]), prstack(g, ss, sp));
 				} else {
 					auto &tinv = g.tf.inv[A0];
 					for (int A : F[k]) {
 						if ((u0 = u->nextN(A))) {
 							if (int r = tinv.intersects(u0->finalNT, &Bb)) {
 								if (r > 1 || A1 >= 0) {
-									if(A1 >= 0) throw RRConflict("at " + g.lex.curr.cpos.str() + " RR-conflict(4) : 2 different ways to reduce by " + g.ts[a] + ": NT = "+g.nts[A1]+" or "+g.nts[A], prstack(g, ss, sp,k));
+									if(A1 >= 0) throw RRConflict("at {} RR-conflict(4) : 2 different ways to reduce by {}: NT = {} or {}"_fmt(g.lex.curr.cpos, g.ts[a], g.nts[A1], g.nts[A]), prstack(g, ss, sp,k));
 									auto v = tinv & u0->finalNT; 
 									vector<int> vv(v.begin(), v.end());
-									throw RRConflict("at " + g.lex.curr.cpos.str() + " RR-conflict(5) : 2 different ways to reduce by " + g.ts[a] + ": NT = " + g.nts[vv[0]] + " or " + g.nts[vv[1]], prstack(g, ss, sp, k));
+									throw RRConflict("at {} RR-conflict(5) : 2 different ways to reduce by {}: NT = {} or {}"_fmt(g.lex.curr.cpos, g.ts[a], g.nts[vv[0]], g.nts[vv[1]]), prstack(g, ss, sp, k));
 								}
 								A1 = A;
 								u1 = u0;
@@ -348,8 +386,8 @@ bool reduce(GrammarState &g, SStack &ss, PStack& sp, int a, ParseTree &pt) {
 					M1 |= e.finalNT;
 			}
 			M1 &= p.M;
-			for (int i : M1&p.M)
-				M1 |= g.tf.T[i];
+			for (int j : M1&p.M)
+				M1 |= g.tf.T[j];
 			M1 &= p.M;
 			if (!M1.empty()) {
 				B[i + p.v->pos].push_back({ i,p.v,M1 });
@@ -482,16 +520,18 @@ bool nextTok(GrammarState &g, SStack &ss) { // Определяет множес
 	return g.lex.go_next(t);
 }
 
-ParseTree parse(GrammarState & g, const std::string& text, ParseErrorHandler *error_handler) {
+ParseTree parse(ParseContext &pt, const std::string& text, const string& start) {
 	SStack ss;
 	PStack sp;
-	ParseTree pt;
+	//ParseTree pt;
+	GrammarState& g = *pt.g;
 	LR0State s0;
-	ParseErrorHandler eh;
-	if (!error_handler)
-		error_handler = &eh;
+	if (!pt.error_handler)
+		pt.error_handler = std::make_shared<ParseErrorHandler>();
 	s0.v.resize(1);
-	s0.v[0].M = g.tf.fst[g.nts[""]];
+	if (!g.nts.has(start))
+		throw GrammarError("grammar doesn't have start nonterminal `" + start + "`");
+	s0.v[0].M = g.tf.fst[g.nts[start]];
 	s0.v[0].v = &g.root;
 	ss.s.emplace_back(std::move(s0));
 	try {
@@ -502,10 +542,9 @@ ParseTree parse(GrammarState & g, const std::string& text, ParseErrorHandler *er
 					std::cout << "token of type " << g.ts[t.type] << ": `" << t.str() << "` at " << t.loc << endl;
 				}
 				if (shift(g, ss.s.back(), s0, t.type, true)) {
-					if (debug_pr) {
-						std::cout << "Shift by " << g.ts[t.type] << ": ";
-						printstate(std::cout, g, s0) << "\n";
-					}
+					if (debug_pr)
+						printstate(std::cout << "Shift by " << g.ts[t.type] << ": ", g, s0) << "\n";
+
 					ss.s.emplace_back(move(s0));
 					g.lex.acceptToken(t);
 
@@ -518,46 +557,47 @@ ParseTree parse(GrammarState & g, const std::string& text, ParseErrorHandler *er
 					//g.lex.go_next();
 					break;
 				} else {
-					bool r = reduce(g, ss, sp, t.type, pt);
+					bool r = reduce(ss, sp, t.type, pt);
 					if (!r) {
 						if (ti < len(g.lex.tok()) - 1) {
-							if (debug_pr) {
+							if (debug_pr)
 								std::cout << "Retry with same token of type " << g.ts[g.lex.tok()[ti + 1].type] << endl;
-							}
+
 							continue;
 						}
 						auto &t1 = g.lex.tok()[0];
-						auto hint = error_handler->onNoShiftReduce(&g, ss, sp, t1);
+						auto hint = pt.error_handler->onNoShiftReduce(&g, ss, sp, t1);
 						if (hint.type == ParseErrorHandler::Hint::Uncorrectable)
 							throw SyntaxError();
-						throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g.ts[t1.type] + " = `" + t1.short_str() + "` at " + t1.loc.beg.str(), prstack(g, ss, sp));
+						throw SyntaxError("Cannot shift or reduce : unexpected terminal {} = `{}` at {}"_fmt(g.ts[t1.type], t1.short_str(), t1.loc.beg), prstack(g, ss, sp));
 						//TODO: use hint instead of throwing exception
 					}
-					if (debug_pr) {
+					if (debug_pr)
 						std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
-					}
+
 					g.lex.acceptToken(t);
 					break;
 				}
 			}
 		}
-		if (!reduce(g, ss, sp, 0, pt))
+		if (!reduce(ss, sp, 0, pt))
 			throw SyntaxError("Unexpected end of file", prstack(g, ss, sp));
 	} catch (SyntaxError &e) {
 		if (e.stack_info.empty()) {
 			e.stack_info = prstack(g, ss, sp);
 		}
-		throw e;
+		throw move(e);
 	}
 	Assert(ss.s.size() == 2);
 	Assert(sp.s.size() == 1);
-	pt.root = sp.s[0];
-	return pt;
+	ParseTree tree;
+	tree.root = sp.s[0];
+	return tree;
 }
 
 void GrammarState::error(const string & err) {
 	cerr << "Error at line "<< lex.curr.cpos.line<<':'<< lex.curr.cpos.col<<" : " << err << "\n";
-	_err.push_back(make_pair(lex.curr.cpos, err));
+	_err.emplace_back(lex.curr.cpos, err);
 }
 
 void GrammarState::addLexerRule(const string & term, const string & rhs, bool tok, bool to_begin) {
@@ -571,11 +611,11 @@ void GrammarState::addLexerRule(const string & term, const string & rhs, bool to
 			action(this, term, n);
 }
 
-bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs, SemanticAction act, int id, unsigned lpr, unsigned rpr) {
+int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs, SemanticAction act, int id, unsigned lpr, unsigned rpr) {
 	if (debug_pr) {
 		std::cout << "!!! Add rule  : " << lhs << " = ";
 		for (auto&x : rhs) {
-			if (x.size() == 0)std::cout << " <ERROR: empty element>";
+			if (x.empty())std::cout << " <ERROR: empty element>";
 			else{
 				std::cout << " " << x[0];
 				for(int i=1; i<(int)x.size(); i++)
@@ -587,9 +627,9 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 	int ntnum = nts.size();
 	CFGRule rule;
 	rule.A = nts[lhs];
-	rule.action = act;
-	rule.lpr = lpr; bool haslpr = rule.lpr != unsigned(-1);
-	rule.rpr = rpr; bool hasrpr = rule.rpr != unsigned(-1);
+	rule.action = std::move(act);
+	rule.lpr = (int)lpr; bool haslpr = rule.lpr != -1;
+	rule.rpr = (int)rpr; bool hasrpr = rule.rpr != -1;
 	if(rule.action && (haslpr || hasrpr))
 		throw GrammarError("semantic actions not supported for rules with priorities");
 	for (auto &y : rhs) {
@@ -615,7 +655,7 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 			}
 			lex.declareCompToken(yy, ts[nm]); 
 			rule.rhs.push_back(RuleElem{ ts[nm],false,true,nc });
-		} else if (y.size() == 0) continue;
+		} else if (y.empty()) continue;
 		else {
 			auto &x = y[0];
 			if (x[0] == '\'') {
@@ -671,8 +711,8 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 	bool can_have_rpr = (!rule.rhs.back().term && rule.rhs.back().num == rule.A);
 
 	if (haslpr && rpr == lpr && (can_have_lpr != can_have_rpr)) { // Допустим лишь один приоритет, но заданы оба одинаковые, в этом случае удаляем лишний приоритет
-		if (!can_have_lpr)rule.lpr = unsigned(-1); // Если не должно быть левого приоритета
-		else rule.rpr = unsigned(-1);              // Если не должно быть правого приоритета
+		if (!can_have_lpr)rule.lpr = -1; // Если не должно быть левого приоритета
+		else rule.rpr = -1;              // Если не должно быть правого приоритета
 	} else {
 		if (haslpr && !can_have_lpr)
 			throw GrammarError("Left priority can be specified only for rules with right part starting from nonterminal from left side (A -> A B1 ... Bn)");
@@ -681,13 +721,15 @@ bool GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs
 			throw GrammarError("Right priority can be specified only for rules with right part ending by nonterminal from left side (A -> B1 ... Bn A)");
 	}
 	rule.ext_id = id;
+	int num = (int)rules.size();
 	rules.emplace_back(move(rule));
-	if (on_new_nt_actions.size())
+	if (!on_new_nt_actions.empty())
 		for (int i = ntnum, end = nts.size(); i < end; i++)
 			for (auto& action : on_new_nt_actions)
 				action(this, nts[i], i);
+	tf.checkSize((int)nts.size() - 1);
 
-	return true;
+	return num;
 }
 
 bool GrammarState::addRule(const CFGRule & rule) {
@@ -720,11 +762,12 @@ bool GrammarState::addRule(const CFGRule & rule) {
 		tFirstMap[rule.rhs[0].num] |= tf.ifst[rule.A];
 	} else tf.addRuleBeg(lex.curr.pos, rule.A, rule.rhs[0].num, len(rule.rhs));
 
-	rules.emplace_back(move(rule));
-	if (on_new_nt_actions.size())
+	rules.emplace_back(rule);
+	if (!on_new_nt_actions.empty())
 		for (int i = ntnum, end = nts.size(); i < end; i++)
 			for (auto& action : on_new_nt_actions)
 				action(this, nts[i], i);
+	tf.checkSize((int)nts.size() - 1);
 
 	return true;
 }
@@ -741,93 +784,56 @@ bool GrammarState::addLexerRule(const ParseNode * tokenDef, bool tok, bool to_be
 	addLexerRule(tokenDef->ch[0]->term, (tokenDef->ch[1]->term), tok, to_begin);
 	return true;
 }
-/*
-bool GrammarState::addRule(const ParseNode * ruleDef) {
-	if (ruleDef->ch.size() < 2) {
-		error("syntax definition must have at least 2 nodes");
-		return false;
-	}
-	if (!ruleDef->ch[0]->isTerminal()) {
-		error("left side of syntax definition must be a non-terminal name");
-		return false;
-	}
-	vector<const ParseNode*> curr;
-	for (auto i = ruleDef->ch.size(); --i; )
-		curr.push_back(&*ruleDef->ch[i]);
-	vector<string> res;
-	while (curr.size()) {
-		auto *x = curr.back(); curr.pop_back();
-		if (x->isTerminal()) { res.push_back(x->term); }
-		else for (auto i = x->ch.size(); i--; )
-			curr.push_back(&*x->ch[i]);
-	}
-	addRule(ruleDef->ch[0]->term, res);
-	return true;
-}*/
-#if 0
-template<class T>
-class Queue {
-	vector<T> v;
-	unsigned _head=0, _tail=0, _size = 0, _mask = 0;
-	void reserve(unsigned c) {
-		c = 1U << (32 - _lzcnt_u32(c - 1));
-		auto c0 = (int)v.size();
-		v.resize(c);
-		if (_size && _tail <= _head) {
-			std::move(v.begin(), v.begin() + _tail, v.begin() + c0);
-			_tail += c0;
-		}
-		_mask = c - 1;
-	} 
-public:
-	Queue& operator << (const T&x) {
-		if (_size >= v.size())reserve(_size + 1);
-		v[_tail] = x;
-		_tail = (_tail + 1)&_mask;
-		_size++;
-		return *this;
-	}
-	Queue& operator >> (T&x) {
-		x = pop();
-		return *this;
-	}
-	T pop() {
-		_size--;
-		auto h = _head;
-		_head = (_head + 1)&_mask;
-		return move(v[h]);
-	}
-	bool empty() { return !_size; }
-};
-
-void ParseNode::del() {
-	for (ParseNode *curr = this, *next = 0; curr; curr = next) {
-		next = 0;
-		for (auto *n : curr->ch)
-			if (n->size > curr->size / 2)
-				next = n;
-			else n->del();
-		delete curr;
-	}
-	/*Queue<ParseNode*> q;
-	for(auto &c : ch)
-		q << c.release();
-	while (!q.empty()) {
-		auto n = q.pop();
-		for (auto& c : n->ch)
-			q << c.release();
-		n->ch.clear();
-		delete n;
-	}*/
-}
-#endif
 
 ParseErrorHandler::Hint ParseErrorHandler::onRRConflict(GrammarState* g, const SStack& ss, const PStack& sp, int term, int nt1, int nt2, int depth, int place) {
-	throw RRConflict("at " + g->lex.curr.cpos.str() + " RR-conflict("+to_string(place)+") : 2 different ways to reduce by " + g->ts[term] + ": NT = " + g->nts[nt1] + " or " + g->nts[nt2], prstack(*g, ss, sp, depth));
+	throw RRConflict("at {} RR-conflict({}) : 2 different ways to reduce by {}: NT = {} or {}"_fmt(g->lex.curr.cpos, place, g->ts[term], g->nts[nt1], g->nts[nt2]), prstack(*g, ss, sp, depth));
 	return Hint();
 }
 
 ParseErrorHandler::Hint ParseErrorHandler::onNoShiftReduce(GrammarState* g, const SStack &ss, const PStack &sp, const Token& tok) {
-	throw SyntaxError("Cannot shift or reduce : unexpected terminal " + g->ts[tok.type] + " = `" + tok.short_str() + "` at " + tok.loc.beg.str(), prstack(*g, ss, sp));
+	throw SyntaxError("Cannot shift or reduce : unexpected terminal {} = `{}` at {}"_fmt(g->ts[tok.type], tok.short_str(), tok.loc.beg.str()), prstack(*g, ss, sp));
 	return Hint();
+}
+/**
+ * Раскрывает квазицитату с заданными поддеревьями разбора
+ * @param nt -- Нетерминал, который определяет тип квазицитаты q
+ * @param q -- квазицитата
+ * @param args -- список деревьев разбора, подставляемых в квазицитату
+ * @param qid -- идентификатор правила, которым помечаются листья, на место которых подставляются поддеревья
+ * */
+ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std::initializer_list<ParseNode*>& args, int qid) {
+	if (qid < 0)qid = _qid;
+    if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
+	if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
+	bool qprev = _qq;
+    _qq = true;
+	ParseTree t = parse(*this, q, nt);
+    _qq = qprev;
+	auto pos = args.begin();
+	return replace_trees_rec(t.root.get(), pos, args.end(), _qid);
+}
+
+/**
+ * Раскрывает квазицитату с заданными поддеревьями разбора
+ * @param nt -- Нетерминал, который определяет тип квазицитаты q
+ * @param q -- квазицитата
+ * @param args -- список деревьев разбора, подставляемых в квазицитату
+ * @param qid -- идентификатор правила, которым помечаются листья, на место которых подставляются поддеревья
+ * */
+ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std::vector<ParseNode*>& args, int qid) {
+	if (qid < 0)qid = _qid;
+	if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
+	if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
+	ParseTree t = parse(*this, q, nt);
+	auto pos = args.begin();
+	return replace_trees_rec(t.root.get(), pos, args.end(), _qid);
+}
+
+ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std::vector<ParseNodePtr>& args, int qid) {
+    if (qid < 0)qid = _qid;
+    if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
+    if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
+    ParseTree t = parse(*this, q, nt);
+    auto pos = args.begin();
+    return replace_trees_rec(t.root.get(), pos, args.end(), _qid);
 }

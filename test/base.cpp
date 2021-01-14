@@ -89,16 +89,16 @@ vector<vector<vector<string>>> getVariants(ParseNode* n) {
 	return { { { n->term } } };
 }
 
-void init_base_grammar(GrammarState& st) {
+void init_base_grammar(GrammarState& st, shared_ptr<GrammarState> target) {
 	st.setStart("text");// , "new_token", "new_rule");
 	st.setWsToken("ws");
-	st.addLexerRule("ws", "([ \\t\\n\\r] / comment)*");
+	st.addLexerRule("ws", R"(([ \t\n\r] / comment)*)");
 	//st.addLexerRule("comment", "'#' [^\\n]*");
 	st.addToken("ident", "[_a-zA-Z][_a-zA-Z0-9]*");
-	st.addLexerRule("peg_concat_expr", "ws (([&!] ws)* ws ('(' peg_expr ws ')' / '[' ('\\\\' [^\\n] / [^\\]\\n])* ']' / sq_string / dq_string / ident) (ws [*+?])*)+");
+	st.addLexerRule("peg_concat_expr", R"(ws (([&!] ws)* ws ('(' peg_expr ws ')' / '[' ('\\' [^\n] / [^\]\n])* ']' / sq_string / dq_string / ident) (ws [*+?])*)+)");
 	st.addLexerRule("peg_expr", "ws peg_concat_expr (ws '/' ws peg_concat_expr)*");
-	st.addToken("sq_string", ("'\\'' ('\\\\' [^] / [^\\n'])* '\\''"));
-	st.addToken("dq_string", ("(ws '\"' ('\\\\' [^] / [^\\n\"])* '\"')+"));
+	st.addToken("sq_string", (R"('\'' ('\\' [^] / [^\n'])* '\'')"));
+	st.addToken("dq_string", (R"((ws '"' ('\\' [^] / [^\n"])* '"')+)"));
 	st.addToken("syn_int", "[0-9]+");
 	st.addToken("peg_expr_def", "'`' ws peg_expr ws '`'");
 	//st.addToken("ident", ("\\b[_[:alpha:]]\\w*\\b"));
@@ -111,96 +111,103 @@ void init_base_grammar(GrammarState& st) {
 	addRule(st, "token_sum -> token_sum '+' token_sum", Plus);
 	addRule(st, "rule_symbol -> token_sum");
 	//addRule(st, "rule_symbol -> sq_string");
-	addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](GrammarState*g, ParseNode&n) { n = std::move(n[0]); });// TODO: потенциальная утечка памяти -- проверить !!!
+	addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](ParseContext&g, ParseNode&n) { n = std::move(n[0]); });// TODO: РїРѕС‚РµРЅС†РёР°Р»СЊРЅР°СЏ СѓС‚РµС‡РєР° РїР°РјСЏС‚Рё -- РїСЂРѕРІРµСЂРёС‚СЊ !!!
 	addRule(st, "rule_symbol -> '[' rule_rhs ']'", Maybe);
 	addRule(st, "rule_rhs_seq -> rule_symbol");
 	addRule(st, "rule_rhs_seq -> rule_rhs_seq rule_symbol", Concat);
 	addRule(st, "rule_rhs -> rule_rhs_seq");
 	addRule(st, "rule_rhs -> rule_rhs_seq '|' rule_rhs", Or);
+	if (!target)target.reset(&st, [](GrammarState*) {});
 
-	addRule(st, "new_syntax_expr -> '%' 'syntax' ':' ident '->' rule_rhs", [](GrammarState* g, ParseNode& n) {
+	addRule(st, "new_syntax_expr -> '%' 'syntax' ':' ident '->' rule_rhs", [target](ParseContext& pt, ParseNodePtr& n) {
 		Assert(n[0].isTerminal());
-		for (auto& x : getVariants(n.ch[1])) {
-			g->addRule(n[0].term, x);
+		for (auto& x : getVariants(n->ch[1])) {
+			target->addRule(n[0].term, x);
 		}
 	});
-	addRule(st, "new_syntax_expr -> '%' 'infxl' '(' ident ',' syn_int ')' ':' rule_rhs", [](GrammarState* g, ParseNode& n) {
+	addRule(st, "new_syntax_expr -> '%' 'infxl' '(' ident ',' syn_int ')' ':' rule_rhs", [target](ParseContext& g, ParseNodePtr& n) {
 		Assert(n[0].isTerminal());
 		Assert(n[1].isTerminal());
 		unsigned pr = atoi(n[1].term.c_str());
-		for (auto& x : getVariants(n.ch[2])) {
+		for (auto& x : getVariants(n->ch[2])) {
 			x.insert(x.begin(), { n[0].term });
 			x.push_back({ n[0].term });
-			g->addRuleAssoc(n[0].term, x, pr, 1);
+			target->addRuleAssoc(n[0].term, x, pr, 1);
 		}
 	});
-	addRule(st, "new_syntax_expr -> '%' 'infxr' '(' ident ',' syn_int ')' ':' rule_rhs", [](GrammarState* g, ParseNode& n) {
+	addRule(st, "new_syntax_expr -> '%' 'infxr' '(' ident ',' syn_int ')' ':' rule_rhs", [target](ParseContext& g, ParseNodePtr& n) {
 		Assert(n[0].isTerminal());
 		Assert(n[1].isTerminal());
 		unsigned pr = atoi(n[1].term.c_str());
-		for (auto& x : getVariants(n.ch[2])) {
+		for (auto& x : getVariants(n->ch[2])) {
 			x.insert(x.begin(), { n[0].term });
 			x.push_back({ n[0].term });
-			g->addRuleAssoc(n[0].term, x, pr, -1);
+			target->addRuleAssoc(n[0].term, x, pr, -1);
 		}
 	});
-	addRule(st, "new_syntax_expr -> '%' 'postfix' '(' ident ',' syn_int ')' ':' rule_rhs", [](GrammarState* g, ParseNode& n) {
+	addRule(st, "new_syntax_expr -> '%' 'postfix' '(' ident ',' syn_int ')' ':' rule_rhs", [target](ParseContext& g, ParseNodePtr& n) {
 		Assert(n[0].isTerminal());
 		Assert(n[1].isTerminal());
 		unsigned pr = atoi(n[1].term.c_str());
-		for (auto& x : getVariants(n.ch[2])) {
+		for (auto& x : getVariants(n->ch[2])) {
 			x.insert(x.begin(), { n[0].term });
-			g->addRuleAssoc(n[0].term, x, pr, 0);
+			target->addRuleAssoc(n[0].term, x, pr, 0);
 		}
 	});
-	addRule(st, "new_syntax_expr -> '%' 'prefix' '(' ident ',' syn_int ')' ':' rule_rhs", [](GrammarState* g, ParseNode& n) {
+	addRule(st, "new_syntax_expr -> '%' 'prefix' '(' ident ',' syn_int ')' ':' rule_rhs", [target](ParseContext& g, ParseNodePtr& n) {
 		Assert(n[0].isTerminal());
 		Assert(n[1].isTerminal());
 		unsigned pr = atoi(n[1].term.c_str());
-		for (auto& x : getVariants(n.ch[2])) {
+		for (auto& x : getVariants(n->ch[2])) {
 			x.push_back({ n[0].term });
-			g->addRuleAssoc(n[0].term, x, pr, 0);
+			target->addRuleAssoc(n[0].term, x, pr, 0);
 		}
 	});
-	addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '=' peg_expr_def", [](GrammarState* g, ParseNode& n) { g->addLexerRule(&n, true); });
-	addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '/=' peg_expr_def", [](GrammarState* g, ParseNode& n) { g->addLexerRule(&n, true); });
-	addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '\\=' peg_expr_def", [](GrammarState* g, ParseNode& n) { g->addLexerRule(&n, true, true); });
+	addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '=' peg_expr_def", [target](ParseContext& g, ParseNodePtr& n) { target->addLexerRule(n.get(), true); });
+	addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '/=' peg_expr_def", [target](ParseContext& g, ParseNodePtr& n) { target->addLexerRule(n.get(), true); });
+	addRule(st, "new_syntax_expr -> '%' 'token' ':' ident '\\=' peg_expr_def", [target](ParseContext& g, ParseNodePtr& n) { target->addLexerRule(n.get(), true, true); });
 
-	addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '=' peg_expr_def", [](GrammarState* g, ParseNode& n) { g->addLexerRule(&n, false); });
-	addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [](GrammarState* g, ParseNode& n) { g->addLexerRule(&n, false); });
+	addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '=' peg_expr_def", [target](ParseContext& g, ParseNodePtr& n) { target->addLexerRule(n.get(), false); });
+	addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [target](ParseContext& g, ParseNodePtr& n) { target->addLexerRule(n.get(), false); });
 
-	addRule(st, "new_syntax_expr -> '%' 'indent' ':' ident", [](GrammarState* g, ParseNode& n) { g->setIndentToken(n[0].term); });
-	addRule(st, "new_syntax_expr -> '%' 'dedent' ':' ident", [](GrammarState* g, ParseNode& n) { g->setDedentToken(n[0].term); });
-	addRule(st, "new_syntax_expr -> '%' 'check_indent' ':' ident", [](GrammarState* g, ParseNode& n) { g->setCheckIndentToken(n[0].term); });
-	addRule(st, "new_syntax_expr -> '%' 'eol' ':' ident", [](GrammarState* g, ParseNode& n) { g->setEOLToken(n[0].term); });
-	addRule(st, "new_syntax_expr -> '%' 'eof' ':' ident", [](GrammarState* g, ParseNode& n) { g->setEOFToken(n[0].term); });
+	if (&st != target.get()) {
+		addRule(st, "new_syntax_expr -> '%' 'start' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setStart(n[0].term); });
+		addRule(st, "new_syntax_expr -> '%' 'ws' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setWsToken(n[0].term); });
+		st.addLexerRule("comment", "'#' [^\\n]*");
+	}
+	addRule(st, "new_syntax_expr -> '%' 'ws' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setWsToken(n[0].term); });
+	addRule(st, "new_syntax_expr -> '%' 'indent' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setIndentToken(n[0].term); });
+	addRule(st, "new_syntax_expr -> '%' 'dedent' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setDedentToken(n[0].term); });
+	addRule(st, "new_syntax_expr -> '%' 'check_indent' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setCheckIndentToken(n[0].term); });
+	addRule(st, "new_syntax_expr -> '%' 'eol' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setEOLToken(n[0].term); });
+	addRule(st, "new_syntax_expr -> '%' 'eof' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setEOFToken(n[0].term); });
 
 	addRule(st, "new_syntax -> new_syntax_expr ';'");
-	addRule(st, "text -> new_syntax text");// , [](GrammarState*, ParseNode&n) { n = ParseNode(move(n[1])); }); // TODO: потенциальная утечка памяти -- проверить !!!
+	addRule(st, "text -> new_syntax text");// , [](ParseContext&, ParseNode&n) { n = ParseNode(move(n[1])); }); // TODO: РїРѕС‚РµРЅС†РёР°Р»СЊРЅР°СЏ СѓС‚РµС‡РєР° РїР°РјСЏС‚Рё -- РїСЂРѕРІРµСЂРёС‚СЊ !!!
 
-	addRule(st, "new_syntax_expr -> '%' 'stats'", [](GrammarState* g, ParseNode&) {
+	addRule(st, "new_syntax_expr -> '%' 'stats'", [target](ParseContext& g, ParseNodePtr&) {
 		cout << "===================== Grammar statistics ========================" << endl;
-		cout << "    Number of constant tokens     :    " << g->lex.cterms.size() << endl;
-		cout << "    Number of NON-constant tokens :    " << g->lex.tokens.size() << endl;
-		cout << "    Number of all tokens          :    " << g->ts._i.size() - 1/*lex.tokens.size() + g->lex.cterms.size()*/ << endl;
-		cout << "    Number of non-terminals       :    " << g->nts._i.size() << endl;
-		cout << "    Number of productions         :    " << g->rules.size() << endl;
+		cout << "    Number of constant tokens     :    " << target->lex.cterms.size() << endl;
+		cout << "    Number of NON-constant tokens :    " << target->lex.tokens.size() << endl;
+		cout << "    Number of all tokens          :    " << target->ts._i.size() - 1/*lex.tokens.size() + g->lex.cterms.size()*/ << endl;
+		cout << "    Number of non-terminals       :    " << target->nts._i.size() << endl;
+		cout << "    Number of productions         :    " << target->rules.size() << endl;
 		int l = 0, total = 0;
-		for (auto& r : g->rules) {
+		for (auto& r : target->rules) {
 			l = max(l, (int)r.rhs.size());
 			total += (int)r.rhs.size();
 		}
 		cout << "    Maximum production length     :    " << l << endl;
-		cout << "    Average production length     :    " << total * 1. / g->rules.size() << endl;
+		cout << "    Average production length     :    " << total * 1. / target->rules.size() << endl;
 		cout << "=================================================================" << endl;
 	});
-	addRule(st, "new_syntax_expr -> '%' 'print'", [](GrammarState* g, ParseNode&) {
+	addRule(st, "new_syntax_expr -> '%' 'print'", [target](ParseContext& g, ParseNodePtr&) {
 		cout << "=====================    Grammar rules   ========================" << endl;
-		g->print_rules(cout);
+		target->print_rules(cout);
 		cout << "=================================================================" << endl;
-		//addRule(st, "text -> new_rule text", [](GrammarState*, ParseNode&n) {n = move(n[1]); });
+		//addRule(st, "text -> new_rule text", [](ParseContext&, ParseNode&n) {n = move(n[1]); });
 	});
-	addRule(st, "new_syntax_expr -> '%' 'debug' 'on'", [](GrammarState* g, ParseNode&) { setDebug(1); });
-	addRule(st, "new_syntax_expr -> '%' 'debug' 'off'", [](GrammarState* g, ParseNode&) { setDebug(0); });
+	addRule(st, "new_syntax_expr -> '%' 'debug' 'on'", [](ParseContext& g, ParseNodePtr&) { setDebug(1); });
+	addRule(st, "new_syntax_expr -> '%' 'debug' 'off'", [](ParseContext& g, ParseNodePtr&) { setDebug(0); });
 	addRule(st, "text -> new_syntax");
 }

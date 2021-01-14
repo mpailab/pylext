@@ -7,22 +7,26 @@
 #include "common.h"
 #include "NTSet.h"
 #include "PackratParser.h"
+#include "format.h"
 using namespace std;
 
 struct Substr {
 	const char *b = 0;
 	int len = 0;
-	Substr(const char *_b = 0, int _l = 0) :b(_b), len(_l) {}
+	explicit Substr(const char *_b = 0, int _l = 0) :b(_b), len(_l) {}
 };
 
 struct Pos {
 	int line = 1, col = 1;
-	string str() const {
+	[[nodiscard]] string str() const {
 		return to_string(line) + ":" + to_string(col);
 	}
-	bool operator==(const Pos &p) { return line == p.line&&col == p.col; }
-	bool operator!=(const Pos &p) { return line != p.line||col != p.col; }
+	bool operator==(const Pos &p) const { return line == p.line&&col == p.col; }
+	bool operator!=(const Pos &p) const { return line != p.line||col != p.col; }
 };
+
+inline void print_formatted(string& buf, const Substr& s, char){ buf.append(s.b, s.len); }
+inline void print_formatted(string& buf, const Pos& p, char){ buf += p.str(); }
 
 struct Location {
 	Pos beg, end;
@@ -39,24 +43,24 @@ struct Token {
 	Location loc;
 	Substr text;
 	TType nonconst = NonConst;
-	string str()const { return string(text.b, text.len); }
-	string short_str()const { 
+	[[nodiscard]] string str()const { return string(text.b, text.len); }
+	[[nodiscard]] string short_str()const {
 		if (text.len <= 80)return str();
 		int n1 = 0,n2=text.len-1;
 		for (; n1 < 60 && text.b[n1] && text.b[n1] != '\n';)n1++;
 		for (; text.len-n2 < 75-n1 && text.b[n2]!='\n' && text.b[n2];)n2--;
 		return string(text.b, n1)+" <...> "+string(text.b+n2+1,text.len-n2-1); 
 	}
-	Token() {}
+	Token() = default;
 	Token(int t, Location l, Substr s, TType nc) :type(t), loc(l), text(s), nonconst(nc) { loc.end.col--; }
 };
 
 struct PEGLexer {
 	struct IndentSt {
-		bool fix = true; // Была ли уже строка, где величина отступа зафиксирована
-		int line;       // Строка, где начался блок с отступом
-		int start_col; // Столбец, в котором было прочитано увеличение отступа
-		int col;      // Величина отступа
+		bool fix = true;      // Была ли уже строка, где величина отступа зафиксирована
+		int line = -1;       // Строка, где начался блок с отступом
+		int start_col = -1; // Столбец, в котором было прочитано увеличение отступа
+		int col = -1;      // Величина отступа
 	};
 	struct CompositeToken {
 		vector<pair<bool,int>> t; // Номера токенов, из которых состоит составной токен
@@ -157,7 +161,7 @@ struct PEGLexer {
 			Pos cpos, cprev;
 			bool at_end = true;
 		};
-		State state()const {
+		[[nodiscard]] State state()const {
 			State res;
 			res.nlines = nlines;
 			res.pos = pos;
@@ -176,7 +180,7 @@ struct PEGLexer {
 			_at_end = st.at_end;
 		}
 
-		bool atEnd() const { return _at_end;/* !lex || pos >= (int)lex->text.size();curr.text.b;*/ }
+		[[nodiscard]] bool atEnd() const { return _at_end;/* !lex || pos >= (int)lex->text.size();curr.text.b;*/ }
 		vector<Token> curr_t;
 		void shift(int d) {
 			for (; s[pos] && d; d--, pos++)
@@ -185,7 +189,7 @@ struct PEGLexer {
 					cpos.col = 1;
 				} else cpos.col++;
 		}
-		Pos shifted(int p) {
+		[[nodiscard]] Pos shifted(int p) const {
 			Pos c = cpos;
 			for (int q = pos; s[q]&&q<p; q++)
 				if (s[q] == '\n') {
@@ -195,7 +199,7 @@ struct PEGLexer {
 			return c;
 		}
 		iterator() = default;
-		iterator(PEGLexer *l, const NTSet *t=0) :lex(l), s(l->text.c_str()) {
+		explicit iterator(PEGLexer *l, const NTSet *t=0) :lex(l), s(l->text.c_str()) {
 			_at_end = false;
 			indents = { IndentSt{false,1,1,1} };
 			cprev.line = 0;
@@ -431,9 +435,9 @@ struct PEGLexer {
 							//_accepted = false;
 							msg += "it may be ";
 							bool fst = true;
-							for (auto &t : curr_t) {
+							for (auto &w : curr_t) {
 								if (!fst)msg += ", "; fst = false;
-								msg += lex->_ten[lex->internalNum(t.type)];
+								msg += lex->_ten[lex->internalNum(w.type)];
 							}
 							msg += " but expected one of: "; fst = true;
 							for (int i : *t) {
@@ -520,7 +524,7 @@ struct PEGLexer {
 		return Tokens(this, text);
 	}*/
 	void start(const std::string &s = "", const NTSet* t = 0) {
-		if (s.size())
+		if (!s.empty())
 			text = s;
 		packrat.setText(text);
 		curr = begin(t);
@@ -544,7 +548,7 @@ struct PEGLexer {
 	bool atEnd() const {
 		return curr.atEnd();
 	}
-	const vector<Token> & tok() {
+	const vector<Token> & tok() const {
 		return *curr;
 	}
 	int _declareSpecToken(const std::string &nm, int ext_num, int *_pnum, const std::string& intname) {
@@ -596,11 +600,11 @@ struct PEGLexer {
 		for (auto &s : toks) {
 			if (!s.first) {
 				if (const int *n = cterms(s.second.c_str()))
-					ct.t.push_back(make_pair(false, *n));
+					ct.t.emplace_back(false, *n);
 				else throw Exception("Token `" + s.second + "` (part of composite token) not declared");
 			} else {
 				if (_ten.has(s.second))
-					ct.t.push_back(make_pair(true, _ten[s.second]));
+					ct.t.emplace_back(true, _ten[s.second]);
 				else throw Exception("Token `" + s.second + "` (part of composite token) not declared");
 			}
 		}
@@ -630,10 +634,10 @@ struct PEGLexer {
 			ctokens.resize(t + 1);
 		ctokens[t] = x;
 		if (!curr.atEnd()) {
-			addedCTokens.push_back(make_pair(curr.pos, x));
+			addedCTokens.emplace_back(curr.pos, x);
 		}
 	}
-	int setWsToken(string tname) {
+	int setWsToken(const string& tname) {
 		return ws_token = packrat._en[tname];
 	}
 	~PEGLexer() {

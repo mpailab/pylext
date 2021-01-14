@@ -1,7 +1,7 @@
 #include <iostream>
 #include <filesystem>
-#include <fstream>
 #include <iomanip>
+#include <memory>
 #include "Parser.h"
 #include "base.h"
 using namespace std;
@@ -19,15 +19,16 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 		if (!e.is_regular_file())continue;
 		try {
 			string text = read_whole_file(e.path().string());
-			bool unicode = false;
+			/*bool unicode = false;
 			for (char c : text)if (c <= 0)unicode = true;
 			if (0&&unicode) {
 				skip++;
 				continue;
-			} else total++;
+			} else*/ total++;
 			Timer tm;
 			tm.start();
-			auto N = parse(g, text);
+			ParseContext pt(&g);
+			auto N = parse(pt, text);
 			double t = tm.stop();
 			cout << setprecision(3);
 			log << e.path().filename() << ":\t Success :\t " << N.root->size << " nodes\t time = " << t << "\t(" << text.size() / t * 1e-6 << " MB/s)\n";
@@ -56,11 +57,6 @@ int main(int argc, char*argv[]) {
 #ifndef _DEBUG
 	try {
 #endif
-		GrammarState st;
-		init_base_grammar(st);
-		cout << "Const rules:\n";
-		st.print_rules(cout);
-		cout << "\n";
 		string text, dir;
 		//setDebug(true);
 		if (argc>1 && (argv[1] == "-d"s || argv[1] == "--dir"s)) {
@@ -72,13 +68,21 @@ int main(int argc, char*argv[]) {
 		for (int i = 1; i < argc; i++) {
 			text += loadfile(argv[i]);
 		}
+		shared_ptr<GrammarState> tg;
 		if (!dir.empty()) {
+			tg = std::make_shared<GrammarState>();
 			//addRule(st, "text -> new_syntax");
 		}
+		GrammarState st;
+		init_base_grammar(st, tg);
+		cout << "Const rules:\n";
+		st.print_rules(cout);
+		cout << "\n";
 		if (!text.empty()) {
 			Timer tm("Parsing");
 			tm.start();
-			ParseTree res = parse(st, text);
+			ParseContext pt(&st);
+			ParseTree res = parse(pt, text);
 			tm.stop_pr();
 			cout << "Parser finished successfully\n";
 			Timer tm1("Printing");
@@ -87,7 +91,7 @@ int main(int argc, char*argv[]) {
 			tm1.stop_pr();
 		}
 		if (!dir.empty()) {
-			return testDir(st, dir, "log.txt");
+			return testDir(*tg, dir, "log.txt");
 		}
 		//st.print_rules(cout);
 #ifndef _DEBUG

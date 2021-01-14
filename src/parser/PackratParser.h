@@ -1,4 +1,5 @@
 #pragma once
+#include <utility>
 #include <vector>
 #include <memory>
 #include <bitset>
@@ -86,9 +87,9 @@ struct PEGExpr {
 			_cmplx = ((_cmplx < 0 || c._cmplx < 0) ? -1 : _cmplx + c._cmplx);
 	}
 	PEGExpr() = default;
-	PEGExpr(const string &ss):type(String),s(ss),_cmplx((int)ss.size()) {}
-	PEGExpr(const bitset<256> & bs, const string&text = "") :type(Terminal), t_mask(bs), s(text),_cmplx(1) {}
-	PEGExpr(Type t, vector<PEGExpr> && l, const string&text = ""):type(t),subexprs(move(l)),s(text) {
+	explicit PEGExpr(const string &ss):type(String),s(ss),_cmplx((int)ss.size()) {}
+	explicit PEGExpr(const bitset<256> & bs, string text = "") :type(Terminal), t_mask(bs), s(std::move(text)),_cmplx(1) {}
+	PEGExpr(Type t, vector<PEGExpr> && l, string text = "") :type(t),subexprs(move(l)),s(std::move(text)) {
 		_updatecmplx();
 	}
 	PEGExpr& operator /=(PEGExpr &&e) {
@@ -187,9 +188,10 @@ struct PEGExpr {
 			return s += ')';
 		default: return s;
 		}
-		return s;
+		// return s;
 	}
 };
+
 inline PEGExpr operator!(PEGExpr &&e) {
 	return PEGExpr(PEGExpr::NegLookahead, { move(e) });
 }
@@ -247,7 +249,7 @@ struct PackratParser {
 	vector<int> _manypos;
 	struct HashExpr {
 		mutable PackratParser *p = 0;
-		HashExpr(PackratParser *ps) :p(ps) {}
+		explicit HashExpr(PackratParser *ps) :p(ps) {}
 		size_t operator()(const PEGExpr *e)const {
 			size_t h = std::hash<int>()(e->type);
 			switch (e->type) {
@@ -284,10 +286,10 @@ struct PackratParser {
 	//unordered_map<uint64_t, int> acceptedh;
 	//unordered_map<uint64_t, int> manyh;
 	int &hmany(uint32_t pos, uint32_t id) {
-		return manyh[(uint64_t(pos) << 32) | id];
+		return manyh[(uint64_t(pos) << 32u) | id];
 	}
 	int &accepted(uint32_t pos, uint32_t id) {
-		return acceptedh[(uint64_t(pos) << 32) | id];
+		return acceptedh[(uint64_t(pos) << 32u) | id];
 	}
 	string text;
 	//int pos;
