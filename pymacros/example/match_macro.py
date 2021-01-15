@@ -15,9 +15,9 @@ syntax(matchcases, xs:*matchcases, x:*matchcase): # здесь к xs и x при
 	
 #Максимально упрощённый pattern-matching (просто сравнение на равенство)
 def match2cmp(x, pat):
-	if tmatch(pat, expr`_`): # должна быть встроенная функция, сравнивающая деревья разбора
+	if pat == `_`: # должна быть встроенная функция, сравнивающая деревья разбора
 		return expr`True`
-	return expr`$x == $pat`
+	return `$x == $pat`
 		
 defmacro match(stmt, 'match', x:expr, ':', INDENT, mc:*matchcases, DEDENT):
 	conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mс]

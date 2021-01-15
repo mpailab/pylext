@@ -198,3 +198,53 @@ void init_python_grammar(GrammarState& g) {
 		m->macros[id] = PyMacro{ fnm, id };
 	});
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////
+/// Обёртки для простого экспорта из dll
+extern "C" DLL_EXPORT void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn);
+
+extern "C" DLL_EXPORT void* new_python_context();
+extern "C" DLL_EXPORT void del_python_context(void*);
+
+
+extern "C" DLL_EXPORT void inc_pn_num_refs(void *pn);
+extern "C" DLL_EXPORT void dec_pn_num_refs(void *pn);
+
+extern "C" DLL_EXPORT int get_pn_num_children(void* pn);
+extern "C" DLL_EXPORT void* get_pn_child(void* pn, int i);
+extern "C" DLL_EXPORT void set_pn_child(void* pn, int i, void* ch);
+
+extern "C" DLL_EXPORT int get_pn_rule(void* pn);
+extern "C" DLL_EXPORT int pn_equal(void* pn1, void* pn2);
+
+
+extern "C" DLL_EXPORT int add_rule(void* px, char* lhs, char *rhs);
+
+extern "C" DLL_EXPORT void* new_parser_state(char* text);
+extern "C" DLL_EXPORT void* continue_parse(void* px, void *state);
+
+
+void* new_python_context(){
+    auto *px = new ParseContext;
+    init_python_grammar(*px->g);
+    return px;
+}
+
+void del_python_context(void *px){
+    delete (ParseContext*)px;
+}
+
+void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn){
+    vector<string> qp(data, data+n);
+    vector<ParseNode*> subtrees((ParseNode**)pn, (ParseNode**)pn+n-1);
+    ParseNodePtr res = quasiquote(*(ParseContext*)px, nt, qp, subtrees);
+    return res.get();
+}
+
+void inc_pn_num_refs(void *pn) {
+    if(pn) ((ParseNode*)pn)->refs++;
+}
+
+void dec_pn_num_refs(void *pn) {
+    if(pn) ((ParseNode*)pn)->refs--;
+}

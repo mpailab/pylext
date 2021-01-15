@@ -2,6 +2,16 @@
 #include <unordered_map>
 #include <any>
 #include "Parser.h"
+#ifdef MSC_VER
+#define DLL_EXPORT __declspec(dllexport)
+#else
+#ifdef _WIN32
+#define DLL_EXPORT __attribute__((dllexport))
+#else
+#define DLL_EXPORT
+#endif
+#endif
+
 using namespace std;
 
 struct PyMacro {
@@ -25,5 +35,8 @@ struct PyMacroModule {
 };
 
 void init_python_grammar(GrammarState& g);
+ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
+
+
 
 
