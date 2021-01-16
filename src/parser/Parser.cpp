@@ -9,7 +9,9 @@
 
 int debug_pr = false;
 
-void setDebug(int b) { debug_pr = b; }
+void setDebug(int b) {
+    debug_pr = b;
+}
 
 ParseNodePtr termnode(const Token& t, ParseContext &pt) {
 	ParseNodePtr res = pt.newnode();// std::make_unique<ParseNode>();
@@ -573,7 +575,7 @@ ParseTree parse(ParseContext &pt, const std::string& text, const string& start) 
 						//TODO: use hint instead of throwing exception
 					}
 					if (debug_pr)
-						std::cout << "Reduce by " << g.ts[t.type] << ": "; printstate(std::cout, g, ss.s.back()) << "\n";
+                        printstate(std::cout << "Reduce by " << g.ts[t.type] << ": ", g, ss.s.back()) << "\n";
 
 					g.lex.acceptToken(t);
 					break;
