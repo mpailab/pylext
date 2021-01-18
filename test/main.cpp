@@ -4,6 +4,7 @@
 #include <memory>
 #include "Parser.h"
 #include "base.h"
+#include "pymacro.h"
 using namespace std;
 
 
@@ -54,6 +55,19 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 }
 
 int main(int argc, char*argv[]) {
+    try {
+        string text = loadfile("../pymacros/example/match_macro.py");
+        auto p = new_python_context(1);
+        ParserState* pst = (ParserState*)new_parser_state(p, text.c_str(), "");
+        while(pst->parse_next().root.get()){}
+        del_parser_state(pst);
+        del_python_context(p);
+    } catch (SyntaxError &ex) {
+        cout << "Error: " << ex.what() << "\n" << ex.stack_info << "\n";
+    } catch (Exception & e) {
+        cout << "Exception: " << e.what() << "\n";
+    }
+    return 0;
 #ifndef _DEBUG
 	try {
 #endif

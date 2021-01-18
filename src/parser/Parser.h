@@ -28,6 +28,12 @@ struct ParseTree;
 
 class ParseNode {
 public:
+    enum Type {
+        Ordinary = 0,
+        Final,
+        FinalUsed
+    };
+    Type type = Ordinary;
 	int used = 0, refs = 0;
 	int nt = -1;          // Номер терминала или нетерминала
 	int B = -1;           // Номер промежуточного нетерминала в случае свёртки nt <- B <- rule
@@ -134,6 +140,7 @@ struct ParseTree {
 	ParseNodePtr root;
 	ParseTree() = default;
 	ParseTree(ParseTree && t) noexcept = default;
+    explicit ParseTree(ParseNode* pn): root(pn) {}
 };
 
 template<class T>
@@ -407,6 +414,9 @@ public:
 	void setEOLToken(const std::string &nm) {
 		lex.declareEOLToken(nm, ts[nm]);
 	}
+    void setSOFToken(const std::string &nm) {
+        lex.declareSOFToken(nm, ts[nm]);
+    }
 	void setEOFToken(const std::string &nm) {
 		lex.declareEOFToken(nm, ts[nm]);
 	}
@@ -460,13 +470,37 @@ struct PStack {
 	vector<ParseNodePtr> s;
 };
 
-ParseTree parse(ParseContext &pt, const std::string& text, const string &start = "");
+
+class ParserState {
+    LR0State s0;
+    GrammarState* g = 0;
+    ParseContext* pt = 0;
+    SStack ss;
+    PStack sp;
+    string text;
+    enum State {
+        AtStart,
+        Paused,
+        AtEnd
+    };
+    State state = AtStart;
+public:
+    ParserState() = default;
+    ParserState(ParseContext *px, std::string txt, const string &start = "");
+    ParseTree parse_next();
+};
+ParseTree parse(ParseContext &pt, const std::string &text, const string &start = "");
 
 struct ParserError : public Exception {
 	Location loc;
 	string err;
 	ParserError(Location l, string e): Exception(), loc(l), err(move(e)) {}
 	[[nodiscard]] const char *what()const noexcept override{return err.c_str();}
+};
+
+struct ParseBreak {
+    ParseNode* result;
+    ParseBreak(ParseNode* res): result(res){}
 };
 
 void print_tree(std::ostream& os, ParseTree& t, GrammarState* g);

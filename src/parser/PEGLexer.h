@@ -93,7 +93,7 @@ struct PEGLexer {
 	unordered_map<int, int> _counter; // !!!!!! Для отладки !!!!!!
 	int ws_token=-1;
 	int indent = -1, dedent = -1, check_indent = -1; // Токены для отслеживания отступов: indent -- увеличить отступ, dedent -- уменьшить отступ, check_indent -- проверить отступ
-	int eol = -1, eof = -1; // Токены для конца строки и конца файла
+	int eol = -1, sof = -1, eof = -1; // Токены для конца строки и начала и конца файла
 	NTSet special;   // Имеющиеся специальные токены (отступы, начала / концы строк)
 	NTSet composite; // Составные токены
 	NTSet simple;    // Простые токены (не являющиеся составными)
@@ -154,12 +154,14 @@ struct PEGLexer {
 		int pos = 0;
 		bool _accepted = true;
 		bool _at_end = true;
+		bool _at_start = true;
 		struct State {
 			int nlines = 0;
 			int pos = 0;
 			bool rdws = true;
 			Pos cpos, cprev;
 			bool at_end = true;
+			bool at_start = true;
 		};
 		[[nodiscard]] State state()const {
 			State res;
@@ -169,6 +171,7 @@ struct PEGLexer {
 			res.cprev = cprev;
 			res.rdws = rdws;
 			res.at_end = _at_end;
+			res.at_start = _at_start;
 			return res;
 		}
 		void restoreState(const State &st) {
@@ -178,6 +181,7 @@ struct PEGLexer {
 			cprev   = st.cprev;
 			rdws    = st.rdws;
 			_at_end = st.at_end;
+			_at_start = st.at_start;
 		}
 
 		[[nodiscard]] bool atEnd() const { return _at_end;/* !lex || pos >= (int)lex->text.size();curr.text.b;*/ }
@@ -200,6 +204,7 @@ struct PEGLexer {
 		}
 		iterator() = default;
 		explicit iterator(PEGLexer *l, const NTSet *t=0) :lex(l), s(l->text.c_str()) {
+		    _at_start = true;
 			_at_end = false;
 			indents = { IndentSt{false,1,1,1} };
 			cprev.line = 0;
@@ -327,7 +332,8 @@ struct PEGLexer {
 				}
 				if (imax >= 0) {
 					if (m > 1) {
-						throw SyntaxError("Lexer conflict at " + cpos.str() + ": `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: " + lex->_ten[imax] + " or " + lex->_ten[i1]);
+						throw SyntaxError("Lexer conflict at {}: `{}` may be 2 different tokens: {} or {}"_fmt(
+						        cpos, string(s + bpos, imax - bpos), lex->_ten[imax], lex->_ten[i1]));
 					}
 					curr_t.push_back(rr); // Составной токен (если прочитан) имеет приоритет перед обычным. Поэтому в случае успеха сразу возвращаем результат
 					_accepted = false;
@@ -346,6 +352,11 @@ struct PEGLexer {
 
 			//auto prev = cpos;
 			if (spec) { // Чтение специальных токенов
+			    if(_at_start && lex->sof>=0 && t->has(lex->sof)){ // начало файла
+			        curr_t.push_back(Token(lex->tokens[lex->sof].second, {cpos,cpos}, Substr(s+pos,0), Token::Special));
+			        _at_start = false;
+			        return;
+			    }
 				if (cpos.line > cprev.line + nlines && lex->eol >= 0 && t->has(lex->eol)) { // Переход на новую строку (считается, если после чтения пробелов/комментариев привело к увеличению номера строки
 					curr_t.push_back(Token(lex->tokens[lex->eol].second, { cpos,cpos }, Substr(s + pos, 0), Token::Special));
 					nlines++;
@@ -426,7 +437,7 @@ struct PEGLexer {
 			if(!n || p0 < imax) {
 				if (best < 0) {
 					Pos ccpos = shifted(lex->packrat.errpos);
-					string msg = "Unknown token at " + to_string(cpos.line) + ":" + to_string(cpos.col) + " : '" + string(s + bpos, strcspn(s + bpos, "\n")) + "',\n";
+					string msg = "Unknown token at {} : '{}',\n"_fmt(cpos, string(s + bpos, strcspn(s + bpos, "\n")));
 					if (t) {
 						//_accepted = true;
 						lex->packrat.reseterr();
@@ -444,11 +455,11 @@ struct PEGLexer {
 								if (!fst)msg += ", "; fst = false;
 								msg += lex->_ten[i];
 							}
-						} else msg += "PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
-					} else msg+="PEG error at " + ccpos.str() + " expected one of: " + lex->packrat.err_variants();
+						} else msg += "PEG error at {} expected one of: {}"_fmt(ccpos, lex->packrat.err_variants());
+					} else msg+="PEG error at {} expected one of: {}"_fmt(ccpos.str(), lex->packrat.err_variants());
 					throw SyntaxError(msg);
 				} else if (t && m > 1) {
-					throw SyntaxError("Lexer conflict at " + cpos.str() + ": `" + string(s + bpos, imax - bpos) + "` may be 2 different tokens: "+lex->_ten[best]+" or "+lex->_ten[b1]);
+					throw SyntaxError("Lexer conflict at {}: `{}` may be 2 different tokens: {} or {}"_fmt(cpos, string(s + bpos, imax - bpos), lex->_ten[best], lex->_ten[b1]));
 				}
 				//auto beg = cpos;
 				//shift(end - bpos);
@@ -575,6 +586,9 @@ struct PEGLexer {
 	int declareEOFToken(const std::string &nm, int ext_num) {
 		return _declareSpecToken(nm, ext_num, &eof, "EOF");
 	}
+    int declareSOFToken(const std::string &nm, int ext_num) {
+        return _declareSpecToken(nm, ext_num, &sof, "SOF");
+    }
 	void addPEGRule(const string &nt, const string &rhs, int ext_num, bool to_begin = false) {
 		int errpos = -1;
 		string err;

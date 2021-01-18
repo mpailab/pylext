@@ -34,14 +34,14 @@ struct PyMacroModule {
 	}
 };
 
-void init_python_grammar(GrammarState& g);
+void init_python_grammar(GrammarState& g, bool read_by_stmt=true);
 ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /// Обёртки для простого экспорта из dll
 extern "C" DLL_EXPORT void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn);
 
-extern "C" DLL_EXPORT void* new_python_context();
+extern "C" DLL_EXPORT void* new_python_context(int by_stmt);
 extern "C" DLL_EXPORT void del_python_context(void*);
 
 
@@ -58,8 +58,9 @@ extern "C" DLL_EXPORT int pn_equal(void* pn1, void* pn2);
 
 extern "C" DLL_EXPORT int add_rule(void* px, char* lhs, char *rhs);
 
-extern "C" DLL_EXPORT void* new_parser_state(char* text);
-extern "C" DLL_EXPORT void* continue_parse(void* px, void *state);
+extern "C" DLL_EXPORT void* new_parser_state(void* px, const char* text, const char *start);
+extern "C" DLL_EXPORT void* continue_parse(void* state);
+extern "C" DLL_EXPORT void del_parser_state(void* state);
 
 
 

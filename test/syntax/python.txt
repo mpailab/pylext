@@ -7,17 +7,20 @@
 %check_indent: INDENTED;
 %eol: EOL;
 
-%syntax: new_syntax -> INDENTED new_syntax_expr ';';
+# %syntax: new_syntax -> INDENTED new_syntax_expr ';';
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #%syntax: if_stmt         -> if_stmt_noelse [INDENTED+'else' ':' suite];
 
+%token: ident = `[_a-zA-Z][_a-zA-Z0-9]*`;
+
+%token: shortstring     =  `'\'' ('\\'[^] / [^\\\n'])* '\'' / '"' ('\\'[^] / [^\\\n"])* '"'`;
 %token: stringliteral   =  `(([fF][rR]/[rR][fF]/[rufRUF])?(longstring / shortstring))+`;
-%pexpr: shortstring     =  `'\'' ('\\'[^] / [^\\\n'])* '\'' / '"' ('\\'[^] / [^\\\n"])* '"'`;
 %token: longstring      =  `'\'\'\'' ('\\'[^] / !('\'\'\'')[^\\])* '\'\'\'' / '"""' ('\\'[^] / !('"""')[^\\])* '"""'`;
 
 %token: bytesliteral    =  `([bB][rR]? / [rR][bB]) (longstring / shortstring)`;
-%syntax: text -> stringliteral | bytesliteral;
+# %token: sstring         = `shortstring`;
+# %syntax: text -> stringliteral | bytesliteral;
 
 %token: integer      =  `decinteger / bininteger / octinteger / hexinteger`;
 %pexpr: decinteger   =  `[1-9] ('_'?[0-9])* / '0'+ ('_' '0')*`;
@@ -33,8 +36,8 @@
 
 %token: imagnumber = `(floatnumber / digitpart)[jJ]`;
 
-%syntax: text -> root_stmts;
-%syntax: root_stmts -> [root_stmts] INDENTED root_stmt;
+# %syntax: text -> root_stmts;
+# %syntax: root_stmts -> [root_stmts] INDENTED root_stmt;
 %syntax: root_stmt -> stmt;
 
 %syntax: decorator -> '@' dotted_ident ['(' [arglist] ')'];

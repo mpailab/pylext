@@ -1,6 +1,6 @@
 #include "base.h"
 
-bool addRule(GrammarState& gr, const string& s, SemanticAction act, int id) {
+int addRule(GrammarState& gr, const string& s, SemanticAction act, int id) {
 	int pos = 0, i = 0;
 	string A;
 	vector<string> rhs;
@@ -30,11 +30,11 @@ bool addRule(GrammarState& gr, const string& s, SemanticAction act, int id) {
 			pos = q;
 		} else throw Exception("Error : unexpected symbol '"s + s[pos] + "'");
 	}
-	gr.addRule(A, rhs, act, id);
-	return true;
+	return gr.addRule(A, rhs, act, id);
+	//return true;
 }
 
-bool addRule(GrammarState& gr, const string& s, int id) {
+int addRule(GrammarState& gr, const string& s, int id) {
 	return addRule(gr, s, SemanticAction(), id);
 }
 

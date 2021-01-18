@@ -315,7 +315,8 @@ bool reduce(SStack &ss, PStack& sp, int a, ParseContext &pt) {
 					}
 					if (!ok)continue;
 				}
-				if (A0 >= 0)throw RRConflict("at {} conflict : 2 different ways to reduce by {}: may be NT = {} or {}"_fmt(
+				if (A0 >= 0)
+				    throw RRConflict("at {} conflict : 2 different ways to reduce by {}: may be NT = {} or {}"_fmt(
                             g.lex.curr.cpos, g.ts[a], g.nts[A], g.nts[A0]
 				        ), prstack(g, ss, sp));
 				A0 = A;
@@ -331,7 +332,8 @@ bool reduce(SStack &ss, PStack& sp, int a, ParseContext &pt) {
 				const NTTreeNode *u = 0;
 				for (auto &p : B[j]) { // Перебор по обратным стрелкам из j-го фрейма вверх. Смотрим, по какая из стрелок соответствует свёртке нетерминала A0
 					if (p.M.has(A0)) {
-						if (u)throw RRConflict("at {} conflict : 2 different ways to reduce NT={} : St[{}] from St[{}] or St[{}]"_fmt(
+						if (u)
+						    throw RRConflict("at {} conflict : 2 different ways to reduce NT={} : St[{}] from St[{}] or St[{}]"_fmt(
                                     g.lex.curr.cpos, g.nts[A0], j, k, p.i
 						        ),prstack(g,ss,sp,j));
 						u = p.v;
@@ -344,7 +346,8 @@ bool reduce(SStack &ss, PStack& sp, int a, ParseContext &pt) {
 				if (!k) {
 					u1 = u;
 					int r = g.tf.inv[A0].intersects(u->finalNT, &Bb);
-					if(r > 1)throw RRConflict("at {} conflict : 2 different ways to reduce by {}: 3"_fmt(g.lex.curr.cpos,g.ts[a]), prstack(g, ss, sp));
+					if(r > 1)
+					    throw RRConflict("at {} conflict : 2 different ways to reduce by {}: 3"_fmt(g.lex.curr.cpos,g.ts[a]), prstack(g, ss, sp));
 				} else {
 					auto &tinv = g.tf.inv[A0];
 					for (int A : F[k]) {
@@ -597,6 +600,99 @@ ParseTree parse(ParseContext &pt, const std::string& text, const string& start) 
 	return tree;
 }
 
+ParserState::ParserState(ParseContext *px, std::string txt, const string &start): pt(px), text(std::move(txt)){
+    //cout<<"at "<<__LINE__<<endl;
+    g = pt->g;
+    //cout<<"at "<<__LINE__<<endl;
+    if (!pt->error_handler)
+        pt->error_handler = std::make_shared<ParseErrorHandler>();
+    s0.v.resize(1);
+    if (!g->nts.has(start))
+        throw GrammarError("grammar doesn't have start nonterminal `" + start + "`");
+    s0.v[0].M = g->tf.fst[g->nts[start]];
+    s0.v[0].v = &g->root;
+    ss.s.emplace_back(std::move(s0));
+    //cout<<"at "<<__LINE__<<endl;
+    g->lex.start(text, &g->tf.fst_t[g->start]);
+    //cout<<"at "<<__LINE__<<endl;
+}
+
+ParseTree ParserState::parse_next() {
+    try {
+        cout<<"Start parse: state = "<<state<<endl;
+        switch(state){
+            case AtStart: break;
+            case Paused: goto resume;
+            case AtEnd: return {};
+        }
+        for (; !g->lex.atEnd();) {
+            for (int ti = 0; ti < len(g->lex.tok()); ti++) {
+                auto t = g->lex.tok()[ti];
+                if (debug_pr) {
+                    std::cout << "token of type " << g->ts[t.type] << ": `" << t.str() << "` at " << t.loc << endl;
+                }
+                if (shift(*g, ss.s.back(), s0, t.type, true)) {
+                    if (debug_pr)
+                        printstate(std::cout << "Shift by " << g->ts[t.type] << ": ", *g, s0) << "\n";
+
+                    ss.s.emplace_back(move(s0));
+                    g->lex.acceptToken(t);
+
+                    sp.s.emplace_back(termnode(t, *pt));
+
+                    nextTok(*g, ss);
+                    break;
+                } else {
+                    bool r = reduce(ss, sp, t.type, *pt);
+                    if (!r) {
+                        if (ti < len(g->lex.tok()) - 1) {
+                            if (debug_pr)
+                                std::cout << "Retry with same token of type " << g->ts[g->lex.tok()[ti + 1].type]
+                                          << endl;
+
+                            continue;
+                        }
+                        auto &t1 = g->lex.tok()[0];
+                        auto hint = pt->error_handler->onNoShiftReduce(g, ss, sp, t1);
+                        if (hint.type == ParseErrorHandler::Hint::Uncorrectable)
+                            throw SyntaxError();
+                        throw SyntaxError(
+                                "Cannot shift or reduce : unexpected terminal {} = `{}` at {}"_fmt(g->ts[t1.type],
+                                                                                                   t1.short_str(),
+                                                                                                   t1.loc.beg));
+                        //TODO: use hint instead of throwing exception
+                    }
+                    if (debug_pr)
+                        printstate(std::cout << "Reduce by " << g->ts[t.type] << ": ", *g, ss.s.back()) << "\n";
+
+                    g->lex.acceptToken(t);
+
+                    if(sp.s.back()->type == ParseNode::Final) {
+                        state = Paused;
+                        sp.s.back()->type = ParseNode::FinalUsed;
+                        return ParseTree(sp.s.back().get());
+                    }
+                    break;
+                }
+            }
+resume:;
+        }
+        if (!reduce(ss, sp, 0, *pt))
+            throw SyntaxError("Unexpected end of file");
+    } catch (SyntaxError &e) {
+        if (e.stack_info.empty()) {
+            e.stack_info = prstack(*g, ss, sp);
+        }
+        throw move(e);
+    }
+    Assert(ss.s.size() == 2);
+    Assert(sp.s.size() == 1);
+    state = AtEnd;
+    if(sp.s[0]->type == ParseNode::FinalUsed)
+        return ParseTree();
+    return ParseTree(sp.s[0].get());
+}
+
 void GrammarState::error(const string & err) {
 	cerr << "Error at line "<< lex.curr.cpos.line<<':'<< lex.curr.cpos.col<<" : " << err << "\n";
 	_err.emplace_back(lex.curr.cpos, err);
@@ -642,7 +738,7 @@ int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs,
 			for (int i = 0; i < (int)y.size(); i++) {
 				if(i)nm += " + ";
 				nm += y[i];
-				if (y[i][0] == '\'') {
+				if (y[i][0] == '\'' || y[i][0] == '"') {
 					yy[i].first = false;
 					yy[i].second = y[i].substr(1, y[i].size() - 2);
 					if (ts.num(y[i]) < 0) {
@@ -731,7 +827,7 @@ int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs,
 				action(this, nts[i], i);
 	tf.checkSize((int)nts.size() - 1);
 
-	return num;
+	return num - 1;
 }
 
 bool GrammarState::addRule(const CFGRule & rule) {
