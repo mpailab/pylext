@@ -55,7 +55,7 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm) {
 		}
 		n->ch[off+2] = px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
 	}
-	n.reset(px.quasiquote("stmt", "def " + fnm + arglist + ": $suite", { n->ch[off+2] }, QExpr));
+	n.reset(px.quasiquote("stmt", "def " + fnm + arglist + ": $func_body_suite", { n->ch[off+2] }, QExpr));
 	return px.g->addRule(n[off].term, rhs);
 }
 

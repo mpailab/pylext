@@ -225,8 +225,8 @@
 # the longstring in suites is only parsed for funcdefs,
 # but can't go elsewhere due to ambiguity
 %syntax: func_body_suite -> simple_stmt 
-                          | INDENT stmts1 DEDENT
-				          | longstring INDENT stmts1 DEDENT;
+                          | EOL INDENT stmts1 DEDENT
+				          | EOL longstring INDENT stmts1 DEDENT;
 
 %syntax: NUMBER  -> floatnumber | integer | imagnumber;
 #%print;

@@ -785,7 +785,8 @@ int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs,
 	if ((int)ntRules.size() <= rule.A)
 		ntRules.resize(rule.A + 1);
 	ntRules[rule.A].push_back(curr);
-
+    if (rule.rhs.empty())
+        throw GrammarError("empty rule right part: {} -> <empty>"_fmt(lhs));
 	if (rule.rhs[0].term) {
 		tf.checkSize(rule.A);
 		auto &tmap = tFirstMap[rule.rhs[0].num];
