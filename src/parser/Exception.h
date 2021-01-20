@@ -9,6 +9,10 @@ struct Exception :std::exception {
 	explicit Exception(const char* s) noexcept;
 	explicit Exception(std::string s) noexcept;
 	[[nodiscard]] const char* what()const noexcept override { return str ? str : msg.c_str(); }
+	void prepend_msg(const std::string &s) {
+	    msg = s+what();
+	    str = 0;
+	}
 };
 
 struct GrammarError : Exception {

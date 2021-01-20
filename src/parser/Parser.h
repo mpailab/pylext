@@ -288,6 +288,7 @@ public:
 	NTTreeNode root;        // Корневая вершина дерева правил
 	Enumerator<string, unordered_map> nts; // Нумерация нетерминалов
 	Enumerator<string, unordered_map> ts;  // Нумерация терминалов
+	unordered_map<string, int> _start_nt;
 	vector<CFGRule> rules;
 
 	vector<NewNTAction> on_new_nt_actions;
@@ -394,10 +395,32 @@ public:
 		r.rhs[1].save = false;
 		r.rhs[1].num = 0;
 		addRule(r);
+		_start_nt[start_nt] = S0;
 		//if(!token.empty())
 		//	tokenNT = nts[token];
 		//if (!syntax.empty())
 		//	syntaxDefNT = nts[syntax];
+	}
+	int getStartNT(const string& nt) {
+	    if (_start_nt.empty()){
+	        setStart(nt);
+	        _start_nt[nt] = start;
+	    }
+	    if(_start_nt.count(nt))return _start_nt[nt];
+        int S0 = nts["_start_"+nt];
+        CFGRule r;
+        r.A = S0;
+        r.rhs.resize(2);
+        r.rhs[0].num = nts[nt];
+        r.rhs[0].save = true;
+        r.rhs[0].term = false;
+        r.rhs[1].term = true;
+        r.rhs[1].save = false;
+        r.rhs[1].num = 0;
+        r.action = [](ParseContext&px, ParseNodePtr & n){ n.reset(n->ch[0]); };
+        addRule(r);
+        _start_nt[nt] = S0;
+        return S0;
 	}
 	void setWsToken(const string& ws) {
 		lex.setWsToken(ws);
@@ -475,9 +498,10 @@ class ParserState {
     LR0State s0;
     GrammarState* g = 0;
     ParseContext* pt = 0;
+    LexIterator lit;
     SStack ss;
     PStack sp;
-    string text;
+    // string text;
     enum State {
         AtStart,
         Paused,
@@ -485,7 +509,6 @@ class ParserState {
     };
     State state = AtStart;
 public:
-    ParserState() = default;
     ParserState(ParseContext *px, std::string txt, const string &start = "");
     ParseTree parse_next();
 };

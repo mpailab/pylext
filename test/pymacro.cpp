@@ -51,11 +51,11 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm) {
 	if (!expand.empty()) {
 		ParseNode* stmts = n[off+2].ch[0];
 		for (auto& arg : expand) {
-			stmts = px.quasiquote("stmts1", "{}=syn_expand({})\n${{stmts1:0}}"_fmt(arg,arg), { stmts }, QExpr);
+			stmts = px.quasiquote("stmts1", "{}=syn_expand({})\n$stmts1"_fmt(arg,arg), { stmts }, QExpr);
 		}
-		n->ch[off+2] = px.quasiquote("suite", "\n ${stmts1:0}\n", { stmts }, QExpr);
+		n->ch[off+2] = px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
 	}
-	n.reset(px.quasiquote("stmt", "def " + fnm + arglist + ": ${suite:0}", { n->ch[off+2] }, QExpr));
+	n.reset(px.quasiquote("stmt", "def " + fnm + arglist + ": $suite", { n->ch[off+2] }, QExpr));
 	return px.g->addRule(n[off].term, rhs);
 }
 
@@ -130,7 +130,12 @@ ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>
         (qq += '$') += px.g->nts[subtrees[i]->nt];
     }
     qq += parts.back();
-    return ParseNodePtr(px.quasiquote(nt, qq, subtrees));
+    try {
+        return ParseNodePtr(px.quasiquote(nt, qq, subtrees));
+    } catch (Exception &e){
+        e.prepend_msg("In quasiquote `{}`: "_fmt(qq));
+        throw e;
+    }
 }
 
 /**
