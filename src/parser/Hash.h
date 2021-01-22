@@ -50,9 +50,9 @@ struct PosHash {
 	PosHash() = default;
 	void clear() {
 		//_check.clear();
-		for (int i = 0; i < _nbin; i++)
+		for (unsigned i = 0; i < _nbin; i++)
 			_elems[i].next = -1;
-		for (int i = _nbin+1; i < 2 * _nbin; i++)
+		for (unsigned i = _nbin+1; i < 2 * _nbin; i++)
 			_elems[i-1].next = i;
 		_mask = _nbin - 1;
 		_free = _nbin;
@@ -66,7 +66,7 @@ struct PosHash {
 		_elems.clear();
 		_nbin = sz;
 		_elems.resize(2 * sz);
-		for (int i = 0; i < sz; i++)
+		for (unsigned i = 0; i < sz; i++)
 			_elems[i].next = -1;
 		for (unsigned i = sz; i < 2 * sz - 1; i++)
 			_elems[i].next = i + 1;

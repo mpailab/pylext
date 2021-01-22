@@ -69,14 +69,14 @@ public:
 	}
 	T& operator[](size_t i) { return _ptr[i]; }
 	const T& operator[](size_t i)const { return _ptr[i]; }
-	VectorF<T, bsz, Alloc>& resize(int sz) {
+	VectorF<T, bsz, Alloc>& resize(unsigned sz) {
 		if (sz < _size) {
 			std::destroy_n(_ptr + sz, _size - sz);
 		} else if (sz > _size) {
 			if (sz > _cap)reserve(sz);
 			std::uninitialized_default_construct_n(_ptr + _size, sz-_size);
 		}
-		_size = sz;
+		_size = (unsigned)sz;
 		return *this;
 	}
 	VectorF<T, bsz, Alloc>& pop_back() {

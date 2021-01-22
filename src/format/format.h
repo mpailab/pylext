@@ -31,7 +31,7 @@ struct _Print_Num {
         int pos = buflen - 1;
         bb[pos] = 0;
         bool sgn = i < 0;
-        if (i < 0)i = -i;
+        if (i < 0)i = I(0)-i;
         int base = 10;
         int lb = (int) buf.size();
         switch (sign) {
@@ -172,7 +172,7 @@ class FormattedPrint {
     std::string format;
 public:
     explicit FormattedPrint(std::string fmt): format(std::move(fmt)){}
-    explicit FormattedPrint(const char *ptr, int n): format(ptr, n){}
+    explicit FormattedPrint(const char *ptr, size_t n): format(ptr, n){}
 
     template<class ... Args>
     std::string operator()(const Args& ... args){

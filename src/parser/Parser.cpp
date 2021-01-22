@@ -281,9 +281,9 @@ bool reduce0(SStack& ss, PStack& sp/*, NTSet &M1*/, ParseContext &pt) {
 bool reduce(SStack &ss, PStack& sp, LexIterator& lit, int a, ParseContext &pt) {
 	LR0State *s = &ss.s.back();
 	GrammarState& g = *pt.g;
-	g.tmp.clear();
-	auto& B = g.tmp.B;
-	auto& F = g.tmp.F;
+	GrammarState::LockTemp lock(&g);// g.tmp.clear();
+	auto& B = lock->B;
+	auto& F = lock->F;
 	int mx = 0;
 	for (auto &p : s->v) {
 		NTSet M1;
@@ -328,7 +328,7 @@ bool reduce(SStack &ss, PStack& sp, LexIterator& lit, int a, ParseContext &pt) {
 		if (A0 >= 0) {
 			int A00 = A0;
 
-			auto& path = g.tmp.path;
+			auto& path = lock->path;
 			int k;
 			for (int j = i; j > 0; j = k) {
 				const NTTreeNode *u = 0;
@@ -492,7 +492,7 @@ bool nextTok(GrammarState &g, LexIterator& it, SStack &ss) { // Определя
 			}
 		}
 	}
-	if (debug_pr) {
+	if (debug_pr & DBG_LOOKAHEAD) {
 		cout << "Lookahead: T =";
 		for (int x : t)
 			cout << " "<<g.lex.tName(x);
@@ -503,7 +503,7 @@ bool nextTok(GrammarState &g, LexIterator& it, SStack &ss) { // Определя
 	}
 	for (int n : nt)
 		t |= g.tf.fst_t[n];
-	if (debug_pr) {
+	if (debug_pr & DBG_LOOKAHEAD) {
 		for (int x : t)
 			cout << " " << g.lex.tName(x);
 		cout << "\n";
@@ -531,12 +531,15 @@ ParseTree parse(ParseContext &pt, const std::string& text, const string& start) 
 		while (!lit.atEnd()) {
 			for (int ti = 0; ti < len(lit.tok()); ti++) {
 				auto t = lit.tok()[ti];
-				if (debug_pr) {
+				if (debug_pr & DBG_TOKEN) {
 					std::cout << "token of type " << g.ts[t.type] << ": `" << t.str() << "` at " << t.loc << endl;
 				}
 				if (shift(g, ss.s.back(), s0, t.type, true)) {
-					if (debug_pr)
-						printstate(std::cout << "Shift by " << g.ts[t.type] << ": ", g, s0) << "\n";
+					if (debug_pr & DBG_SHIFT) {
+						std::cout << "Shift by " << g.ts[t.type];
+						if (debug_pr & DBG_STATE) printstate(std::cout << ": ", g, s0);
+						std::cout << "\n";
+					}
 
 					ss.s.emplace_back(move(s0));
 					lit.acceptToken(t);
@@ -553,7 +556,7 @@ ParseTree parse(ParseContext &pt, const std::string& text, const string& start) 
 					bool r = reduce(ss, sp, lit, t.type, pt);
 					if (!r) {
 						if (ti < len(lit.tok()) - 1) {
-							if (debug_pr)
+							if (debug_pr & DBG_TOKEN)
 								std::cout << "Retry with same token of type " << g.ts[lit.tok()[ti + 1].type] << endl;
 
 							continue;
@@ -565,9 +568,12 @@ ParseTree parse(ParseContext &pt, const std::string& text, const string& start) 
 						throw SyntaxError("Cannot shift or reduce : unexpected terminal {} = `{}` at {}"_fmt(g.ts[t1.type], t1.short_str(), t1.loc.beg), prstack(g, ss, sp));
 						//TODO: use hint instead of throwing exception
 					}
-					if (debug_pr)
-                        printstate(std::cout << "Reduce by " << g.ts[t.type] << ": ", g, ss.s.back()) << "\n";
-
+					if (debug_pr & DBG_REDUCE) {
+						std::cout << "Reduce by " << g.ts[t.type];
+						if (debug_pr & DBG_STATE) printstate(std::cout << ": ", g, ss.s.back());
+						std::cout << "\n";
+					}
+					
 					lit.acceptToken(t);
 					break;
 				}
@@ -618,12 +624,15 @@ ParseTree ParserState::parse_next() {
         while (!lit.atEnd()) {
             for (int ti = 0; ti < len(lit.tok()); ti++) {
                 auto t = lit.tok()[ti];
-                if (debug_pr) {
+                if (debug_pr & DBG_TOKEN) {
                     std::cout << "token of type " << g->ts[t.type] << ": `" << t.str() << "` at " << t.loc << endl;
                 }
                 if (shift(*g, ss.s.back(), s0, t.type, true)) {
-                    if (debug_pr)
-                        printstate(std::cout << "Shift by " << g->ts[t.type] << ": ", *g, s0) << "\n";
+					if (debug_pr & DBG_SHIFT) {
+						std::cout << "Shift by " << g->ts[t.type];
+						if(debug_pr & DBG_STATE) printstate(std::cout << ": ", *g, s0);
+						std::cout << "\n";
+					}
 
                     ss.s.emplace_back(move(s0));
                     lit.acceptToken(t);
@@ -636,10 +645,8 @@ ParseTree ParserState::parse_next() {
                     bool r = reduce(ss, sp, lit, t.type, *pt);
                     if (!r) {
                         if (ti < len(lit.tok()) - 1) {
-                            if (debug_pr)
-                                std::cout << "Retry with same token of type " << g->ts[lit.tok()[ti + 1].type]
-                                          << endl;
-
+                            if (debug_pr & DBG_TOKEN)
+                                std::cout << "Retry with same token of type " << g->ts[lit.tok()[ti + 1].type] << endl;
                             continue;
                         }
                         auto &t1 = lit.tok()[0];
@@ -652,9 +659,11 @@ ParseTree ParserState::parse_next() {
                                                                                                    t1.loc.beg));
                         //TODO: use hint instead of throwing exception
                     }
-                    if (debug_pr)
-                        printstate(std::cout << "Reduce by " << g->ts[t.type] << ": ", *g, ss.s.back()) << "\n";
-
+					if (debug_pr & DBG_REDUCE) {
+						std::cout << "Reduce by " << g->ts[t.type];
+						if(debug_pr & DBG_STATE) printstate(std::cout << ": ", *g, ss.s.back());
+						std::cout << "\n";
+					}
                     lit.acceptToken(t);
 
                     if(sp.s.back()->type == ParseNode::Final) {
@@ -874,6 +883,51 @@ bool GrammarState::addLexerRule(const ParseNode * tokenDef, bool tok, bool to_be
 	return true;
 }
 
+ParseNodePtr GrammarState::reduce(ParseNodePtr *pn, const NTTreeNode *v, int nt, int nt1, ParseContext &pt) {
+	int r = v->rule(nt), sz = len(rules[r].rhs);
+	ParseNodePtr res = pt.newnode();
+	res->rule = r;
+	res->B = nt;
+	res->nt = nt1;
+	res->rule_id = rules[r].ext_id;
+	int szp = 0;
+	for (int i = 0; i < sz; i++)
+		szp += rules[r].rhs[i].save;
+	res->ch.resize(szp);
+	res->lpr = rules[r].lpr;
+	res->rpr = rules[r].rpr;
+	res->loc.beg = pn[0]->loc.beg;
+	res->loc.end = pn[sz - 1]->loc.end;
+	if (debug_pr & DBG_RULES) {
+		print_rule(cout << "Using rule: ", rules[r]) << "  [";
+		for (int i=0; i<sz; i++) {
+			if (i)cout << ", ";
+			if (rules[r].rhs[i].save)cout << "*";
+			if (pn[i]->rule >= 0)
+				cout << nts[pn[i]->nt];
+			else {
+				cout << ts[pn[i]->nt];
+				if (rules[r].rhs[i].save)
+					cout << "=" << pn[i]->term;
+			}
+		}
+		cout << "]" << endl;
+	}
+
+	for (int i = 0, j = 0; i < sz; i++)
+		if (rules[r].rhs[i].save)
+			res->ch[j++] = pn[i].get(); // ? pn[i] : termnode(;
+		else if (pn[i].get())
+			pt.del(pn[i]);
+
+
+	//res->loc.beg = res->ch[0].
+	res->updateSize();
+	if (rules[r].action) // Для узлов с приоритетом в текущей версии не допускаются семантические действия (должно проверяться при добавлении правил)
+		SemanticAction(rules[r].action)(pt, res);
+	return ParseNodePtr(res->balancePr());
+}
+
 ParseErrorHandler::Hint ParseErrorHandler::onRRConflict(GrammarState* g, const SStack& ss, const PStack& sp, int term, int nt1, int nt2, int depth, int place) {
 	throw RRConflict("at {} RR-conflict({}) : 2 different ways to reduce by {}: NT = {} or {}"_fmt(g->lex.cpos(), place, g->ts[term], g->nts[nt1], g->nts[nt2]), prstack(*g, ss, sp, depth));
 	return Hint();
@@ -896,13 +950,17 @@ ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std
 	if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
 	bool qprev = _qq;
     _qq = true;
-    try{
-    	ParseTree t = parse(*this, q, nt);
+	int dbg_old = debug_pr;
+	try{
+		if (!(debug_pr & DBG_QQ))debug_pr = 0;
+		ParseTree t = parse(*this, q, nt);
         _qq = qprev;
-        auto pos = args.begin();
+		debug_pr = dbg_old;
+		auto pos = args.begin();
         return replace_trees_rec(t.root.get(), pos, args.end(), qid);
     } catch (Exception &e) {
-        e.prepend_msg("In quasiquote `{}`: "_fmt(q));
+		debug_pr = dbg_old;
+		e.prepend_msg("In quasiquote `{}`: "_fmt(q));
         throw e;
     }
 }
@@ -918,13 +976,17 @@ ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std
 	if (qid < 0)qid = _qid;
 	if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
 	if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
+	int dbg_old = debug_pr;
 	try {
+		if (!(debug_pr & DBG_QQ))debug_pr = 0;
         ParseTree t = parse(*this, q, nt);
+		debug_pr = dbg_old;
         auto pos = args.begin();
     	return replace_trees_rec(t.root.get(), pos, args.end(), qid);
     } catch (Exception &e){
-        e.prepend_msg("In quasiquote `{}`: "_fmt(q));
-        throw e;
+		debug_pr = dbg_old;
+		e.prepend_msg("In quasiquote `{}`: "_fmt(q));
+        throw std::move(e);
     }
 }
 

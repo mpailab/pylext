@@ -20,9 +20,19 @@
 #include "GCAlloc.h"
 //#include "BinAlloc.h"
 
+
+constexpr int DBG_SHIFT = 0x1;
+constexpr int DBG_REDUCE = 0x2;
+constexpr int DBG_STATE = 0x4;
+constexpr int DBG_LOOKAHEAD = 0x8;
+constexpr int DBG_TOKEN = 0x10;
+constexpr int DBG_RULES = 0x20;
+constexpr int DBG_QQ = 0x40;
+constexpr int DBG_ALL = 0xFFFFFFF;
+
 using namespace std;
 
-struct ParseNode;
+class ParseNode;
 //using PParseNode = unique_ptr<ParseNode>;
 struct ParseTree;
 
@@ -88,7 +98,7 @@ public:
 };
 
 using ParseNodePtr = GCPtr<ParseNode>;
-struct GrammarState;
+class GrammarState;
 struct SStack;
 struct PStack;
 
@@ -243,7 +253,7 @@ struct alignas(8) RuleElem {
 	bool save;  // Следует ли данный элемент сохранять в дереве разбора; по умолчанию save = !cterm, поскольку только неконстантные элементы имеет смысл сохранять
 };
 
-struct GrammarState;
+class GrammarState;
 typedef function<void(ParseContext& g, ParseNodePtr&)> SemanticAction;
 
 class CFGRule {
@@ -295,6 +305,8 @@ public:
 	vector<NewTAction> on_new_t_actions;
 
 	struct Temp {
+
+		bool used = false;
 		struct BElem {
 			int i;
 			const NTTreeNode* v;
@@ -314,7 +326,23 @@ public:
 			path.clear();
 		}
 	};
-	Temp tmp;
+	struct LockTemp {
+		GrammarState* g;
+		explicit LockTemp(GrammarState* gr) :g(gr) {
+			g->temp_used++;
+			if (len(g->tmp) < g->temp_used)
+				g->tmp.emplace_back(new Temp);
+		}
+		Temp* operator->() const { return g->tmp[g->temp_used - 1].get(); }
+		~LockTemp() { g->tmp[--g->temp_used]->clear(); }
+		LockTemp() = delete;
+		LockTemp(const LockTemp& l) = delete;
+		LockTemp(LockTemp&& l) noexcept: g(l.g) { l.g = 0; }
+		LockTemp& operator=(const LockTemp&) = delete;
+		LockTemp& operator=(LockTemp&&) = delete;
+	};
+	int temp_used = 0;
+	vector<unique_ptr<Temp>> tmp;
 	int start = -1;
 	bool finish = false;
 	TF tf;
@@ -356,32 +384,9 @@ public:
 		ts[""];  // Резервируем нулевой номер терминала, чтобы все терминалы имели ненулевой номер.
 		nts[""]; // Резервируем нулевой номер нетерминала, чтобы все нетерминалы имели ненулевой номер.
 	}
-	ParseNodePtr reduce(ParseNodePtr *pn, const NTTreeNode *v, int nt, int nt1, ParseContext &pt) {
-		int r = v->rule(nt), sz = len(rules[r].rhs);
-		ParseNodePtr res = pt.newnode();
-		res->rule = r;
-		res->B = nt;
-		res->nt = nt1;
-		res->rule_id = rules[r].ext_id;
-		int szp = 0;
-		for (int i = 0; i < sz; i++)
-			szp += rules[r].rhs[i].save;
-		res->ch.resize(szp);
-		res->lpr = rules[r].lpr;
-		res->rpr = rules[r].rpr;
-		res->loc.beg = pn[0]->loc.beg;
-		res->loc.end = pn[sz - 1]->loc.end;
-		for (int i = 0, j = 0; i < sz; i++)
-			if (rules[r].rhs[i].save)
-				res->ch[j++] = pn[i].get();// ? pn[i] : termnode(;
-			else if(pn[i].get())
-				pt.del(pn[i]);
-		//res->loc.beg = res->ch[0].
-		res->updateSize();
-		if (rules[r].action) // Для узлов с приоритетом в текущей версии не допускаются семантические действия (должно проверяться при добавлении правил)
-			SemanticAction(rules[r].action)(pt, res);
-		return ParseNodePtr(res->balancePr());
-	}
+
+	ParseNodePtr reduce(ParseNodePtr *pn, const NTTreeNode *v, int nt, int nt1, ParseContext &pt);
+
 	void setStart(const string& start_nt){ //, const string& token, const string &syntax) {
 		int S0 = nts[""];
 		this->start = nts[start_nt];
@@ -443,12 +448,13 @@ public:
 	void setEOFToken(const std::string &nm) {
 		lex.declareEOFToken(nm, ts[nm]);
 	}
-	void print_rule(ostream& s, const CFGRule &r)const {
+	ostream& print_rule(ostream& s, const CFGRule &r)const {
 		s << nts[r.A] << " -> ";
 		for (auto& rr : r.rhs) {
 			if (rr.term)s << ts[rr.num] << " ";
 			else s << nts[rr.num] << " ";
 		}
+		return s;
 	}
 	void print_rules(ostream &s) const{
 		for (auto &r : rules) {

@@ -27,7 +27,7 @@ ParseNode* replace_trees(ParseNode* n, const vector<ParseNode*>& nodes) {
 /** Раскрывает определение макроса, заданное в виде дерева разбора
  *  Определение макроса преобразуется в определение функции, раскрывающей этот макрос
  *  При этом в текущий контекст добавляется новое правило, реализуемое этим макросом
- *  @papam px  -- текущий контекст
+ *  @param px  -- текущий контекст
  *  @param n -- корень дерева разбора определения макроса
  *  @param off -- номер дочернего узла, соответствующего имени макроса
  *  @param fnm -- имя функции, на которую заменяется макроопределение
@@ -43,7 +43,12 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm) {
 			rhs.push_back(ni[1].term);
 			arglist += ni[0].term;
 			arglist += ',';
-		} else rhs.push_back(ni.term);
+        } else if (ni.isTerminal()) {
+            rhs.push_back(ni.term);
+        } else if (ni.ch.size() != 1 || !ni.ch[0]->isTerminal())throw GrammarError("Internal error: wrong macro argument syntax tree");
+        else {
+            rhs.push_back(ni[0].term);
+        }
 	}
 	if (arglist.size() > 1)arglist.back() = ')';
 	else arglist += ')';

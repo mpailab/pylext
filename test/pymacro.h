@@ -2,14 +2,10 @@
 #include <unordered_map>
 #include <any>
 #include "Parser.h"
-#ifdef MSC_VER
+#ifdef _WIN32
 #define DLL_EXPORT __declspec(dllexport)
 #else
-#ifdef _WIN32
-#define DLL_EXPORT __attribute__((dllexport))
-#else
 #define DLL_EXPORT
-#endif
 #endif
 
 using namespace std;
