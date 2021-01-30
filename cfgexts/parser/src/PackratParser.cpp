@@ -1,8 +1,9 @@
 #include <algorithm>
 #include "PackratParser.h"
 #include "Exception.h"
+#include "format.h"
 
-void PackratParser::update_props() {
+void PEGGrammar::update_props() {
 	for(int i=0; i<10; i++)
 		for (auto& r : rules)
 			r._updatecmplx(&rules, true);
@@ -10,7 +11,7 @@ void PackratParser::update_props() {
 	_ops = 0;
 }
 
-void PackratParser::add_rule(const string & nt, const PEGExpr & e, bool to_begin) {
+void PEGGrammar::add_rule(const string & nt, const PEGExpr & e, bool to_begin) {
 	int a = _en[nt];
 	if (a >= len(rules))rules.resize(a + 1);
 	if (to_begin)rules[a] = e / rules[a];
@@ -31,10 +32,10 @@ void PackratParser::setText(const string & t) {
 }
 
 static constexpr int iterMemStart = 8; // Начинаем запоминать после 8-го прочитанного элемента 
-static constexpr int cmplxThresh = 16; // Запоминаем выражение со сложностью выше этого значения 
+static constexpr unsigned int cmplxThresh = 16; // Запоминаем выражение со сложностью выше этого значения 
 
 int PackratParser::parse0(const PEGExpr & e, int pos) {
-	if (!_updated)_ops++;
+	if (!peg->_updated)peg->_ops++;
 	switch (e.type) {
 	case PEGExpr::OrdAlt:
 		for (auto &e1 : e.subexprs)
@@ -59,7 +60,7 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 	case PEGExpr::Many:
 		if (e.subexprs[0].type == PEGExpr::Terminal) {
 			constexpr int termMemFreq = 4 * iterMemStart;
-			int one = 0, i;
+			int i;
 			int p0 = pos;
 			auto& m = e.subexprs[0].t_mask;
 			for (i = 0; i < termMemFreq && pos <= lastpos; i++, pos++) {
@@ -70,7 +71,7 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 				auto mp = _manypos.size();
 				for (; pos<=lastpos; pos++) {
 					if (!m[(unsigned char)text[pos - 1]]) break;
-					if (!(pos & (termMemFreq - 1))) {
+					if (!(pos & (termMemFreq - 1u))) {
 						//int& aa = hmany(pos, id);
 						if (int aa = hmany(pos,id)) {
 							pos = aa; break;
@@ -79,7 +80,7 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 					}
 				}
 				for (auto j = mp; j < _manypos.size(); j++)hmany(_manypos[j],id) = pos;
-				hmany((p0 + termMemFreq - 1) & ~(termMemFreq - 1), id) = pos;
+				hmany((p0 + termMemFreq - 1u) & ~(termMemFreq - 1u), id) = pos;
 				_manypos.resize(mp);
 			}
 			return (pos > p0 || e.type == PEGExpr::Many || i>0) ? pos : 0;
@@ -130,23 +131,25 @@ int PackratParser::parse0(const PEGExpr & e, int pos) {
 	}
 	return 0;
 }
+
 int PackratParser::parse(const PEGExpr & e, int pos) {
 	int r = parse0(e, pos);
 	if (!r)err_at(&e, pos-1);
 	return r;
 }
+
 int PackratParser::parse(int nt, int pos) {
-	if (!_updated) { 
-		if (_ops > rules.size() * 100)
-			update_props(); 
-	} else if (!rules[nt].t_mask[(unsigned char)text[pos - 1]])
+	if (!peg->_updated) {
+		if (peg->_ops > peg->rules.size() * 100)
+			peg->update_props();
+	} else if (!peg->rules[nt].t_mask[(unsigned char)text[pos - 1]])
 		return -1;
-	if (rules[nt]._cmplx <= cmplxThresh) {
-		int r = parse(rules[nt], pos);
+	if (peg->rules[nt]._cmplx <= (int)cmplxThresh) {
+		int r = parse(peg->rules[nt], pos);
 		return r ? r : -1;
 	}
 	int &a = accepted(pos, nt);
-	if (a == -2)throw Exception("Left recursion not allowed in PEG, detected at position "+to_string(pos)+" in nonterminal "+_en[nt]);
+	if (a == -2)throw Exception("Left recursion not allowed in PEG, detected at position {} in nonterminal {}"_fmt(pos, peg->_en[nt]));
 	if (a)return a;
 	a = -2; // Помечаем, что начали разбирать нетерминал nt на позиции pos, чтобы можно было обнаружить зацикливание по рекурсии.
 	//if (nt >= (int)accepted.size())
@@ -154,7 +157,7 @@ int PackratParser::parse(int nt, int pos) {
 	//else if(pos >= (int)accepted[nt].size())
 	//	accepted[nt].resize(nt + 1,-1);
 	//if (int a = accepted[pos][nt]) return a;
-	int r = parse(rules[nt], pos);
+	int r = parse(peg->rules[nt], pos);
 	return accepted(pos,nt) = (r ? r : -1);
 }
 
@@ -200,6 +203,7 @@ PEGExpr readstr(const char *&s, const char *&errpos, string *err) {
 	s++;
 	return PEGExpr(res);
 }
+
 PEGExpr readsym(const char *&s, const char *&errpos, string *err) {
 	const char *b = s;
 	if (*s != '[') {
@@ -266,8 +270,8 @@ PEGExpr readsym(const char *&s, const char *&errpos, string *err) {
 	return PEGExpr(res,string(b,s-b));
 }
 
-PEGExpr readexpr(PackratParser*p, const char *&s, const char *&errpos, string *err, char end = 0);
-PEGExpr readatomexpr(PackratParser*p, const char *&s, const char *&errpos, string *err) {
+PEGExpr readexpr(PEGGrammar*p, const char *&s, const char *&errpos, string *err, char end = 0);
+PEGExpr readatomexpr(PEGGrammar *p, const char *&s, const char *&errpos, string *err) {
 	PEGExpr res;
 	switch (*ws(s)) {
 	case '"':
@@ -293,7 +297,7 @@ PEGExpr readatomexpr(PackratParser*p, const char *&s, const char *&errpos, strin
 	return pnonterm(id, p->_en[id]);
 }
 
-PEGExpr readpostfixexpr(PackratParser*p, const char *&s, const char *&errpos, string *err) {
+PEGExpr readpostfixexpr(PEGGrammar*p, const char *&s, const char *&errpos, string *err) {
 	PEGExpr t = readatomexpr(p,s, errpos, err);
 	if (errpos)return t;
 	while (*ws(s)) {
@@ -307,7 +311,7 @@ PEGExpr readpostfixexpr(PackratParser*p, const char *&s, const char *&errpos, st
 	return t;
 }
 
-PEGExpr readconcatexpr(PackratParser*p, const char *&s, const char *&errpos, string *err, char end) {
+PEGExpr readconcatexpr(PEGGrammar*p, const char *&s, const char *&errpos, string *err, char end) {
 	PEGExpr res = readpostfixexpr(p, s, errpos, err);
 	if (errpos)return res;
 	while (*ws(s) && *s!=end && *s != '/') {
@@ -323,7 +327,7 @@ PEGExpr readconcatexpr(PackratParser*p, const char *&s, const char *&errpos, str
 	return res;
 }
 
-PEGExpr readexpr(PackratParser*p, const char *&s, const char *&errpos, string *err, char end) {
+PEGExpr readexpr(PEGGrammar*p, const char *&s, const char *&errpos, string *err, char end) {
 	PEGExpr res = readconcatexpr(p, s, errpos, err, end);
 	if (errpos)return res;
 	while(*ws(s)=='/') {
@@ -339,7 +343,7 @@ PEGExpr readexpr(PackratParser*p, const char *&s, const char *&errpos, string *e
 	return res;
 }
 
-PEGExpr readParsingExpr(PackratParser*p, const string & s, int *errpos, string * err) {
+PEGExpr readParsingExpr(PEGGrammar*p, const string & s, int *errpos, string * err) {
 	const char * ep=0, *ps = s.c_str();
 	PEGExpr r = *ws(ps)=='`' ? readexpr(p, ++ps, ep, err,'`') : readexpr(p, ps, ep, err);
 	if (ep) {
