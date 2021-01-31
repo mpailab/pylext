@@ -34,6 +34,8 @@ new_parser_state = get_dll_func(parser, 'new_parser_state', c_void_p)
 continue_parse = get_dll_func(parser, 'continue_parse', c_void_p)
 del_parser_state = get_dll_func(parser, 'del_parser_state')
 
+_ast_to_text = get_dll_func(parser, 'ast_to_text', c_char_p)
+
 
 new_python_context.restype = c_void_p
 new_parser_state.restype = c_void_p
@@ -195,7 +197,7 @@ def macro_expand(px: ParseContext, node: ParseNode):
 
 def ast_to_text(px: ParseContext, ast: ParseNode):
     """ Преобразует синтаксическое дерево в текст """
-    return str(c_char_p(parser.ast_to_text(px.px, ast.p)))
+    return str(c_char_p(_ast_to_text(px.px, ast.p)).value)
 
 
 def load_file(text, globals):

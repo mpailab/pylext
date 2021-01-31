@@ -44,6 +44,8 @@ extern "C" DLL_EXPORT void del_python_context(void*);
 extern "C" DLL_EXPORT void inc_pn_num_refs(void *pn);
 extern "C" DLL_EXPORT void dec_pn_num_refs(void *pn);
 
+extern "C" DLL_EXPORT char* ast_to_text(void *px, void *pn);
+
 extern "C" DLL_EXPORT int get_pn_num_children(void* pn);
 extern "C" DLL_EXPORT void* get_pn_child(void* pn, int i);
 extern "C" DLL_EXPORT void set_pn_child(void* pn, int i, void* ch);

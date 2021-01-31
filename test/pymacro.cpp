@@ -45,8 +45,9 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm) {
 			arglist += ',';
         } else if (ni.isTerminal()) {
             rhs.push_back(ni.term);
-        } else if (ni.ch.size() != 1 || !ni.ch[0]->isTerminal())throw GrammarError("Internal error: wrong macro argument syntax tree");
-        else {
+        } else if (ni.ch.size() != 1 || !ni.ch[0]->isTerminal()) {
+		    throw GrammarError("Internal error: wrong macro argument syntax tree");
+		} else {
             rhs.push_back(ni[0].term);
         }
 	}
@@ -232,7 +233,7 @@ void init_python_grammar(GrammarState& g, bool read_by_stmt) {
 	});
 }
 
-bool equal_subtrees(ParseNode* x, ParseNode* y){
+bool equal_subtrees(ParseNode* x, ParseNode* y) {
     if(x->isTerminal())
         return y->isTerminal() && x->term==y->term;
     if(x->ch.size()!=y->ch.size())return false;
@@ -242,7 +243,7 @@ bool equal_subtrees(ParseNode* x, ParseNode* y){
     return true;
 }
 
-void* new_python_context(int by_stmt){
+void* new_python_context(int by_stmt) {
     auto *g = new GrammarState;
     init_python_grammar(*g, by_stmt != 0);
     auto *px =  new ParseContext(g);
@@ -250,7 +251,7 @@ void* new_python_context(int by_stmt){
     return px;
 }
 
-void del_python_context(void *px){
+void del_python_context(void *px) {
     if(px) delete ((ParseContext*)px)->g;
     delete (ParseContext*)px;
 }
@@ -274,28 +275,28 @@ int pn_equal(void *pn1, void *pn2) {
     return equal_subtrees((ParseNode*)pn1, (ParseNode*)pn2);
 }
 
-int get_pn_num_children(void* pn){
+int get_pn_num_children(void* pn) {
     return len(((ParseNode*)pn)->ch);
 }
 
-void* get_pn_child(void* pn, int i){
+void* get_pn_child(void* pn, int i) {
     if(i<0 || i>=len(((ParseNode*)pn)->ch))
         throw Exception("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
     return ((ParseNode*)pn)->ch[i];
 }
 
-void set_pn_child(void* pn, int i, void* ch){
+void set_pn_child(void* pn, int i, void* ch) {
     if(!ch)throw Exception("Cannot set null parse node as child");
     if(i<0 || i>=len(((ParseNode*)pn)->ch))
         throw Exception("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
     ((ParseNode*)pn)->ch[i] = (ParseNode*)ch;
 }
 
-int get_pn_rule(void* pn){
+int get_pn_rule(void* pn) {
     return ((ParseNode*)pn)->rule;
 }
 
-int add_rule(void* px, char* lhs, char *rhs){
+int add_rule(void* px, char* lhs, char *rhs) {
     return addRule(*((ParseContext*)px)->g, string(lhs)+" -> "+rhs);
 }
 
@@ -311,6 +312,16 @@ void* continue_parse(void *state) {
     return tree.root.get();
 }
 
-void del_parser_state(void* state){
+void del_parser_state(void* state) {
     delete (ParserState*)state;
+}
+
+char* ast_to_text(void* pcontext, void *pn) {
+    auto *node = (ParseNode*)pn;
+    auto *px = (ParseContext*)pcontext;
+    static vector<char> buf;
+    auto s = tree2str(node, px->g);
+    buf.resize(s.size()+1);
+    memcpy(buf.data(), s.c_str(), s.size()+1);
+    return buf.data();
 }

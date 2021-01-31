@@ -533,8 +533,10 @@ struct ParseBreak {
 };
 
 void print_tree(std::ostream& os, ParseTree& t, GrammarState* g);
+void print_tree(std::ostream& os, ParseNode *pn, GrammarState* g);
 
 string tree2str(ParseTree& t, GrammarState* g);
+string tree2str(ParseNode* pn, GrammarState* g);
 
 void tree2file(const string& fn, ParseTree& t, GrammarState* g);
 

@@ -138,6 +138,12 @@ string tree2str(ParseTree& t, GrammarState* g) {
 	return ss.str();
 }
 
+string tree2str(ParseNode* pn, GrammarState* g) {
+    stringstream ss;
+    print_tree(ss, pn, g);
+    return ss.str();
+}
+
 void tree2file(const string &fn, ParseTree& t, GrammarState* g) {
 	ofstream f(fn);
 	print_tree(f, t, g);
@@ -459,6 +465,12 @@ string prstack(GrammarState&g, const SStack&ss, const PStack &sp, int k) {
 	}
 	printstate(s << (!k ? "--> " : "    ") << "Top   = ", g, ss.s.back(), &sp) << "\n";
 	return s.str();
+}
+
+void print_tree(ostream &os, ParseNode *pn, GrammarState *g)
+{
+    PrintState pst;
+    tree2str_rec(os, pn, g, pst);
 }
 
 bool nextTok(GrammarState &g, LexIterator& it, SStack &ss) { // Определяет множество допустимых токенов, и лексер пытается их прочитать
