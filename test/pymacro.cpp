@@ -12,6 +12,7 @@ using namespace std;
 
 enum MacroRule {
 	QExpr = SynTypeLast + 1,
+	QStarExpr,
 	MacroArg,
 	MacroArgExpand,
 	MacroConstStr,
@@ -21,7 +22,7 @@ enum MacroRule {
 /** Заменяет листья с rule_id=QExpr, на соответствующие поддеревья */
 ParseNode* replace_trees(ParseNode* n, const vector<ParseNode*>& nodes) {
 	auto pos = nodes.begin();
-	return replace_trees_rec(n, pos, nodes.end(), QExpr);
+	return replace_trees_rec(n, pos, nodes.end(), QExpr, QStarExpr, 0);
 }
 
 /** Раскрывает определение макроса, заданное в виде дерева разбора
@@ -56,20 +57,18 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm) {
 	//n[0].term = m->uniq_name("syntax_"+n[0].term);
 	if (!expand.empty()) {
 		ParseNode* stmts = n[off+2].ch[0];
+		string qq = "$$INDENT\n";
 		for (auto& arg : expand) {
-			stmts = px.quasiquote("stmts1", "{}=syn_expand({})\n$stmts1"_fmt(arg,arg), { stmts }, QExpr);
+		    qq+="{}=syn_expand({})\n"_fmt(arg, arg);
 		}
-		n->ch[off+2] = px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
+		qq+="$*{} $$DEDENT"_fmt(px.g->nts[stmts->nt]);
+        stmts = px.quasiquote("suite", qq, { stmts }, QExpr);
+		n->ch[off+2] = stmts; //px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
 	}
 	n.reset(px.quasiquote("stmt", "def " + fnm + arglist + ": $func_body_suite", { n->ch[off+2] }, QExpr));
 	return px.g->addRule(n[off].term, rhs);
 }
 
-/// f(f(x1,...,xn),y1,..,ym) -> f(x1,...,xn,y1,...,ym)
-void flatten(ParseContext&, ParseNodePtr& n) {
-	n[0].ch.insert(n[0].ch.end(), n->ch.begin() + 1, n->ch.end());
-	n.reset(&n[0]);
-}
 
 string& tostr(string &res, const string& str, char c) {
     res += c;
@@ -156,81 +155,105 @@ ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>
 *    - N -> '$N' для каждого нетерминала N 
 *    - T -> '$$T' для каждого неконстантного терминала T (добавляется в лексер)
 */
-void init_python_grammar(GrammarState& g, bool read_by_stmt) {
+void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
     setDebug(0);
-	g.data = PyMacroModule();
-	shared_ptr<GrammarState> pg(&g, [](GrammarState*) {});
+    if(!px->g)px->g = new GrammarState;
+	//px->g->data = PyMacroModule();
+	shared_ptr<GrammarState> pg(px->g, [](GrammarState*) {});
 	GrammarState g0;
-	g.addNewNTAction([](GrammarState* g, const string& ntn, int nt) {
+    px->g->addNewNTAction([](GrammarState* g, const string& ntn, int nt) {
 		addRule(*g, "{} -> '${}'"_fmt(ntn, ntn), [](ParseContext& px, ParseNodePtr& n){
 		    if(!px.inQuote())
 		        throw GrammarError(n->ch[0]->term + " outside of quasiquote");
 		}, QExpr);
-		addRule(*g, "qqst -> '{}`' {} '`'"_fmt(ntn, ntn));
+        addRule(*g, "{} -> '$*{}_many'"_fmt(ntn, ntn), [](ParseContext& px, ParseNodePtr& n){
+            if(!px.inQuote())
+                throw GrammarError(n->ch[0]->term + " outside of quasiquote");
+        }, QStarExpr);
+        addRule(*g, "qqst -> '{}`' {} '`'"_fmt(ntn, ntn));
 	});
-    g.setWsToken("ws");
-    g.addLexerRule("ws", R"(([ \t\n\r] / comment)*)");
-	init_base_grammar(g0, pg);
+    px->g->setWsToken("ws");
+    px->g->addLexerRule("ws", R"(([ \t\n\r] / comment)*)");
+
+    init_base_grammar(g0, px->g);
 	g0.addLexerRule("comment", "'#' [^\\n]*");
 	string text = loadfile("syntax/python.txt");
 	ParseContext px0(&g0);
 	parse(px0, text);
 
-	g.setStart("text");
+    px->g->setStart("text");
 	// g.setSOFToken("SOF");
-	addRule(g, "text -> INDENTED root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
+	addRule(*px->g, "text -> INDENTED root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
 	    if(read_by_stmt) {
             n.reset(n->ch[0]);
             n->type = ParseNode::Final;
         }
 	});
-    addRule(g, "text -> text INDENTED root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
+    addRule(*px->g, "text -> text INDENTED root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
         if(read_by_stmt) {
             n.reset(n->ch[1]);
             n->type = ParseNode::Final;
         }
     });
 
-	g.addToken("qqopen", "ident '`'");
-	g.addToken("qqmid", "('\\\\' [^] / [^`$] / '$$')*");
-	g.addToken("qqmidfirst", "!'`' qqmid");
+    px->g->addToken("qqopen", "ident '`'");
+    px->g->addToken("qqmid", "('\\\\' [^] / [^`$] / '$$')*");
+    px->g->addToken("qqmidfirst", "!'`' qqmid");
 	//g.addToken("qqmid00", "('\\\\' [^] / [^`$])* '$' &ident");
 	//g.addToken("qqmid01", "('\\\\' [^] / [^`$])* '${'");
 	//g.addToken("qqbeg1", "`qqpr1");
 	//g.addToken("qqbeg0", "`qqpr0");
 	//g.addToken("qqmid11", "'}' qqmid01");
 	//g.addToken("qqmid10", "'}' qqmid00");
-	addRule(g, "qqst -> qqmidfirst"); // qqmid ");
-	addRule(g, "qqst -> qqst '$' ident qqmid", flatten);
-	addRule(g, "qqst -> qqst '${' expr '}' qqmid", flatten);
-	addRule(g, "expr -> '`' qqst '`'", make_qq);
-    addRule(g, "expr -> '``' qqst '``'", make_qq);
-    addRule(g, "expr -> '```' qqst '```'", make_qq);
-    addRule(g, "expr -> ident '`' qqst '`'", make_qqi);
-    addRule(g, "expr -> ident '``' qqst '``'", make_qqi);
-    addRule(g, "expr -> ident '```' qqst '```'", make_qqi);
+	addRule(*px->g, "qqst -> qqmidfirst"); // qqmid ");
+	addRule(*px->g, "qqst -> qqst '$' ident qqmid", flatten);
+	addRule(*px->g, "qqst -> qqst '${' expr '}' qqmid", flatten);
+	addRule(*px->g, "expr -> '`' qqst '`'", make_qq);
+    addRule(*px->g, "expr -> '``' qqst '``'", make_qq);
+    addRule(*px->g, "expr -> '```' qqst '```'", make_qq);
+    addRule(*px->g, "expr -> ident '`' qqst '`'", make_qqi);
+    addRule(*px->g, "expr -> ident '``' qqst '``'", make_qqi);
+    addRule(*px->g, "expr -> ident '```' qqst '```'", make_qqi);
     setDebug(1);
 
     //g.addToken("sq_string", (R"('\'' ('\\' [^] / [^\n'])* '\'')"));
-    addRule(g, "syntax_elem -> ident", MacroArgToken);
-    addRule(g, "syntax_elem -> stringliteral", MacroConstStr);
-	addRule(g, "syntax_elem -> ident ':' ident", MacroArg);
-	addRule(g, "syntax_elem -> ident ':' '*' ident", MacroArgExpand);
+    addRule(*px->g, "syntax_elem -> ident", MacroArgToken);
+    addRule(*px->g, "syntax_elem -> stringliteral", MacroConstStr);
+	addRule(*px->g, "syntax_elem -> ident ':' ident", MacroArg);
+	addRule(*px->g, "syntax_elem -> ident ':' '*' ident", MacroArgExpand);
 
-	addRule(g, "syntax_elems -> ',' syntax_elem");
-	addRule(g, "syntax_elems -> syntax_elems ',' syntax_elem", flatten);
-	addRule(g, "root_stmt -> 'syntax' '(' ident syntax_elems ')' ':' suite", [](ParseContext& px, ParseNodePtr& n) {
-		PyMacroModule* m = any_cast<PyMacroModule>(&px.g->data);
-		string fnm = m->uniq_name("syntax_" + n[0].term);
+	addRule(*px->g, "syntax_elems -> ',' syntax_elem");
+	addRule(*px->g, "syntax_elems -> syntax_elems ',' syntax_elem", flatten);
+	addRule(*px->g, "root_stmt -> 'syntax' '(' ident syntax_elems ')' ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
+        auto &px = static_cast<PythonParseContext&>(pt);
+		string fnm = px.module.uniq_name("syntax_" + n[0].term);
 		int id = conv_macro(px, n, 0, fnm);
-		m->syntax[id] = PySyntax{fnm, id};
+        px.module.syntax[id] = PySyntax{fnm, id};
 	});
-	addRule(g, "root_stmt -> 'defmacro' ident '(' ident syntax_elems ')' ':' suite", [](ParseContext& px, ParseNodePtr& n) {
-		PyMacroModule* m = any_cast<PyMacroModule>(&px.g->data);
-		string fnm = m->uniq_name("macro_" + n[0].term);
+	addRule(*px->g, "root_stmt -> 'defmacro' ident '(' ident syntax_elems ')' ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
+        auto &px = static_cast<PythonParseContext&>(pt);
+		string fnm = px.module.uniq_name("macro_" + n[0].term);
 		int id = conv_macro(px, n, 0, fnm);
-		m->macros[id] = PyMacro{ fnm, id };
+        px.module.macros[id] = PyMacro{ fnm, id };
 	});
+    addRule(*px->g, "rule_symbol -> '{' rule_rhs '}'", [](ParseContext& pt, ParseNodePtr& n) {
+        auto &px = static_cast<PythonParseContext&>(pt);
+        auto v = getVariants(n->ch[1]);
+        if(v.size()>1)throw GrammarError("Error in grammar: many cannot be applied to expression containing several variants");
+        auto &ntname = px.ntmap[v];
+        string manyntname;
+        if (ntname.empty()) {
+            if(v[0].size()==1&&v[0][0].size()==1) ntname = v[0][0][0];
+            else                                  ntname = "__nt_{}"_fmt(px.ntmap.size());
+            manyntname = ntname+"_many";
+            px.g->addRule(ntname, v[0]);
+            addRule(*px.g, "{}_many -> {}"_fmt(manyntname, ntname));
+            addRule(*px.g, "{}_many -> {}_many {}"_fmt(manyntname, manyntname, ntname), flatten);
+        } else manyntname = ntname+"_many";
+        n->ch[0] = px.newnode().get();
+        n->ch[0]->term = manyntname;
+        n->ch[0]->nt = px.g->ts["ident"];
+    });
 }
 
 bool equal_subtrees(ParseNode* x, ParseNode* y) {
@@ -245,8 +268,8 @@ bool equal_subtrees(ParseNode* x, ParseNode* y) {
 
 void* new_python_context(int by_stmt) {
     auto *g = new GrammarState;
-    init_python_grammar(*g, by_stmt != 0);
-    auto *px =  new ParseContext(g);
+    auto *px =  new PythonParseContext(g);
+    init_python_grammar(px, by_stmt != 0);
     cout<<"create px = "<<px<<endl;
     return px;
 }

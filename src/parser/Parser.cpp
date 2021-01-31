@@ -956,7 +956,7 @@ ParseErrorHandler::Hint ParseErrorHandler::onNoShiftReduce(GrammarState* g, cons
  * @param args -- список деревьев разбора, подставляемых в квазицитату
  * @param qid -- идентификатор правила, которым помечаются листья, на место которых подставляются поддеревья
  * */
-ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std::initializer_list<ParseNode*>& args, int qid) {
+ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std::initializer_list<ParseNode*>& args, int qid, int qmanyid) {
 	if (qid < 0)qid = _qid;
     if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
 	if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
@@ -969,7 +969,7 @@ ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std
         _qq = qprev;
 		debug_pr = dbg_old;
 		auto pos = args.begin();
-        return replace_trees_rec(t.root.get(), pos, args.end(), qid);
+        return replace_trees_rec(t.root.get(), pos, args.end(), qid, qmanyid, 0);
     } catch (Exception &e) {
 		debug_pr = dbg_old;
 		e.prepend_msg("In quasiquote `{}`: "_fmt(q));
@@ -984,7 +984,7 @@ ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std
  * @param args -- список деревьев разбора, подставляемых в квазицитату
  * @param qid -- идентификатор правила, которым помечаются листья, на место которых подставляются поддеревья
  * */
-ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std::vector<ParseNode*>& args, int qid) {
+ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std::vector<ParseNode*>& args, int qid, int qmanyid) {
 	if (qid < 0)qid = _qid;
 	if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
 	if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
@@ -994,7 +994,7 @@ ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std
         ParseTree t = parse(*this, q, nt);
 		debug_pr = dbg_old;
         auto pos = args.begin();
-    	return replace_trees_rec(t.root.get(), pos, args.end(), qid);
+    	return replace_trees_rec(t.root.get(), pos, args.end(), qid, qmanyid, 0);
     } catch (Exception &e){
 		debug_pr = dbg_old;
 		e.prepend_msg("In quasiquote `{}`: "_fmt(q));
@@ -1002,14 +1002,14 @@ ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std
     }
 }
 
-ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std::vector<ParseNodePtr>& args, int qid) {
+ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std::vector<ParseNodePtr>& args, int qid, int qmanyid) {
     if (qid < 0)qid = _qid;
     if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
     if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
     try {
         ParseTree t = parse(*this, q, nt);
         auto pos = args.begin();
-        return replace_trees_rec(t.root.get(), pos, args.end(), qid);
+        return replace_trees_rec(t.root.get(), pos, args.end(), qid, qmanyid, 0);
     } catch (Exception &e){
         e.prepend_msg("In quasiquote `{}`: "_fmt(q));
         throw e;

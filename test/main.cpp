@@ -89,7 +89,7 @@ int main(int argc, char*argv[]) {
 			//addRule(st, "text -> new_syntax");
 		}
 		GrammarState st;
-		init_base_grammar(st, tg);
+		init_base_grammar(st, tg.get());
 		cout << "Const rules:\n";
 		st.print_rules(cout);
 		cout << "\n";

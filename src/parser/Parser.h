@@ -50,7 +50,6 @@ public:
 	int rule=-1;          // Номер правила (-1 => терминал)
 	int rule_id = -1;     // Внешний номер правила
 	string term;          // Строковое значение (если терминал)
-	//ParseTree* tree = 0;  // Ссылка на дерево разбора
 	//ParseNode* p = 0;     // Ссылка на родительский узел
 	int size = 1;
 	unsigned lpr = -1, rpr = -1; // Левый и правый приоритеты (если unsigned(-1), то приоритеты не заданы)
@@ -92,7 +91,6 @@ public:
 		return this; // корень остаётся прежним
 	}
 	ParseNode& operator=(ParseNode&&) = default;
-	//void del();
 	~ParseNode() = default;
 	void serialize(vector<unsigned char>& res);
 };
@@ -140,10 +138,10 @@ public:
 			pnalloc.deallocate(y);
 	}
 	explicit ParseContext(GrammarState *gg=0):g(gg){}
-	ParseNode* quasiquote(const string& nt, const string& q, const std::initializer_list<ParseNode*>& args, int qid=-1);
-	ParseNode* quasiquote(const string& nt, const string& q, const std::vector<ParseNode*>& args, int qid=-1);
+	ParseNode* quasiquote(const string& nt, const string& q, const std::initializer_list<ParseNode*>& args, int qid=-1, int qmanyid=-1);
+	ParseNode* quasiquote(const string& nt, const string& q, const std::vector<ParseNode*>& args, int qid=-1, int qmanyid=-1);
 
-    ParseNode *quasiquote(const string &nt, const string &q, const vector<ParseNodePtr> &args, int qid);
+    ParseNode *quasiquote(const string &nt, const string &q, const vector<ParseNodePtr> &args, int qid, int qmanyid);
 };
 
 struct ParseTree {
@@ -542,15 +540,34 @@ void tree2file(const string& fn, ParseTree& t, GrammarState* g);
 
 /** Рекурсивно заменяет листья в поддереве n с rule_id=QExpr, на соответствующие поддеревья */
 template<class It>
-ParseNode* replace_trees_rec(ParseNode* n, It& pos, const It& end, int rnum) {
-	if (n->rule_id == rnum) {
+ParseNode* replace_trees_rec(ParseNode* n, It& pos, const It& end, int rnum, int qmanyid, bool *many) {
+	if (n->rule_id == rnum || n->rule_id == qmanyid) {
 		if (pos == end)
 			throw ParserError{ n->loc, "not enough arguments for quasiquote" };
 		ParseNode* res = &**pos;
+		if(n->rule_id == qmanyid && many) {
+		    n->rule_id = qmanyid;
+            *many = true;
+        }
 		++pos;
 		return res;
 	}
-	for (auto& ch : n->ch)
-		ch = replace_trees_rec(ch, pos, end, rnum);
+	bool m = false;
+	size_t nch = 0;
+	for (auto& ch : n->ch) {
+        ch = replace_trees_rec(ch, pos, end, rnum, qmanyid, &m);
+        nch += ch->rule_id==qmanyid ? ch->ch.size() : 1;
+    }
+	if(m) {
+	    vector<ParseNode*> v(nch, nullptr);
+	    size_t p = 0;
+	    for(auto* ch : n->ch) {
+	        if(ch->rule_id==qmanyid) {
+                for (auto *cc : ch->ch)
+                    v[p++] = cc;
+            } else v[p++] = ch;
+	    }
+	    n->ch = std::move(v);
+	}
 	return n;
 }

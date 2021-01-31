@@ -4,6 +4,8 @@
 #include <fstream>
 #include <memory>
 #include <iomanip>
+#include <chrono>  // for high_resolution_clock
+#include <utility>
 #include "Parser.h"
 using namespace std;
 
@@ -12,9 +14,6 @@ int addRule(GrammarState& gr, const string& s, int id);
 string loadfile(const string& fn);
 
 std::string read_whole_file(const std::string& fn);
-
-#include <chrono>  // for high_resolution_clock
-#include <utility>
 
 struct Timer {
 	decltype(std::chrono::high_resolution_clock::now()) _t0;
@@ -46,7 +45,8 @@ enum SynType {
 	Maybe,
 	Concat,
 	Plus,
-	SynTypeLast=Plus
+	Many,
+	SynTypeLast=Many
 };
 template<class T>
 vector<T>& operator +=(vector<T>& x, const vector<T>& y) {
@@ -59,4 +59,7 @@ vector<T> operator +(vector<T> x, const vector<T>& y) {
 }
 vector<vector<vector<string>>> getVariants(ParseNode* n);
 
-void init_base_grammar(GrammarState& st, shared_ptr<GrammarState> target);
+void init_base_grammar(GrammarState& st, GrammarState* target);
+
+/// f(f(x1,...,xn),y1,..,ym) -> f(x1,...,xn,y1,...,ym)
+void flatten(ParseContext&, ParseNodePtr& n);

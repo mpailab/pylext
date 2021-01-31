@@ -30,7 +30,24 @@ struct PyMacroModule {
 	}
 };
 
-void init_python_grammar(GrammarState& g, bool read_by_stmt=true);
+
+class PythonParseContext: public ParseContext{
+    struct vec_cmp {
+        template<class T>
+        bool operator()(const T& x, const T& y)const { return x<y; }
+
+        template<class T>
+        bool operator()(const vector<T>&x, const vector<T>&y) const {
+            return std::lexicographical_compare(x.begin(), x.end(), y.begin(), y.end(), *this);
+        }
+    };
+public:
+    explicit PythonParseContext(GrammarState* g=0): ParseContext(g){}
+    map<vector<vector<vector<string>>>, string, vec_cmp> ntmap;
+    PyMacroModule module;
+};
+
+void init_python_grammar(PythonParseContext*px, bool read_by_stmt=true);
 ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
 
 /////////////////////////////////////////////////////////////////////////////////////////
