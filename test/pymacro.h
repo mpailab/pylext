@@ -42,7 +42,8 @@ class PythonParseContext: public ParseContext{
         }
     };
 public:
-    explicit PythonParseContext(GrammarState* g=0): ParseContext(g){}
+    PythonParseContext() = default;
+    explicit PythonParseContext(GrammarState* g): ParseContext(g){}
     map<vector<vector<vector<string>>>, string, vec_cmp> ntmap;
     PyMacroModule module;
 };

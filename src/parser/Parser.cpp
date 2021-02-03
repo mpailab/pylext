@@ -164,7 +164,7 @@ bool shift(GrammarState &g, const LR0State &s, LR0State &res, int t, bool term) 
 			s.v[i].sh = it->second.get(); // Помечаем, что в i-м слое можно идти в следующую вершину
 			r = true; // Помечаем, что сдвиг по нетерминалу t возможен
 			k++;
-		} else s.v[i].sh = 0;
+		} else s.v[i].sh = nullptr;
 	}
 	if (!r)return false;
 	decltype(res.v) sv0;
@@ -232,7 +232,7 @@ string prstack(GrammarState& g, const SStack& ss, const PStack& sp, int k=0);
 
 bool reduce1(SStack& ss, PStack& sp, ParseContext &pt) {
 	int B = -1;
-	GrammarState& g = *pt.g;
+	GrammarState& g = pt.grammar();
 	LR0State* s = &ss.s.back() - 1;
 	int r = 0;
 	const NTTreeNode* u = 0;
@@ -253,7 +253,7 @@ bool reduce1(SStack& ss, PStack& sp, ParseContext &pt) {
 
 bool reduce0(SStack& ss, PStack& sp/*, NTSet &M1*/, ParseContext &pt) {
 	int B = -1, C = -1;
-	GrammarState& g = *pt.g;
+	GrammarState& g = pt.grammar();
 	for (;!ss.s.empty();) {
 		LR0State* s = &ss.s.back() - 1;
 		int r = 0;
@@ -286,7 +286,7 @@ bool reduce0(SStack& ss, PStack& sp/*, NTSet &M1*/, ParseContext &pt) {
 // template<bool finish>
 bool reduce(SStack &ss, PStack& sp, LexIterator& lit, int a, ParseContext &pt) {
 	LR0State *s = &ss.s.back();
-	GrammarState& g = *pt.g;
+	GrammarState& g = pt.grammar();
 	GrammarState::LockTemp lock(&g);// g.tmp.clear();
 	auto& B = lock->B;
 	auto& F = lock->F;
@@ -459,7 +459,8 @@ ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, cons
 
 string prstack(GrammarState&g, const SStack&ss, const PStack &sp, int k) {
 	stringstream s;
-	for (int i = -k-10; i < -1; i++) {
+	constexpr int stack_print_depth = 10;
+	for (int i = -k-stack_print_depth; i < -1; i++) {
 		if ((int)ss.s.size() + i >= 0)
 			printstate(s << (i==-k-1 ? "--> ": "    ") << "St[" << (-1 - i) << "] = ", g, ss.s[ss.s.size() + i]) << "\n";
 	}
@@ -485,7 +486,7 @@ bool nextTok(GrammarState &g, LexIterator& it, SStack &ss) { // Определя
 			NTSet M;
 			for (int i : p.M & p.v->finalNT)
 				M |= g.tf.T[i];   // Вычисляем M -- множество нетерминалов, по которым можно свернуть
-			auto &mm = *(&s - p.v->pos); // ????? Может быть здесь индекс на 1 должен отличаться
+			auto &mm = ss.s[ss.s.size()-p.v->pos-1]; /*(&s - p.v->pos);*/ // ????? Может быть здесь индекс на 1 должен отличаться
 			for (int x : M) {
 				if (auto *y = g.root.nextN(x)) {
 					for (int z : y->phi & p.M) { // !!!!!!!! Двойной цикл по множеству допустимых нетерминалов на каждом шаге !!!!!!!!
@@ -527,10 +528,8 @@ ParseTree parse(ParseContext &pt, const std::string& text, const string& start) 
 	SStack ss;
 	PStack sp;
 	//ParseTree pt;
-	GrammarState& g = *pt.g;
+	GrammarState& g = pt.grammar();
 	LR0State s0;
-	if (!pt.error_handler)
-		pt.error_handler = std::make_shared<ParseErrorHandler>();
 	s0.v.resize(1);
 	if (!g.nts.has(start))
 		throw GrammarError("grammar doesn't have start nonterminal `" + start + "`");
@@ -574,7 +573,7 @@ ParseTree parse(ParseContext &pt, const std::string& text, const string& start) 
 							continue;
 						}
 						auto &t1 = lit.tok()[0];
-						auto hint = pt.error_handler->onNoShiftReduce(&g, ss, sp, t1);
+						auto hint = pt.error_handler().onNoShiftReduce(&g, ss, sp, t1);
 						if (hint.type == ParseErrorHandler::Hint::Uncorrectable)
 							throw SyntaxError();
 						throw SyntaxError("Cannot shift or reduce : unexpected terminal {} = `{}` at {}"_fmt(g.ts[t1.type], t1.short_str(), t1.loc.beg), prstack(g, ss, sp));
@@ -606,12 +605,10 @@ ParseTree parse(ParseContext &pt, const std::string& text, const string& start) 
 	return tree;
 }
 
-ParserState::ParserState(ParseContext *px, std::string txt, const string &start): pt(px), lit(&pt->g->lex, std::move(txt)) {
+ParserState::ParserState(ParseContext *px, std::string txt, const string &start): pt(px), lit(&pt->grammar().lex, std::move(txt)) {
     //cout<<"at "<<__LINE__<<endl;
-    g = pt->g;
+    g = pt->grammar_ptr().get();
     //cout<<"at "<<__LINE__<<endl;
-    if (!pt->error_handler)
-        pt->error_handler = std::make_shared<ParseErrorHandler>();
     s0.v.resize(1);
     if (!g->nts.has(start))
         throw GrammarError("grammar doesn't have start nonterminal `" + start + "`");
@@ -662,7 +659,7 @@ ParseTree ParserState::parse_next() {
                             continue;
                         }
                         auto &t1 = lit.tok()[0];
-                        auto hint = pt->error_handler->onNoShiftReduce(g, ss, sp, t1);
+                        auto hint = pt->error_handler().onNoShiftReduce(g, ss, sp, t1);
                         if (hint.type == ParseErrorHandler::Hint::Uncorrectable)
                             throw SyntaxError();
                         throw SyntaxError(
@@ -928,7 +925,7 @@ ParseNodePtr GrammarState::reduce(ParseNodePtr *pn, const NTTreeNode *v, int nt,
 
 	for (int i = 0, j = 0; i < sz; i++)
 		if (rules[r].rhs[i].save)
-			res->ch[j++] = pn[i].get(); // ? pn[i] : termnode(;
+			res->ch[j++] = pn[i].get();
 		else if (pn[i].get())
 			pt.del(pn[i]);
 
@@ -938,6 +935,29 @@ ParseNodePtr GrammarState::reduce(ParseNodePtr *pn, const NTTreeNode *v, int nt,
 	if (rules[r].action) // Для узлов с приоритетом в текущей версии не допускаются семантические действия (должно проверяться при добавлении правил)
 		SemanticAction(rules[r].action)(pt, res);
 	return ParseNodePtr(res->balancePr());
+}
+
+int GrammarState::getStartNT(const string &nt)
+{
+    if (_start_nt.empty()){
+        setStart(nt);
+        _start_nt[nt] = start;
+    }
+    if(_start_nt.count(nt))return _start_nt[nt];
+    int S0 = nts["_start_"+nt];
+    CFGRule r;
+    r.A = S0;
+    r.rhs.resize(2);
+    r.rhs[0].num = nts[nt];
+    r.rhs[0].save = true;
+    r.rhs[0].term = false;
+    r.rhs[1].term = true;
+    r.rhs[1].save = false;
+    r.rhs[1].num = 0;
+    r.action = [](ParseContext&px, ParseNodePtr & n) { n.reset(n->ch[0]); };
+    addRule(r);
+    _start_nt[nt] = S0;
+    return S0;
 }
 
 ParseErrorHandler::Hint ParseErrorHandler::onRRConflict(GrammarState* g, const SStack& ss, const PStack& sp, int term, int nt1, int nt2, int depth, int place) {
@@ -958,7 +978,7 @@ ParseErrorHandler::Hint ParseErrorHandler::onNoShiftReduce(GrammarState* g, cons
  * */
 ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std::initializer_list<ParseNode*>& args, int qid, int qmanyid) {
 	if (qid < 0)qid = _qid;
-    if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
+    if (!g_->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
 	if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
 	bool qprev = _qq;
     _qq = true;
@@ -969,11 +989,11 @@ ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std
         _qq = qprev;
 		debug_pr = dbg_old;
 		auto pos = args.begin();
-        return replace_trees_rec(t.root.get(), pos, args.end(), qid, qmanyid, 0);
+        return replace_trees_rec(t.root.get(), pos, args.end(), len(args), qid, qmanyid, 0);
     } catch (Exception &e) {
 		debug_pr = dbg_old;
 		e.prepend_msg("In quasiquote `{}`: "_fmt(q));
-        throw e;
+        throw std::move(e);
     }
 }
 
@@ -986,7 +1006,7 @@ ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std
  * */
 ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std::vector<ParseNode*>& args, int qid, int qmanyid) {
 	if (qid < 0)qid = _qid;
-	if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
+	if (!g_->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
 	if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
 	int dbg_old = debug_pr;
 	try {
@@ -994,7 +1014,7 @@ ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std
         ParseTree t = parse(*this, q, nt);
 		debug_pr = dbg_old;
         auto pos = args.begin();
-    	return replace_trees_rec(t.root.get(), pos, args.end(), qid, qmanyid, 0);
+    	return replace_trees_rec(t.root.get(), pos, args.end(), len(args), qid, qmanyid, 0);
     } catch (Exception &e){
 		debug_pr = dbg_old;
 		e.prepend_msg("In quasiquote `{}`: "_fmt(q));
@@ -1004,14 +1024,14 @@ ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std
 
 ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std::vector<ParseNodePtr>& args, int qid, int qmanyid) {
     if (qid < 0)qid = _qid;
-    if (!g->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
+    if (!g_->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
     if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
     try {
         ParseTree t = parse(*this, q, nt);
         auto pos = args.begin();
-        return replace_trees_rec(t.root.get(), pos, args.end(), qid, qmanyid, 0);
+        return replace_trees_rec(t.root.get(), pos, args.end(), len(args), qid, qmanyid, 0);
     } catch (Exception &e){
         e.prepend_msg("In quasiquote `{}`: "_fmt(q));
-        throw e;
+        throw std::move(e);
     }
 }

@@ -1,5 +1,7 @@
 #include "base.h"
 
+#include <utility>
+
 int addRule(GrammarState& gr, const string& s, SemanticAction act, int id) {
 	int pos = 0, i = 0;
 	string A;
@@ -30,7 +32,7 @@ int addRule(GrammarState& gr, const string& s, SemanticAction act, int id) {
 			pos = q;
 		} else throw Exception("Error : unexpected symbol '"s + s[pos] + "'");
 	}
-	return gr.addRule(A, rhs, act, id);
+	return gr.addRule(A, rhs, std::move(act), id);
 	//return true;
 }
 
