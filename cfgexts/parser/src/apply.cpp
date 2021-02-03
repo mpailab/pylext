@@ -44,7 +44,8 @@ enum MacroRule {
 
 /** Заменяет листья с rule_id=QExpr, на соответствующие поддеревья */
 ParseNode* replace_trees(ParseNode* n, const vector<ParseNode*>& nodes) {
-	return replace_trees_rec(n, nodes.begin(), nodes.end(), QExpr);
+	auto pos = nodes.begin();
+	return replace_trees_rec(n, pos, nodes.end(), QExpr);
 }
 
 /** Раскрывает определение макроса, заданное в виде дерева разбора
