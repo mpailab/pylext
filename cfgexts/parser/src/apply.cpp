@@ -281,7 +281,8 @@ void del_python_context(void *px){
 }
 
 void* c_quasiquote(void* px, char* nt, int n, void* data, void* pn){
-    vector<string> qp((char**)data, data+n);
+    char** _data = (char**)data;
+    vector<string> qp(_data, _data+n);
     vector<ParseNode*> subtrees((ParseNode**)pn, (ParseNode**)pn+n-1);
     ParseNodePtr res = quasiquote(*(ParseContext*)px, nt, qp, subtrees);
     return res.get();
