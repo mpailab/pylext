@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <functional>
 #include <set>
+#include <map>
 #include <utility>
 #include <vector>
 #include <cctype>
@@ -265,7 +266,7 @@ void setDebug(int b);
 
 class GrammarState {
 public:
-	any data;
+	// any data;
 	using NewNTAction = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления нового нетерминала
 	using NewTAction  = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления н6ового терминала
 
@@ -276,6 +277,7 @@ public:
 	Enumerator<string, unordered_map> ts;  // Нумерация терминалов
 	unordered_map<string, int> _start_nt;
 	vector<CFGRule> rules;
+	std::map<pair<string, vector<vector<string>>>, int> rule_map;
 
 	vector<NewNTAction> on_new_nt_actions;
 	vector<NewTAction> on_new_t_actions;

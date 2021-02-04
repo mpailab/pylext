@@ -40,11 +40,11 @@
 # %syntax: root_stmts -> [root_stmts] INDENTED root_stmt;
 %syntax: root_stmt -> stmt;
 
-%syntax: decorator -> '@' dotted_ident ['(' [arglist] ')'];
-%syntax: decorators -> decorator [decorators];
-%syntax: decorated -> decorators classdef;
-%syntax: decorated -> decorators funcdef;
-%syntax: decorated -> decorators async_funcdef;
+%syntax: decorator -> '@' dotted_ident ['(' [arglist] ')'] EOL INDENTED;
+# %syntax: decorators -> decorator [decorators];
+%syntax: decorated -> {decorator} classdef;
+%syntax: decorated -> {decorator} funcdef;
+%syntax: decorated -> {decorator} async_funcdef;
 
 %syntax: async_funcdef -> 'async' funcdef;
 %syntax: funcdef -> 'def' ident parameters '->' test ':' [longstring] func_body_suite;

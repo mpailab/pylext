@@ -34,7 +34,8 @@ ParseNode* replace_trees(ParseNode* n, const vector<ParseNode*>& nodes) {
  *  @param off -- номер дочернего узла, соответствующего имени макроса
  *  @param fnm -- имя функции, на которую заменяется макроопределение
  * */
-int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm) {
+int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm,
+               bool macro) {
 	vector<string> rhs, expand;
 	string arglist = "(";
 	for (int i = 0; i < (int)n[off+1].ch.size(); i++) {
@@ -67,7 +68,13 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm) {
 		n->ch[off+2] = stmts; //px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
 	}
 	int rule_num = px.grammar().addRule(n[off].term, rhs);
-	n.reset(px.quasiquote("stmt", "def " + fnm + arglist + ": $func_body_suite", { n->ch[off+2] }, QExpr, QStarExpr));
+	string funcdef = "@{}_rule({},["_fmt(macro ? "macro" : "syntax", n[off].term);
+	for(int i = 0; i<len(rhs); i++){
+	    if(i) funcdef+=',';
+	    funcdef+=rhs[i];
+	}
+	funcdef += "])\ndef " + fnm + arglist + ": $func_body_suite";
+	n.reset(px.quasiquote("stmt", funcdef, { n->ch[off+2] }, QExpr, QStarExpr));
 	return rule_num;
 }
 
@@ -245,13 +252,13 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
 	addRule(*pg, "root_stmt -> 'syntax' '(' ident syntax_elems ')' ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
         auto &px = static_cast<PythonParseContext&>(pt);
 		string fnm = px.module.uniq_name("syntax_" + n[0].term);
-		int id = conv_macro(px, n, 0, fnm);
+		int id = conv_macro(px, n, 0, fnm, false);
         px.module.syntax[id] = PySyntax{fnm, id};
 	});
 	addRule(*pg, "root_stmt -> 'defmacro' ident '(' ident syntax_elems ')' ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
         auto &px = static_cast<PythonParseContext&>(pt);
 		string fnm = px.module.uniq_name("macro_" + n[0].term);
-		int id = conv_macro(px, n, 1, fnm);
+		int id = conv_macro(px, n, 1, fnm, true);
         px.module.macros[id] = PyMacro{ fnm, id };
 	});
     px->setSpecialQQAction([](PEGLexer* lex, const char *s, int &pos) -> int {

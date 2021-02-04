@@ -723,6 +723,9 @@ void GrammarState::addLexerRule(const string & term, const string & rhs, bool to
 }
 
 int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs, SemanticAction act, int id, unsigned lpr, unsigned rpr) {
+    auto [rule_it, new_rule] = rule_map.insert(std::make_pair(make_pair(lhs, rhs), 0));
+    if(!new_rule)
+        return rule_it->second;
 	if (debug_pr) {
 		std::cout << "!!! Add rule  : " << lhs << " = ";
 		for (auto&x : rhs) {
@@ -842,7 +845,7 @@ int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs,
 			for (auto& action : on_new_nt_actions)
 				action(this, nts[i], i);
 	tf.checkSize((int)nts.size() - 1);
-
+    rule_it->second = num - 1;
 	return num - 1;
 }
 

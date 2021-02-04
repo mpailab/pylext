@@ -60,7 +60,7 @@ int main(int argc, char*argv[]) {
         string text = loadfile("../pymacros/example/match_macro.py");
         auto p = new_python_context(1);
         ParserState* pst = (ParserState*)new_parser_state(p, text.c_str(), "");
-		//setDebug(DBG_SHIFT | DBG_REDUCE | DBG_RULES | DBG_TOKEN | DBG_LOOKAHEAD | DBG_QQ);
+		setDebug(DBG_SHIFT | DBG_REDUCE | DBG_RULES | DBG_TOKEN | DBG_LOOKAHEAD | DBG_QQ);
         while(auto n = pst->parse_next().root.get()){
             res += ast_to_text(p, n);
         }

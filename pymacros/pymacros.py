@@ -137,6 +137,22 @@ def parse_context() -> ParseContext:
     return __parse_context__
 
 
+def macro_rule(lhs: str, rhs: list):
+    def set_func(expand_func):
+        if parse_context() is not None:
+            parse_context().add_macro_rule(lhs, rhs, expand_func)
+        return expand_func
+    return set_func
+
+
+def syntax_rule(lhs: str, rhs: list):
+    def set_func(expand_func):
+        if parse_context() is not None:
+            parse_context().add_syntax_rule(lhs, rhs, expand_func)
+        return expand_func
+    return set_func
+
+
 def quasiquote(ntname, str_list, tree_list: List[ParseNode]):
     assert len(str_list) == len(tree_list)+1
     b = [x.encode('utf8') for x in str_list]
