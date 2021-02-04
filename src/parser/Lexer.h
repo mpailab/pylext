@@ -19,6 +19,8 @@ struct Pos {
 
 struct Location {
 	Pos beg, end;
+	Location(Pos b, Pos e):beg(b), end(e){}
+	explicit Location(Pos b):beg(b), end(b){}
 };
 
 struct Token {

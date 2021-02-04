@@ -325,7 +325,7 @@ bool reduce(SStack &ss, PStack& sp, LexIterator& lit, int a, ParseContext &pt) {
 				}
 				if (A0 >= 0)
 				    throw RRConflict("at {} conflict : 2 different ways to reduce by {}: may be NT = {} or {}"_fmt(
-                            lit.cpos, g.ts[a], g.nts[A], g.nts[A0]
+                            lit.get_cpos(), g.ts[a], g.nts[A], g.nts[A0]
 				        ), prstack(g, ss, sp));
 				A0 = A;
 				break;
@@ -342,30 +342,30 @@ bool reduce(SStack &ss, PStack& sp, LexIterator& lit, int a, ParseContext &pt) {
 					if (p.M.has(A0)) {
 						if (u)
 						    throw RRConflict("at {} conflict : 2 different ways to reduce NT={} : St[{}] from St[{}] or St[{}]"_fmt(
-                                    lit.cpos, g.nts[A0], j, k, p.i
+                                    lit.get_cpos(), g.nts[A0], j, k, p.i
 						        ),prstack(g,ss,sp,j));
 						u = p.v;
 						k = p.i;
 					}
 				}
 				Assert(u);
-				const NTTreeNode *u1 = 0, *u0;
+				const NTTreeNode *u1 = nullptr, *u0;
 				int A1 = -1, Bb;
 				if (!k) {
 					u1 = u;
 					int r = g.tf.inv[A0].intersects(u->finalNT, &Bb);
 					if(r > 1)
-					    throw RRConflict("at {} conflict : 2 different ways to reduce by {}: 3"_fmt(lit.cpos,g.ts[a]), prstack(g, ss, sp));
+					    throw RRConflict("at {} conflict : 2 different ways to reduce by {}: 3"_fmt(lit.get_cpos(), g.ts[a]), prstack(g, ss, sp));
 				} else {
 					auto &tinv = g.tf.inv[A0];
 					for (int A : F[k]) {
 						if ((u0 = u->nextN(A))) {
 							if (int r = tinv.intersects(u0->finalNT, &Bb)) {
 								if (r > 1 || A1 >= 0) {
-									if(A1 >= 0) throw RRConflict("at {} RR-conflict(4) : 2 different ways to reduce by {}: NT = {} or {}"_fmt(lit.cpos, g.ts[a], g.nts[A1], g.nts[A]), prstack(g, ss, sp,k));
+									if(A1 >= 0) throw RRConflict("at {} RR-conflict(4) : 2 different ways to reduce by {}: NT = {} or {}"_fmt(lit.get_cpos(), g.ts[a], g.nts[A1], g.nts[A]), prstack(g, ss, sp,k));
 									auto v = tinv & u0->finalNT;
 									vector<int> vv(v.begin(), v.end());
-									throw RRConflict("at {} RR-conflict(5) : 2 different ways to reduce by {}: NT = {} or {}"_fmt(lit.cpos, g.ts[a], g.nts[vv[0]], g.nts[vv[1]]), prstack(g, ss, sp, k));
+									throw RRConflict("at {} RR-conflict(5) : 2 different ways to reduce by {}: NT = {} or {}"_fmt(lit.get_cpos(), g.ts[a], g.nts[vv[0]], g.nts[vv[1]]), prstack(g, ss, sp, k));
 								}
 								A1 = A;
 								u1 = u0;
@@ -420,7 +420,7 @@ ostream & operator<<(ostream &s, Location loc) {
 	return s << "("<<loc.beg.line << ":" << loc.beg.col << ")-(" << loc.end.line << ":" << loc.end.col << ")";
 }
 
-ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, const PStack *ps=0) {
+ostream& printstate(ostream &os, const GrammarState &g, const LR0State& st, const PStack *ps=nullptr) {
 	os << "{";
 	int i = 0;
 	for (auto &x : st.v) {
@@ -524,7 +524,7 @@ bool nextTok(GrammarState &g, LexIterator& it, SStack &ss) { // Определя
 	return it.go_next(t);
 }
 
-ParseTree parse(ParseContext &pt, const std::string& text, const string& start) {
+ParseTree parse(ParseContext &pt, const std::string& text, const string& start, const SpecialLexerAction& la) {
 	SStack ss;
 	PStack sp;
 	//ParseTree pt;
@@ -538,7 +538,7 @@ ParseTree parse(ParseContext &pt, const std::string& text, const string& start) 
 	s0.v[0].v = &g.root;
 	ss.s.emplace_back(std::move(s0));
 	try {
-        LexIterator lit(&g.lex, text, &g.tf.fst_t[start_nt]);
+        LexIterator lit(&g.lex, text, &g.tf.fst_t[start_nt], la);
 		while (!lit.atEnd()) {
 			for (int ti = 0; ti < len(lit.tok()); ti++) {
 				auto t = lit.tok()[ti];
@@ -985,7 +985,7 @@ ParseNode* ParseContext::quasiquote(const string &nt, const string& q, const std
 	int dbg_old = debug_pr;
 	try{
 		if (!(debug_pr & DBG_QQ))debug_pr = 0;
-		ParseTree t = parse(*this, q, nt);
+		ParseTree t = parse(*this, q, nt, specialQQAction);
         _qq = qprev;
 		debug_pr = dbg_old;
 		auto pos = args.begin();
@@ -1008,14 +1008,18 @@ ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std
 	if (qid < 0)qid = _qid;
 	if (!g_->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
 	if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
+    bool qprev = _qq;
+    _qq = true;
 	int dbg_old = debug_pr;
 	try {
 		if (!(debug_pr & DBG_QQ))debug_pr = 0;
-        ParseTree t = parse(*this, q, nt);
+        ParseTree t = parse(*this, q, nt, specialQQAction);
+        _qq = qprev;
 		debug_pr = dbg_old;
         auto pos = args.begin();
     	return replace_trees_rec(t.root.get(), pos, args.end(), len(args), qid, qmanyid, 0);
     } catch (Exception &e){
+	    _qq = qprev;
 		debug_pr = dbg_old;
 		e.prepend_msg("In quasiquote `{}`: "_fmt(q));
         throw std::move(e);
@@ -1026,11 +1030,15 @@ ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std
     if (qid < 0)qid = _qid;
     if (!g_->nts.has(nt)) throw GrammarError("Invalid quasiquote type `{}`: no such nonterminal in grammar"_fmt(nt));
     if (qid < 0)throw GrammarError("quasiquote argument rule id not set");
+    bool qprev = _qq;
+    _qq = true;
     try {
-        ParseTree t = parse(*this, q, nt);
+        ParseTree t = parse(*this, q, nt, specialQQAction);
+        _qq = qprev;
         auto pos = args.begin();
         return replace_trees_rec(t.root.get(), pos, args.end(), len(args), qid, qmanyid, 0);
     } catch (Exception &e){
+        _qq = qprev;
         e.prepend_msg("In quasiquote `{}`: "_fmt(q));
         throw std::move(e);
     }

@@ -62,12 +62,13 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm) {
 		for (auto& arg : expand) {
 		    qq+="{}=syn_expand({})\n"_fmt(arg, arg);
 		}
-		qq+="$*{} $$DEDENT"_fmt(px.grammar().nts[stmts->nt]);
+		qq+="${} $$DEDENT"_fmt(px.grammar().nts[stmts->nt]);
         stmts = px.quasiquote("suite", qq, { stmts }, QExpr, QStarExpr);
 		n->ch[off+2] = stmts; //px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
 	}
+	int rule_num = px.grammar().addRule(n[off].term, rhs);
 	n.reset(px.quasiquote("stmt", "def " + fnm + arglist + ": $func_body_suite", { n->ch[off+2] }, QExpr, QStarExpr));
-	return px.grammar().addRule(n[off].term, rhs);
+	return rule_num;
 }
 
 
@@ -148,7 +149,10 @@ ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>
         throw move(e);
     }
 }
-
+void check_quote(ParseContext& px, ParseNodePtr& n){
+    if(!px.inQuote())
+        throw GrammarError("$<ident> outside of quasiquote");
+}
 /**
 * Инициализируется начальное состояние системы макрорасширений питона:
 * Оно представляет собой объект класса PyMacroModule, который содержит следующую информацию:
@@ -168,15 +172,11 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
 	const shared_ptr<GrammarState>& pg = px->grammar_ptr();
 	ParseContext px0;
 	GrammarState& g0 = px0.grammar();
+
     pg->addNewNTAction([](GrammarState* g, const string& ntn, int nt) {
-		addRule(*g, "{} -> '${}'"_fmt(ntn, ntn), [](ParseContext& px, ParseNodePtr& n){
-		    if(!px.inQuote())
-		        throw GrammarError(n->ch[0]->term + " outside of quasiquote");
-		}, QExpr);
-        addRule(*g, "{} -> '$*{}_many'"_fmt(ntn, ntn), [](ParseContext& px, ParseNodePtr& n){
-            if(!px.inQuote())
-                throw GrammarError(n->ch[0]->term + " outside of quasiquote");
-        }, QStarExpr);
+		addRule(*g, "{} -> '${}'"_fmt(ntn, ntn), check_quote, QExpr);
+        // addRule(*g, "{} -> '${}'"_fmt(ntn, ntn), check_quote, QExpr);
+        addRule(*g, "{} -> '${}_many'"_fmt(ntn, ntn), check_quote, QStarExpr);
         addRule(*g, "qqst -> '{}`' {} '`'"_fmt(ntn, ntn));
 	});
     pg->setWsToken("ws");
@@ -251,10 +251,25 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
 	addRule(*pg, "root_stmt -> 'defmacro' ident '(' ident syntax_elems ')' ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
         auto &px = static_cast<PythonParseContext&>(pt);
 		string fnm = px.module.uniq_name("macro_" + n[0].term);
-		int id = conv_macro(px, n, 0, fnm);
+		int id = conv_macro(px, n, 1, fnm);
         px.module.macros[id] = PyMacro{ fnm, id };
 	});
-
+    px->setSpecialQQAction([](PEGLexer* lex, const char *s, int &pos) -> int {
+        while (isspace(s[pos]))
+            pos++;
+        if (s[pos] == '$' && s[pos+1] == '$') {
+            int q = pos+2;
+            for(; isalnum(s[q]) || s[q]=='_';) q++;
+            string id(s + pos + 2, q - pos - 2);
+            int num = lex->internalNumCheck(id);
+            if (num < 0)
+                throw SyntaxError("Invalid token {} at {}: `{}` not a token name"_fmt(Substr{s+pos, q-pos}, lex->cpos(), Substr{s+pos+2, q-pos-2}));
+            pos = q;
+           // while(isspace(pos+1))
+            return num;
+        }
+        return -1;
+    });
 }
 
 bool equal_subtrees(ParseNode* x, ParseNode* y) {

@@ -59,7 +59,7 @@ int main(int argc, char*argv[]) {
         string text = loadfile("../pymacros/example/match_macro.py");
         auto p = new_python_context(1);
         ParserState* pst = (ParserState*)new_parser_state(p, text.c_str(), "");
-		setDebug(DBG_SHIFT | DBG_REDUCE | DBG_RULES | DBG_TOKEN);
+		setDebug(DBG_SHIFT | DBG_REDUCE | DBG_RULES | DBG_TOKEN );
         while(pst->parse_next().root.get()){}
         del_parser_state(pst);
         del_python_context(p);

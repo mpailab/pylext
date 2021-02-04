@@ -430,7 +430,11 @@ class ParseContext {
     std::shared_ptr<GrammarState> g_;
     shared_ptr<ParseErrorHandler> error_handler_;
     GCAlloc<ParseNode> pnalloc_;
+    SpecialLexerAction specialQQAction;
 public:
+    void setSpecialQQAction(SpecialLexerAction a){
+        specialQQAction = a;
+    }
     void setErrorHandler(ParseErrorHandler* h){
         error_handler_.reset(h);
     }
@@ -515,7 +519,7 @@ public:
     ParserState(ParseContext *px, std::string txt, const string &start = "");
     ParseTree parse_next();
 };
-ParseTree parse(ParseContext &pt, const std::string &text, const string &start = "");
+ParseTree parse(ParseContext &pt, const std::string &text, const string &start = "", const SpecialLexerAction& la = {});
 
 struct ParserError : public Exception {
 	Location loc;

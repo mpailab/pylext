@@ -20,8 +20,8 @@ def match2cmp(x, pat):
     return `$x == $pat`
 
 defmacro match(stmt, 'match', x:expr, ':', INDENT, mc:*matchcases, DEDENT):
-    conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mс]
-    head = if_stmt_no_else`if ${conds[0][0]} and ${conds[0][1]}: ${suite:conds[0][2]}`
+    conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mc]
+    head = if_stmt_no_else`if ${conds[0][0]} and ${conds[0][1]}: ${conds[0][2]}`
     for (c, cond, s) in conds[1:]:
         head = if_stmt_no_else`${head} $$INDENTED elif ${c} and ${cond}: ${s}`
     return head
