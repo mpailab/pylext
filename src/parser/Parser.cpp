@@ -838,15 +838,15 @@ int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs,
 			throw GrammarError("Right priority can be specified only for rules with right part ending by nonterminal from left side (A -> B1 ... Bn A)");
 	}
 	rule.ext_id = id;
-	int num = (int)rules.size();
+	//int num = (int)rules.size();
 	rules.emplace_back(move(rule));
 	if (!on_new_nt_actions.empty())
 		for (int i = ntnum, end = nts.size(); i < end; i++)
 			for (auto& action : on_new_nt_actions)
 				action(this, nts[i], i);
 	tf.checkSize((int)nts.size() - 1);
-    rule_it->second = num - 1;
-	return num - 1;
+    rule_it->second = nrule;
+	return nrule;
 }
 
 bool GrammarState::addRule(const CFGRule & rule) {

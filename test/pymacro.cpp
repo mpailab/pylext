@@ -68,10 +68,10 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm,
 		n->ch[off+2] = stmts; //px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
 	}
 	int rule_num = px.grammar().addRule(n[off].term, rhs);
-	string funcdef = "@{}_rule({},["_fmt(macro ? "macro" : "syntax", n[off].term);
+	string funcdef = R"(@{}_rule("{}",[)"_fmt(macro ? "macro" : "syntax", n[off].term);
 	for(int i = 0; i<len(rhs); i++){
 	    if(i) funcdef+=',';
-	    funcdef+=rhs[i];
+        ((funcdef += '"') += rhs[i]) += '"';
 	}
 	funcdef += "])\ndef " + fnm + arglist + ": $func_body_suite";
 	n.reset(px.quasiquote("stmt", funcdef, { n->ch[off+2] }, QExpr, QStarExpr));
@@ -143,10 +143,10 @@ void make_qq(ParseContext& px, ParseNodePtr& n) {
 ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees){
     if (parts.size() != subtrees.size()+1)
         throw GrammarError("in quasiquote nubmer of string parts = {}, number of subtrees = {}"_fmt(parts.size(), subtrees.size()));
-    string qq = parts[0];
+    string qq; // = parts[0];
     for(int i=0; i<len(subtrees); i++) {
         qq += parts[i];
-        (qq += '$') += px.grammar().nts[subtrees[i]->nt];
+        ((qq += '$') += px.grammar().nts[subtrees[i]->nt])+=' ';
     }
     qq += parts.back();
     try {
@@ -240,7 +240,7 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
     addRule(*pg, "expr -> ident '`' qqst '`'", make_qqi);
     addRule(*pg, "expr -> ident '``' qqst '``'", make_qqi);
     addRule(*pg, "expr -> ident '```' qqst '```'", make_qqi);
-    setDebug(1);
+    //setDebug(1);
 
     addRule(*pg, "syntax_elem -> ident", MacroArgToken);
     addRule(*pg, "syntax_elem -> stringliteral", MacroConstStr);
@@ -362,9 +362,9 @@ int add_rule(void* px, char* lhs, char *rhs) {
 }
 
 void* new_parser_state(void *px, const char* text, const char *start) {
-    cout<<"px = "<<px<<endl;
-    cout<<"text = "<<text<<endl;
-    cout<<"start = "<<start<<endl;
+    //cout<<"px = "<<px<<endl;
+    //cout<<"text = "<<text<<endl;
+    //cout<<"start = "<<start<<endl;
     return new ParserState((ParseContext*)px, text, start);
 }
 
@@ -384,5 +384,6 @@ char* ast_to_text(void* pcontext, void *pn) {
     auto s = tree2str(node, px->grammar_ptr().get());
     buf.resize(s.size()+1);
     memcpy(buf.data(), s.c_str(), s.size()+1);
+    //cout<<buf.data()<<endl;
     return buf.data();
 }

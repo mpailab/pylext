@@ -86,7 +86,7 @@ class ParseNode:
 
     def __eq__(self, other):
         assert type(other) is ParseNode
-        return parser.pn_equal(self.p, other.p).value != 0
+        return parser.pn_equal(self.p, other.p) != 0
 
 
 class ParseContext:
@@ -121,15 +121,17 @@ class ParseContext:
         del_python_context(self.px)
 
     def add_macro_rule(self, lhs: str, rhs, apply):
-        rhs = b' '.join(x.str() for x in rhs)
+        rhs = b' '.join(str(x).encode('utf8') for x in rhs)
         lhs = lhs.encode('utf8')
         rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
+        print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
 
     def add_syntax_rule(self, lhs: str, rhs, apply):
-        rhs = b' '.join(x.str() for x in rhs)
+        rhs = b' '.join(str(x).encode('utf8') for x in rhs)
         lhs = lhs.encode('utf8')
         rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
+        print(f'add syntax rule {rule_id}')
         self.syntax_rules[rule_id] = apply
 
 
@@ -157,7 +159,8 @@ def quasiquote(ntname, str_list, tree_list: List[ParseNode]):
     assert len(str_list) == len(tree_list)+1
     b = [x.encode('utf8') for x in str_list]
     ntname = ntname.encode('utf8')
-    nn = c_quasiquote(ntname, c_int32(len(b)), (c_char_p*len(b))(*b),
+    px = parse_context()
+    nn = c_quasiquote(px.px, ntname, c_int32(len(b)), (c_char_p*len(b))(*b),
                       (c_void_p*len(tree_list))(*[t.p for t in tree_list]))
     return ParseNode(nn)
 
@@ -192,9 +195,10 @@ def parse_gen(px, text):
 
 
 def syn_expand(node: ParseNode):
+    print(f'in syn_expand, rule = {node.rule}')
     px = parse_context()
     f = px.syntax_function(node.rule)
-    return f(px, *node.children) if f else node
+    return f(*node.children) if f else node
 
 
 def macro_expand(px: ParseContext, node: ParseNode):
@@ -203,7 +207,7 @@ def macro_expand(px: ParseContext, node: ParseNode):
         f = px.macro_function(node.rule)
         if f is None:
             break
-        node = f(px, *node.children)
+        node = f(*node.children)
 
     for i in range(len(node.children)):
         node.children[i] = macro_expand(px, node.children[i])
@@ -213,7 +217,9 @@ def macro_expand(px: ParseContext, node: ParseNode):
 
 def ast_to_text(px: ParseContext, ast: ParseNode):
     """ Преобразует синтаксическое дерево в текст """
-    return str(c_char_p(_ast_to_text(px.px, ast.p)).value)
+    res = _ast_to_text(px.px, ast.p)
+    print(res.value.decode('utf8'))
+    return res.value.decode('utf8')
 
 
 def load_file(text, globals):

@@ -16,10 +16,10 @@ from pymacros import *
 with open('example/match_macro.py') as f:
     text = ''.join(f)
 
-px = new_python_context()
-ps = new_parser_state(px, b'0', b'')  # text.encode('utf8'), b'')
-del_parser_state(ps)
-del_python_context(px)
+# px = new_python_context()
+# ps = new_parser_state(px, b'0', b'')  # text.encode('utf8'), b'')
+# del_parser_state(ps)
+# del_python_context(px)
 
 res = load_file(text, globals())
 print(globals())
