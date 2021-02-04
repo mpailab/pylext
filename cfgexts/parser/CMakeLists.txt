@@ -1,11 +1,11 @@
-option(BUILD_CFGEXTS "Build package cfgexts" OFF)
+option(BUILD_CFGEXTS "Build package cfgexts" ON)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
 if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	set(CMAKE_CXX_FLAGS "-m64 -mpopcnt -mavx2 -mlzcnt -mbmi -mbmi2")
+    set(CMAKE_CXX_FLAGS "-m64 -mpopcnt -mavx2 -mlzcnt -mbmi -mbmi2")
 	if(WIN32)
 		#set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 	endif()
@@ -13,8 +13,8 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(format)
 include_directories(src)
+add_subdirectory(src)
 
 if(BUILD_CFGEXTS)
 
@@ -29,6 +29,7 @@ if(BUILD_CFGEXTS)
         ${parser}
         src/apply.cpp
     )
+    target_link_libraries(parser src)
 
     python_extension_module(parser)
 
@@ -40,8 +41,6 @@ else()
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-    add_subdirectory(format)
-    add_subdirectory(src)
     add_subdirectory(test)
 
 endif()

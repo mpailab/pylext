@@ -179,7 +179,7 @@ ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>
  *    - N -> '$N' для каждого нетерминала N 
  *    - T -> '$$T' для каждого неконстантного терминала T (добавляется в лексер)
  */
-void init_python_grammar (GrammarState& g, bool read_by_stmt) {
+void init_python_grammar (GrammarState& g, bool read_by_stmt, string syntax_file) {
     setDebug(0);
 	g.data = PyMacroModule();
 	shared_ptr<GrammarState> pg(&g, [](GrammarState*) {});
@@ -195,7 +195,7 @@ void init_python_grammar (GrammarState& g, bool read_by_stmt) {
     g.addLexerRule("ws", R"(([ \t\n\r] / comment)*)");
 	init_base_grammar(g0, pg);
 	g0.addLexerRule("comment", "'#' [^\\n]*");
-	string text = loadfile("syntax/python.txt");
+	string text = loadfile(syntax_file);
 	ParseContext px0(&g0);
 	parse(px0, text);
 
@@ -266,77 +266,83 @@ bool equal_subtrees(ParseNode* x, ParseNode* y){
     return true;
 }
 
-void* new_python_context (int by_stmt)
+PyObject* new_python_context (int by_stmt, string syntax_file)
 {
     GrammarState *g = new GrammarState;
-    init_python_grammar(*g, by_stmt != 0);
+    init_python_grammar(*g, by_stmt != 0, syntax_file);
     ParseContext *px =  new ParseContext(g);
     cout << "create px = " << px << endl;
-    return px;
+    return PyLong_FromVoidPtr(px);
 }
 
-void del_python_context(void *px){
-    if(px) delete ((ParseContext*)px)->g;
-    delete (ParseContext*)px;
+void del_python_context(PyObject* px){
+    ParseContext* _px = (ParseContext*)PyLong_AsVoidPtr(px);
+    if(px) delete _px->g;
+    delete _px;
 }
 
-void* c_quasiquote(void* px, char* nt, int n, void* data, void* pn){
-    char** _data = (char**)data;
+PyObject* c_quasiquote(PyObject* px, char* nt, int n, PyObject* data, PyObject* pn){
+    char** _data = (char**)PyLong_AsVoidPtr(data);
+    ParseNode** _pn = (ParseNode**)PyLong_AsVoidPtr(pn);
     vector<string> qp(_data, _data+n);
-    vector<ParseNode*> subtrees((ParseNode**)pn, (ParseNode**)pn+n-1);
-    ParseNodePtr res = quasiquote(*(ParseContext*)px, nt, qp, subtrees);
-    return res.get();
+    vector<ParseNode*> subtrees(_pn, _pn+n-1);
+    ParseNodePtr res = quasiquote(*(ParseContext*)PyLong_AsVoidPtr(px), nt, qp, subtrees);
+    return PyLong_FromVoidPtr(res.get());
 }
 
-void inc_pn_num_refs(void *pn) {
-    if(pn) ((ParseNode*)pn)->refs++;
+void inc_pn_num_refs(PyObject* pn) {
+    if(pn) ((ParseNode*)PyLong_AsVoidPtr(pn))->refs++;
 }
 
-void dec_pn_num_refs(void *pn) {
-    if(pn) ((ParseNode*)pn)->refs--;
+void dec_pn_num_refs(PyObject* pn) {
+    if(pn) ((ParseNode*)PyLong_AsVoidPtr(pn))->refs--;
 }
 
-int pn_equal(void *pn1, void *pn2) {
-    return equal_subtrees((ParseNode*)pn1, (ParseNode*)pn2);
+int pn_equal(PyObject* pn1, PyObject* pn2) {
+    return equal_subtrees((ParseNode*)PyLong_AsVoidPtr(pn1), (ParseNode*)PyLong_AsVoidPtr(pn2));
 }
 
-int get_pn_num_children(void* pn){
-    return len(((ParseNode*)pn)->ch);
+int get_pn_num_children(PyObject* pn){
+    return len(((ParseNode*)PyLong_AsVoidPtr(pn))->ch);
 }
 
-void* get_pn_child(void* pn, int i){
-    if(i<0 || i>=len(((ParseNode*)pn)->ch))
+PyObject* get_pn_child(PyObject* pn, int i){
+    ParseNode* _pn = (ParseNode*)PyLong_AsVoidPtr(pn);
+    if(i<0 || i>=len(_pn->ch))
+        throw Exception("Parse node child index {} out of range ({})"_fmt(i, len(_pn->ch)));
+    return PyLong_FromVoidPtr(_pn->ch[i]);
+}
+
+void set_pn_child(PyObject* pn, int i, PyObject* ch){
+    ParseNode* _pn = (ParseNode*)PyLong_AsVoidPtr(pn);
+    if(!ch) throw Exception("Cannot set null parse node as child");
+    if(i<0 || i>=len(_pn->ch))
         throw Exception("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
-    return ((ParseNode*)pn)->ch[i];
+    _pn->ch[i] = (ParseNode*)PyLong_AsVoidPtr(ch);
 }
 
-void set_pn_child(void* pn, int i, void* ch){
-    if(!ch)throw Exception("Cannot set null parse node as child");
-    if(i<0 || i>=len(((ParseNode*)pn)->ch))
-        throw Exception("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
-    ((ParseNode*)pn)->ch[i] = (ParseNode*)ch;
+int get_pn_rule(PyObject* pn){
+    return ((ParseNode*)PyLong_AsVoidPtr(pn))->rule;
 }
 
-int get_pn_rule(void* pn){
-    return ((ParseNode*)pn)->rule;
+int add_rule(PyObject* px, char* lhs, char *rhs){
+    return addRule(*((ParseContext*)PyLong_AsVoidPtr(px))->g, string(lhs)+" -> "+rhs);
 }
 
-int add_rule(void* px, char* lhs, char *rhs){
-    return addRule(*((ParseContext*)px)->g, string(lhs)+" -> "+rhs);
-}
-
-void* new_parser_state(void *px, const char* text, const char *start) {
+PyObject* new_parser_state(PyObject* px, const char* text, const char *start) {
     cout<<"px = "<<px<<endl;
     cout<<"text = "<<text<<endl;
     cout<<"start = "<<start<<endl;
-    return new ParserState((ParseContext*)px, text, start);
+    ParseContext* _px = (ParseContext*)PyLong_AsVoidPtr(px);
+    ParserState* ps = new ParserState(_px, text, start);
+    return PyLong_FromVoidPtr(ps);
 }
 
-void* continue_parse(void *state) {
-    ParseTree tree = ((ParserState*)state)->parse_next();
-    return tree.root.get();
+PyObject* continue_parse(PyObject* state) {
+    ParseTree tree = ((ParserState*)PyLong_AsVoidPtr(state))->parse_next();
+    return PyLong_FromVoidPtr(tree.root.get());
 }
 
-void del_parser_state(void* state){
-    delete (ParserState*)state;
+void del_parser_state(PyObject* state){
+    delete (ParserState*)PyLong_AsVoidPtr(state);
 }
