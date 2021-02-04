@@ -55,6 +55,8 @@ public:
 	unsigned lpr = -1, rpr = -1; // Левый и правый приоритеты (если unsigned(-1), то приоритеты не заданы)
 	vector<ParseNode* /*,BinAlloc<ParseNode>*/> ch; // Дочерние узлы
 	Location loc;         // Размещение фрагмента в тексте
+	bool flattened = false;
+
 	[[nodiscard]] bool isTerminal()const {
 		return rule < 0;
 	}

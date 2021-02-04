@@ -55,12 +55,15 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 }
 
 int main(int argc, char*argv[]) {
+    string res;
     try {
         string text = loadfile("../pymacros/example/match_macro.py");
         auto p = new_python_context(1);
         ParserState* pst = (ParserState*)new_parser_state(p, text.c_str(), "");
-		setDebug(DBG_SHIFT | DBG_REDUCE | DBG_RULES | DBG_TOKEN );
-        while(pst->parse_next().root.get()){}
+		//setDebug(DBG_SHIFT | DBG_REDUCE | DBG_RULES | DBG_TOKEN | DBG_LOOKAHEAD | DBG_QQ);
+        while(auto n = pst->parse_next().root.get()){
+            res += ast_to_text(p, n);
+        }
         del_parser_state(pst);
         del_python_context(p);
     } catch (SyntaxError &ex) {
@@ -68,6 +71,11 @@ int main(int argc, char*argv[]) {
     } catch (Exception & e) {
         cout << "Exception: " << e.what() << "\n";
     }
+    cout<<"=================== RESULT ============================\n";
+    cout<<res<<endl;
+    cout<<"=======================================================\n";
+    //
+    //cout << sizeof(string) << endl;
     return 0;
 #ifndef _DEBUG
 	try {

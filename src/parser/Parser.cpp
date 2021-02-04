@@ -105,6 +105,11 @@ void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& p
 	if (n->isTerminal()) {
 		return printTerminal(os, n->nt, n->term, g, pst);
 	}
+	if(n->flattened) {
+	    for (auto &x : n->ch)
+	        tree2str_rec(os, x, g, pst);
+	    return;
+	}
 	auto& r = g->rules[n->rule];
 	int pos = 0;
 	for (auto& x : r.rhs) {
@@ -112,7 +117,7 @@ void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& p
 			tree2str_rec(os, n->ch[pos], g, pst);
 			pos++;
 		} else {
-			if (!x.term) {
+			/*if (!x.term) {
 				g->print_rule(cerr << "Error: nonterminal " << g->nts[x.num] << " should be saved in ", r);
 				cerr << "\n";
 				continue;
@@ -121,7 +126,7 @@ void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& p
 				g->print_rule(cerr << "Error: nonconst terminal " << g->ts[x.num] << " should be saved in ", r);
 				cerr << "\n";
 				continue;
-			}
+			}*/
 			printTerminal(os, x.num, "", g, pst);
 		}
 	}
@@ -414,7 +419,7 @@ bool reduce(SStack &ss, PStack& sp, LexIterator& lit, int a, ParseContext &pt) {
 
 ostream & operator<<(ostream &s, Location loc) {
 	if (loc.beg.line == loc.end.line) {
-		if(loc.beg.col == loc.end.col)return s << "(" << loc.beg.line << ":" << loc.beg.col<<")";
+		if(loc.beg.col >= loc.end.col)return s << "(" << loc.beg.line << ":" << loc.beg.col<<")";
 		return s << "(" << loc.beg.line << ":" << loc.beg.col << "-" << loc.end.col << ")";
 	}
 	return s << "("<<loc.beg.line << ":" << loc.beg.col << ")-(" << loc.end.line << ":" << loc.end.col << ")";
@@ -760,7 +765,7 @@ int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs,
 				}
 			}
 			lex.declareCompToken(yy, ts[nm]); 
-			rule.rhs.push_back(RuleElem{ ts[nm],false,true,nc });
+			rule.rhs.push_back(RuleElem{ ts[nm],false,true, nc });
 		} else if (y.empty()) continue;
 		else {
 			auto &x = y[0];
@@ -768,10 +773,12 @@ int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs,
 				if (ts.num(x) < 0) {
 					lex.addCToken(ts[x], x.substr(1, x.size() - 2));
 				}
-				rule.rhs.push_back(RuleElem{ ts[x],true,true,false });                      // Константный терминал
-			} else if (ts.num(x) >= 0)rule.rhs.push_back(RuleElem{ ts[x],false,true,true }); // Неконстантный терминал
-			else {
-				rule.rhs.push_back(RuleElem{ nts[x],false,false,true });                     // Нетерминал
+				rule.rhs.push_back(RuleElem{ ts[x],true,true,false });   // Константный терминал
+			} else if (ts.num(x) >= 0) {
+			    bool save = !lex.special.has(lex.internalNum(ts.num(x)));
+                rule.rhs.push_back(RuleElem{ts[x], false, true, save}); // Неконстантный терминал
+            } else {
+				rule.rhs.push_back(RuleElem{ nts[x],false,false,true }); // Нетерминал
 			}
 		}
 	}

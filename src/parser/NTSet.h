@@ -1,9 +1,10 @@
 #pragma once
 #include <immintrin.h>
+#include <unordered_set>
 #include "Exception.h"
 struct NTSetS { // ћножество нетерминалов
-	unordered_set<int> s;
-	typedef unordered_set<int>::const_iterator iterator;
+	std::unordered_set<int> s;
+	typedef std::unordered_set<int>::const_iterator iterator;
 	typedef int value_type;
 	[[nodiscard]] bool intersects(const NTSetS& y) const {
 		for (int x : y.s)

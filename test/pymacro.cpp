@@ -185,7 +185,7 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
     init_base_grammar(g0, pg.get());
     addRule(g0, "rule_symbol -> '{' rule_rhs '}'", [px](ParseContext& pt, ParseNodePtr& n) {
         // auto &px = static_cast<PythonParseContext&>(pt);
-        auto v = getVariants(n->ch[1]);
+        auto v = getVariants(n->ch[0]);
         if(v.size()>1)throw GrammarError("Error in grammar: many cannot be applied to expression containing several variants");
         auto &ntname = px->ntmap[v];
         string manyntname;
@@ -194,8 +194,8 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
             else                                  ntname = "__nt_{}"_fmt(px->ntmap.size());
             manyntname = ntname+"_many";
             px->grammar().addRule(ntname, v[0]);
-            addRule(px->grammar(), "{}_many -> {}"_fmt(manyntname, ntname));
-            addRule(px->grammar(), "{}_many -> {}_many {}"_fmt(manyntname, manyntname, ntname), flatten);
+            addRule(px->grammar(), "{}_many -> {}"_fmt(ntname, ntname));
+            addRule(px->grammar(), "{}_many -> {}_many {}"_fmt(ntname, ntname, ntname), flatten);
         } else manyntname = ntname+"_many";
         n->ch[0] = px->newnode().get();
         n->ch[0]->term = manyntname;
@@ -255,18 +255,34 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
         px.module.macros[id] = PyMacro{ fnm, id };
 	});
     px->setSpecialQQAction([](PEGLexer* lex, const char *s, int &pos) -> int {
-        while (isspace(s[pos]))
+        while (isspace(s[pos]) && s[pos] != '\n')
             pos++;
-        if (s[pos] == '$' && s[pos+1] == '$') {
-            int q = pos+2;
-            for(; isalnum(s[q]) || s[q]=='_';) q++;
-            string id(s + pos + 2, q - pos - 2);
-            int num = lex->internalNumCheck(id);
-            if (num < 0)
-                throw SyntaxError("Invalid token {} at {}: `{}` not a token name"_fmt(Substr{s+pos, q-pos}, lex->cpos(), Substr{s+pos+2, q-pos-2}));
-            pos = q;
-           // while(isspace(pos+1))
-            return num;
+        if (s[pos] == '$') {
+            if (s[pos + 1] == '$') {
+                int q = pos + 2;
+                for (; isalnum(s[q]) || s[q] == '_';)
+                    q++;
+                string id(s + pos + 2, q - pos - 2);
+                int num = lex->internalNumCheck(id);
+                if (num < 0)
+                    throw SyntaxError(
+                            "Invalid token {} at {}: `{}` not a token name"_fmt(Substr{s + pos, q - pos}, lex->cpos(),
+                                                                                Substr{s + pos + 2, q - pos - 2}));
+                pos = q;
+                // while(isspace(pos+1))
+                return num;
+            } else {
+                int q = pos + 1;
+                for (; isalnum(s[q]) || s[q] == '_';)
+                    q++;
+                string id(s + pos, q - pos);
+                auto* pnum = lex->cterms(id.c_str());
+                if (!pnum)
+                    throw SyntaxError("Invalid token {} at {}"_fmt(Substr{s + pos, q - pos}, lex->cpos()));
+                pos = q;
+                // while(isspace(pos+1))
+                return *pnum;
+            }
         }
         return -1;
     });
