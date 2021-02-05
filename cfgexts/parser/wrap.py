@@ -12,6 +12,9 @@ def apply (text):
     c_res = parser.c_apply(c_text)
     return from_c_string(c_res)
 
+def loadFile (filename):
+    parser.c_loadFile(to_c_string(filename))
+
 def quasiquote (px, nt, n, data, pn):
     return parser.c_quasiquote(px, nt, n, data, pn)
 

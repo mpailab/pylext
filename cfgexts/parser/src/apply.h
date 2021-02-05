@@ -5,6 +5,7 @@
 using namespace std;
 
 string apply (string text);
+void loadFile(const string &filename);
 
 PyObject* c_quasiquote(PyObject* px, char* nt, int n, PyObject* data, PyObject* pn);
 

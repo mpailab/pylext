@@ -4,6 +4,7 @@ from cpython.ref cimport PyObject
 
 cdef extern from "apply.h":
     string apply (string text)
+    void loadFile(const string &filename) except +
     PyObject* c_quasiquote(PyObject* px, char* nt, int n, PyObject* data, PyObject* pn)
     PyObject* new_python_context(int by_stmt, string syntax_file)
     void del_python_context(PyObject*)

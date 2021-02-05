@@ -10,6 +10,17 @@ string apply (string text)
     return text.append(" world!");
 }
 
+void loadFile(const string &filename)
+{
+    if ( ! filesystem::exists(filename) )
+    {
+        string msg = "File \'";
+        msg += filename;
+        msg += "\' doesn't exists";
+        throw runtime_error(msg);
+    }
+}
+
 struct PyMacro
 {
 	string name;

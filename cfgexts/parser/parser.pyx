@@ -8,6 +8,10 @@ def c_apply (text):
     cdef string s = text
     return parser.apply(s)
 
+def c_loadFile (filename):
+    cdef string _filename = filename
+    return parser.loadFile(_filename)
+
 def c_quasiquote (px, nt, n, data, pn):
     cdef PyObject* _px = <PyObject *> px
     cdef char* _nt = nt
