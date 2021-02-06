@@ -4,88 +4,65 @@ from cpython.ref cimport PyObject
 
 cimport wrap
 
+cdef inline to_bytes (text):
+    return text.encode('utf-8')
+
+cdef inline to_str (text):
+    return text.decode('utf-8')
+
 def apply (text):
-    cdef string s = text
-    return wrap.apply(s)
+    return to_str(wrap.c_apply(to_bytes(text)))
 
 def loadFile (filename):
-    cdef string _filename = filename
-    return wrap.loadFile(_filename)
+    return wrap.c_loadFile(to_bytes(filename))
 
 def pass_arg(int x):
-    return wrap.pass_arg(x)
+    return wrap.c_pass_arg(x)
 
 def pass_arg_except(int x):
-    return wrap.pass_arg_except(x)
+    return wrap.c_pass_arg_except(x)
 
 def pass_arg_cython(int x):
     return x
 
 def quasiquote (px, nt, n, data, pn):
-    cdef PyObject* _px = <PyObject *> px
-    cdef char* _nt = nt
-    cdef int _n = n
-    cdef PyObject* _data = <PyObject *> data
-    cdef PyObject* _pn = <PyObject *> pn
-    return <object> wrap.c_quasiquote(_px, _nt, _n, _data, _pn)
+    return <object> wrap.c_quasiquote(<PyObject*> px, to_bytes(nt), n, <PyObject*> data, <PyObject*> pn)
 
 def new_python_context (by_stmt, syntax_file):
-    cdef int _by_stmt = by_stmt
-    cdef string _syntax_file = syntax_file
-    return <object> wrap.new_python_context(_by_stmt, syntax_file)
+    return <object> wrap.c_new_python_context(by_stmt, to_bytes(syntax_file))
 
 def del_python_context (x):
-    cdef PyObject* _x = <PyObject *> x
-    wrap.del_python_context(_x)
+    wrap.c_del_python_context(<PyObject*> x)
 
 def inc_pn_num_refs (pn):
-    cdef PyObject* _pn = <PyObject *> pn
-    wrap.inc_pn_num_refs(_pn)
+    wrap.c_inc_pn_num_refs(<PyObject*> pn)
 
 def dec_pn_num_refs (pn):
-    cdef PyObject* _pn = <PyObject *> pn
-    wrap.dec_pn_num_refs(_pn)
+    wrap.c_dec_pn_num_refs(<PyObject*> pn)
 
 def get_pn_num_children (pn):
-    cdef PyObject* _pn = <PyObject *> pn
-    return wrap.get_pn_num_children(_pn)
+    return wrap.c_get_pn_num_children(<PyObject*> pn)
 
 def get_pn_child (pn, i):
-    cdef PyObject* _pn = <PyObject *> pn
-    cdef int _i = i
-    return <object> wrap.get_pn_child(_pn, _i)
+    return <object> wrap.c_get_pn_child(<PyObject*> pn, i)
 
 def set_pn_child (pn, i, ch):
-    cdef PyObject* _pn = <PyObject *> pn
-    cdef int _i = i
-    cdef PyObject* _ch = <PyObject *> ch
-    return wrap.set_pn_child(_pn, _i, _ch)
+    return wrap.c_set_pn_child(<PyObject*> pn, i, <PyObject*> ch)
 
 def get_pn_rule (pn):
-    cdef PyObject* _pn = <PyObject *> pn
-    return wrap.get_pn_rule(_pn)
+    return wrap.c_get_pn_rule(<PyObject*> pn)
 
 def pn_equal (pn1, pn2):
-    cdef PyObject* _pn1 = <PyObject *> pn1
-    cdef PyObject* _pn2 = <PyObject *> pn2
-    return wrap.pn_equal(_pn1, _pn2)
+    return wrap.c_pn_equal(<PyObject*> pn1, <PyObject*> pn2)
 
 def add_rule (px, lhs, rhs):
-    cdef PyObject* _px = <PyObject *> px
-    cdef char* _lhs = lhs
-    cdef char* _rhs = rhs
-    return wrap.add_rule(_px, _lhs, _rhs)
+    return wrap.c_add_rule(<PyObject*> px, to_bytes(lhs), to_bytes(rhs))
 
 def new_parser_state (px, text, start):
-    cdef PyObject* _px = <PyObject *> px
-    cdef char* _text = text
-    cdef char* _start = start
-    return <object> wrap.new_parser_state(_px, _text, _start)
+    return <object> wrap.c_new_parser_state(<PyObject*> px, to_bytes(text), to_bytes(start))
 
 def continue_parse (state):
-    cdef PyObject* _state = <PyObject *> state
-    return <object> wrap.continue_parse(_state)
+    return <object> wrap.c_continue_parse(<PyObject*> state)
 
 def del_parser_state (state):
-    cdef PyObject* _state = <PyObject *> state
-    wrap.del_parser_state(_state)
+    wrap.c_del_parser_state(<PyObject*> state)
