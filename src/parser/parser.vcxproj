@@ -283,6 +283,7 @@
     <ClCompile Include="Exception.cpp" />
     <ClCompile Include="PackratParser.cpp" />
     <ClCompile Include="Parser.cpp" />
+    <ClCompile Include="PEGLexer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />

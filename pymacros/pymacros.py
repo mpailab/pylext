@@ -2,39 +2,55 @@ import os
 from ctypes import *
 from typing import List
 
+# parser = cdll.LoadLibrary('../lib/libpymacro.dylib')
+parser = cdll.LoadLibrary('../bin/pymacro.dll')
 
-def get_dll_func(dll, func, restype=None):
+parser.get_last_error.restype = c_char_p
+
+
+class CppError(Exception):
+    pass
+
+
+def get_dll_func(dll, func, restype=None, err_code=None):
     f = getattr(dll, func)
     f.restype = restype
     if restype is None:
         return f
-    return lambda *args: restype(f(*args))
+    if err_code is None:
+        return lambda *args: restype(f(*args))
+    else:
+        def g(*args):
+            r = f(*args)
+            if (restype is c_int and r.value == err_code) or (restype is not c_int and not r):
+                raise CppError(c_char_p(parser.get_last_error()).value.decode('utf8'))
+            return restype(r)
+        g.__name__ = func
+        return g
 
 
-parser = cdll.LoadLibrary('../lib/libpymacro.dylib')
+c_quasiquote = get_dll_func(parser, 'c_quasiquote', c_void_p, 0)
 
-c_quasiquote = get_dll_func(parser, 'c_quasiquote', c_void_p)
-
-new_python_context = get_dll_func(parser, 'new_python_context', c_void_p)
+new_python_context = get_dll_func(parser, 'new_python_context', c_void_p, 0)
 del_python_context = get_dll_func(parser, 'del_python_context')
 
 inc_pn_num_refs = get_dll_func(parser, 'inc_pn_num_refs')
 dec_pn_num_refs = get_dll_func(parser, 'dec_pn_num_refs')
 
 get_pn_num_children = get_dll_func(parser, 'get_pn_num_children', c_int)
-get_pn_child = get_dll_func(parser, 'get_pn_child', c_void_p)
-set_pn_child = get_dll_func(parser, 'set_pn_child')
+get_pn_child = get_dll_func(parser, 'get_pn_child', c_void_p, 0)
+set_pn_child = get_dll_func(parser, 'set_pn_child', c_int, err_code=-1)
 
 get_pn_rule = get_dll_func(parser, 'get_pn_rule', c_int)
 pn_equal = get_dll_func(parser, 'pn_equal', c_int)
 
 add_rule = get_dll_func(parser, 'add_rule', c_int)
 
-new_parser_state = get_dll_func(parser, 'new_parser_state', c_void_p)
-continue_parse = get_dll_func(parser, 'continue_parse', c_void_p)
+new_parser_state = get_dll_func(parser, 'new_parser_state', c_void_p, 0)
+continue_parse = get_dll_func(parser, 'continue_parse', c_void_p, 0)
 del_parser_state = get_dll_func(parser, 'del_parser_state')
 
-_ast_to_text = get_dll_func(parser, 'ast_to_text', c_char_p)
+_ast_to_text = get_dll_func(parser, 'ast_to_text', c_char_p, 0)
 
 
 new_python_context.restype = c_void_p
@@ -88,10 +104,13 @@ class ParseNode:
         assert type(other) is ParseNode
         return parser.pn_equal(self.p, other.p) != 0
 
+    def __repr__(self):
+        return 'ParseNode:\n'+ast_to_text(parse_context(), self)
+
 
 class ParseContext:
     def __init__(self):  # , globals: dict):
-        self.px: c_void_p = new_python_context()
+        self.px = new_python_context()
         # self.globals = globals
         self.syntax_rules = {}
         self.macro_rules = {}
@@ -218,7 +237,7 @@ def macro_expand(px: ParseContext, node: ParseNode):
 def ast_to_text(px: ParseContext, ast: ParseNode):
     """ Преобразует синтаксическое дерево в текст """
     res = _ast_to_text(px.px, ast.p)
-    print(res.value.decode('utf8'))
+    #print(res.value.decode('utf8'))
     return res.value.decode('utf8')
 
 

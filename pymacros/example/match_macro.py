@@ -29,7 +29,8 @@ def match2cmp(x, pat):
 defmacro match(stmt, 'match', x:expr, ':', INDENT, mc:*matchcases, DEDENT):
     print(f'in match expand, mc = {mc}')
     conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mc]
-    print(f'conds[0][0] = {ast_to_text(parse_context(), conds[0][0])}')
+    for i in range(3):
+        print(f'\nconds[0][{i}] = \n===\n{ast_to_text(parse_context(), conds[0][i])}\n===')
     head = if_stmt_noelse`if ${conds[0][0]} and ${conds[0][1]}: ${conds[0][2]}`
     print(2)
     for (c, cond, s) in conds[1:]:

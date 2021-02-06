@@ -2,6 +2,7 @@
 #include <utility>
 #include <vector>
 #include <regex>
+#include <functional>
 #include <memory>
 #include "Trie.h"
 #include "Exception.h"
@@ -36,7 +37,7 @@ struct Location {
     Location(Pos b, Pos e): beg(b), end(e) {}
 };
 
-struct LexIterator;
+class LexIterator;
 struct Token {
 	enum TType {
 		Const=0,
@@ -385,6 +386,14 @@ class LexIterator {
         return true;
     }
     bool tryNCToken(int t, Token *res) {
+        if (try_first) {
+            int p = pos, tk = try_first(lex, s, p);
+            if (tk >= 0) {
+                if (t != tk) return false;
+                *res = Token(lex->tokens[t].second, Location{ cpos }, substr(pos, p - pos), Token::NonConst);
+                return true;
+            }
+        }
         if (lex->special.has(t)) {
             if (t == lex->sof && trySOF(res)) return true;
             if (t == lex->eol && tryEOL(res)) return true;
@@ -421,6 +430,15 @@ class LexIterator {
     {
         for (auto[nc, tok] : lex->compTokens[i].t) {
             readWs();
+            if (try_first) {
+                int p=pos, t = try_first(lex, s, p);
+                if (t >= 0) {
+                    rdws = true;
+                    if (t != tok) return false;
+                    pos = p;
+                	continue;
+                }
+            }
             if (nc) {
                 if (!tryNCToken(tok, &res))
                     return false;

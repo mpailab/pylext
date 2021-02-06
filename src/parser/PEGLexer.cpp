@@ -89,7 +89,6 @@ void LexIterator::readToken(const NTSet &t)
 {
     Assert(_accepted);
     curr_t.clear();
-    if(try_first && tryFirstAction(t)) return;
     if (t.intersects(lex->composite)) {
         auto st = state();
         Token res, rr;
@@ -120,7 +119,9 @@ void LexIterator::readToken(const NTSet &t)
             return;
         }
     }
+    if (try_first && tryFirstAction(t)) return;
     readWs();
+
     readToken_p(&t);
     _accepted = false;
 }
@@ -187,10 +188,10 @@ void LexIterator::acceptToken(Token &tok)
 
     if (tok.nonconst == Token::Composite) {
         Token r, rr;
-        for (auto[nc, tok] : lex->compTokens[lex->internalNum(tok.type)].t) {
+        for (auto[nc, tk] : lex->compTokens[lex->internalNum(tok.type)].t) {
             readWs();
             if (nc) {
-                Assert(tryNCToken(tok, &r));
+                Assert(tryNCToken(tk, &r));
             } else {
                 Assert(lex->cterms(s,pos));
                 rdws = true;
