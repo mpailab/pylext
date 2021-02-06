@@ -23,17 +23,17 @@ if(BUILD_CFGEXTS)
 
     include_directories(.)
 
-    add_cython_target(parser.pyx CXX)
+    add_cython_target(wrap.pyx CXX)
 
-    add_library(parser MODULE
-        ${parser}
+    add_library(wrap MODULE
+        ${wrap}
         src/apply.cpp
     )
-    target_link_libraries(parser src)
+    target_link_libraries(wrap parser)
 
-    python_extension_module(parser)
+    python_extension_module(wrap)
 
-    install(TARGETS parser LIBRARY DESTINATION cfgexts/parser)
+    install(TARGETS wrap LIBRARY DESTINATION cfgexts/parser)
 
 else()
 

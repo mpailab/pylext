@@ -1,4 +1,4 @@
-add_library(src STATIC
+add_library(parser STATIC
     base.cpp
     Exception.cpp
     format.cpp

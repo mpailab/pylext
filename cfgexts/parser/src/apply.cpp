@@ -21,6 +21,18 @@ void loadFile(const string &filename)
     }
 }
 
+int pass_arg(int x)
+{
+    return x;
+}
+
+int pass_arg_except(int x)
+{
+    if ( x == -1 )
+        throw exception();
+    return x;
+}
+
 struct PyMacro
 {
 	string name;

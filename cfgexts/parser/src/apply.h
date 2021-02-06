@@ -7,6 +7,9 @@ using namespace std;
 string apply (string text);
 void loadFile(const string &filename);
 
+int pass_arg(int x);
+int pass_arg_except(int x);
+
 PyObject* c_quasiquote(PyObject* px, char* nt, int n, PyObject* data, PyObject* pn);
 
 PyObject* new_python_context(int by_stmt, string syntax_file);
