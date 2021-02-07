@@ -295,6 +295,17 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
     });
 }
 
+void init_python_grammar_cached(PythonParseContext* px, bool read_by_stmt) {
+    static shared_ptr<PythonParseContext> cached, cached_stmt;
+    shared_ptr<PythonParseContext>& c = read_by_stmt ? cached_stmt : cached;
+    if(!c) {
+        c = make_shared<PythonParseContext>();
+        init_python_grammar(c.get(), read_by_stmt);
+    }
+    *px = *c;
+}
+
+
 bool equal_subtrees(ParseNode* x, ParseNode* y) {
     if(x->isTerminal())
         return y->isTerminal() && x->term==y->term;
@@ -327,8 +338,8 @@ void* new_python_context(int by_stmt) {
     try {
         //auto *g = new GrammarState;
         auto* px = new PythonParseContext;
-        init_python_grammar(px, by_stmt != 0);
-        cout << "create px = " << px << endl;
+        init_python_grammar_cached(px, by_stmt != 0);
+        // cout << "create px = " << px << endl;
         return px;
     } catch (std::exception &e) {
         setError(e);

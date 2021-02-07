@@ -8,6 +8,14 @@ parser = cdll.LoadLibrary('../lib/libpymacro.dylib')
 parser.get_last_error.restype = c_char_p
 
 
+dbg_flag = 0
+
+
+def dbgprint(msg, lvl):
+    if lvl <= dbg_flag:
+        print(msg)
+
+
 class CppError(Exception):
     pass
 
@@ -188,9 +196,9 @@ class Parser:
     def __init__(self, px: ParseContext, text: str):
         b = text.encode('utf8')
         self.px = px
-        print(f'create parser state , px={px}, type = {type(px)}', end='...  ')
+        # print(f'create parser state , px={px}, type = {type(px)}', end='...  ')
         self.state = new_parser_state(px.px, c_char_p(b), c_char_p(b''))
-        print('done')
+        # print('done')
 
     def __del__(self):
         if hasattr(self, 'state'):
@@ -212,9 +220,9 @@ class Parser:
 
 
 def parse_gen(px, text):
-    print(f'px = {px}')
+    # print(f'px = {px}')
     for node in Parser(px, text):
-        print('yield node')
+        dbgprint('yield node', 1)
         yield node
 
 
@@ -255,8 +263,9 @@ def load_file(text, globals):
         for stmt_ast in parse_gen(px, text):
             stmt_ast = macro_expand(px, stmt_ast)
             stmt = ast_to_text(px, stmt_ast)
-            print(f'=========================\nexecute:\n{stmt}\n--- Output: ---')
+            if dbg_flag >= 1:
+                dbgprint(f'=========================\nexecute:\n{stmt}\n--- Output: ---', 1)
             expanded += stmt
             exec(stmt, globals, globals)
-            print('==========================')
+            dbgprint('==========================', 1)
     return expanded

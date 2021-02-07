@@ -232,5 +232,5 @@
 
 %syntax: NUMBER  -> floatnumber | integer | imagnumber;
 #%print;
-%stats;
+#%stats;
 #%debug on;

@@ -68,3 +68,33 @@ struct TrieM {
 		return res;// curr->final ? &curr->val : 0;
 	}
 };
+
+struct LongStr {
+    const char *p;
+};
+/*
+template<class T>
+class TrieS {
+    struct CmpLess {
+        bool operator()(const string &x, const string &y) const { return x<y; }
+        bool operator()(const string &x, const LongStr &y) const { return strcmp(x.c_str(), y.p) < 0; }
+    };
+    std::set<std::string, CmpLess> s;
+public:
+    const T*operator()(const char *m, int &pos)const {
+        s.lo(LongStr{m+pos});
+        const T*res = 0;
+        const TrieM<T>* curr = this;
+        int p1 = pos;
+        for (; m[p1]; p1++) {
+            if (curr->next.empty())return res;
+            curr = &curr->next[(unsigned char)m[p1]];
+            if (curr->final) {
+                res = &curr->val;
+                pos = p1+1;
+            }
+        }
+        return res;// curr->final ? &curr->val : 0;
+    }
+};
+        */

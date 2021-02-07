@@ -130,7 +130,16 @@ struct ParseTree {
 
 template<class T>
 struct Ref : unique_ptr<T> {
-	Ref() :unique_ptr<T>(new T) {}
+    Ref() :unique_ptr<T>(new T) {}
+    Ref(const Ref<T>&r): unique_ptr<T>(r ? new T(*r) : 0) {}
+    Ref(Ref<T>&&) = default;
+    Ref<T>& operator= (const Ref<T>& r) {
+        if(r) this->reset(new T(*r));
+        else this->reset();
+        return *this;
+    }
+    Ref<T>& operator=(Ref<T>&&) = default;
+    ~Ref() = default;
 };
 
 struct NTTreeNode {
@@ -264,6 +273,16 @@ public:
 
 void setDebug(int b);
 
+template<class T>
+class CacheVec: public vector<unique_ptr<T>> {
+public:
+    CacheVec() = default;
+    CacheVec(const CacheVec<T>& v) {}
+    CacheVec(CacheVec<T>&&) = default;
+    CacheVec& operator=(const CacheVec&) { return *this; }
+    CacheVec& operator=(CacheVec&&) { return *this; }
+};
+
 class GrammarState {
 public:
 	// any data;
@@ -320,7 +339,7 @@ public:
 		LockTemp& operator=(LockTemp&&) = delete;
 	};
 	int temp_used = 0;
-	vector<unique_ptr<Temp>> tmp;
+	CacheVec<Temp> tmp;
 	int start = -1;
 	bool finish = false;
 	TF tf;
@@ -469,6 +488,23 @@ public:
     ParseContext(): g_(new GrammarState), error_handler_(new ParseErrorHandler) {}
     explicit ParseContext(GrammarState *gg): g_(gg) {}
     explicit ParseContext(std::shared_ptr<GrammarState> &gg): g_(gg) {}
+
+    ParseContext(const ParseContext&px) {
+        copy_from(px);
+    }
+
+    void copy_from(const ParseContext& px) {
+        _qid = px._qid;
+        _qq = px._qq;
+        g_ = make_shared<GrammarState>(*px.g_);
+        error_handler_ = px.error_handler_;
+        specialQQAction = px.specialQQAction;
+    }
+    ParseContext& operator=(const ParseContext& px) {
+        copy_from(px);
+        return *this;
+    }
+
     ParseNode* quasiquote(const string& nt, const string& q, const std::initializer_list<ParseNode*>& args, int qid, int qmanyid);
     ParseNode* quasiquote(const string& nt, const string& q, const std::vector<ParseNode*>& args, int qid, int qmanyid);
 

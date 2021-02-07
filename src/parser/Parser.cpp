@@ -631,7 +631,7 @@ ParserState::ParserState(ParseContext *px, std::string txt, const string &start)
 
 ParseTree ParserState::parse_next() {
     try {
-        cout<<"Start parse: state = "<<state<<endl;
+        //cout<<"Start parse: state = "<<state<<endl;
         switch(state){
             case AtStart: break;
             case Paused: goto resume;
