@@ -78,4 +78,5 @@ extern "C" DLL_EXPORT int add_rule(void* px, char* lhs, char *rhs);
 
 extern "C" DLL_EXPORT void* new_parser_state(void* px, const char* text, const char *start);
 extern "C" DLL_EXPORT void* continue_parse(void* state);
+extern "C" DLL_EXPORT int at_end(void *state);
 extern "C" DLL_EXPORT void del_parser_state(void* state);

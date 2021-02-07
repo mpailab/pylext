@@ -152,10 +152,10 @@
 
 %syntax: except_clause   -> 'except' [test ['as' ident]];
 
-%syntax: indented_stmt   -> stmt; # | stmts1 stmt;
+# %syntax: indented_stmt   -> stmt; # | stmts1 stmt;
 
-%syntax: suite           -> simple_stmt | EOL INDENT {indented_stmt} DEDENT;
-# %syntax: suite           -> INDENT {indented_stmt} DEDENT;
+%syntax: suite           -> simple_stmt | EOL INDENT {stmt} DEDENT;
+# %syntax: suite         -> INDENT {indented_stmt} DEDENT;
 
 %syntax: identdexpr_test -> test [':=' test];
 %syntax: test            -> or_test | or_test 'if' or_test 'else' test | lambdef;
@@ -227,8 +227,8 @@
 # the longstring in suites is only parsed for funcdefs,
 # but can't go elsewhere due to ambiguity
 %syntax: func_body_suite -> simple_stmt
-                          | EOL INDENT {indented_stmt} DEDENT
-				          | EOL longstring INDENT {indented_stmt} DEDENT;
+                          | EOL INDENT {stmt} DEDENT
+				          | EOL longstring INDENT {stmt} DEDENT;
 
 %syntax: NUMBER  -> floatnumber | integer | imagnumber;
 #%print;

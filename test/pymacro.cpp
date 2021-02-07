@@ -202,7 +202,7 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
             manyntname = ntname+"_many";
             px->grammar().addRule(ntname, v[0]);
             addRule(px->grammar(), "{}_many -> {}"_fmt(ntname, ntname));
-            addRule(px->grammar(), "{}_many -> {}_many {}"_fmt(ntname, ntname, ntname), flatten);
+            addRule(px->grammar(), "{}_many -> {}_many {}"_fmt(ntname, ntname, ntname), flatten_check);
         } else manyntname = ntname+"_many";
         n->ch[0] = px->newnode().get();
         n->ch[0]->term = manyntname;
@@ -214,8 +214,8 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
 	parse(px0, text);
 
     pg->setStart("text");
-	// g.setSOFToken("SOF");
-	addRule(*pg, "text -> root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
+	pg->setSOFToken("SOF", -1);
+	addRule(*pg, "text -> SOF root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
 	    if(read_by_stmt) {
             n.reset(n->ch[0]);
             n->type = ParseNode::Final;
@@ -381,14 +381,14 @@ void* get_pn_child(void* pn, int i) {
 int set_pn_child(void* pn, int i, void* ch) {
     if (!ch) {
         setError("Cannot set null parse node as child");
-        return 0;
+        return -1;
     }
     if (i < 0 || i >= len(((ParseNode*)pn)->ch)) {
         setError("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
-        return 0;
+        return -1;
     }
     ((ParseNode*)pn)->ch[i] = (ParseNode*)ch;
-    return -1;
+    return 0;
 }
 
 int get_pn_rule(void* pn) {
@@ -416,9 +416,14 @@ void* new_parser_state(void *px, const char* text, const char *start) {
     }
 }
 
+int at_end(void *state) {
+    return ((ParserState*)state)->atEnd();
+}
+
 void* continue_parse(void *state) {
     try {
         ParseTree tree = ((ParserState*)state)->parse_next();
+        setError("");
         return tree.root.get();
     } catch (std::exception &e) {
         setError(e);

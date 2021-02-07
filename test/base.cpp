@@ -98,8 +98,18 @@ vector<vector<vector<string>>> getVariants(ParseNode* n) {
 void flatten(ParseContext&, ParseNodePtr& n) {
     n[0].ch.insert(n[0].ch.end(), n->ch.begin() + 1, n->ch.end());
     n.reset(&n[0]);
+    // n->flattened = true;
+}
+
+/// f(f(x1,...,xn),y1,..,ym) -> f(x1,...,xn,y1,...,ym)
+void flatten_check(ParseContext&, ParseNodePtr& n) {
+    if(n[0].flattened && n[0].rule == n->rule) {
+        n[0].ch.insert(n[0].ch.end(), n->ch.begin() + 1, n->ch.end());
+        n.reset(&n[0]);
+    }
     n->flattened = true;
 }
+
 
 void init_base_grammar(GrammarState& st, GrammarState* target) {
     //auto target = px->g;

@@ -388,23 +388,23 @@ public:
 	void setWsToken(const string& ws) {
 		lex.setWsToken(ws);
 	}
-	void setIndentToken(const std::string &nm) {
-		lex.declareIndentToken(nm, ts[nm]);
+	void setIndentToken(const std::string &nm, int enforce = 0) {
+		lex.declareIndentToken(nm, ts[nm], enforce);
 	}
-	void setDedentToken(const std::string &nm) {
-		lex.declareDedentToken(nm, ts[nm]);
+	void setDedentToken(const std::string &nm, int enforce = 0) {
+		lex.declareDedentToken(nm, ts[nm], enforce);
 	}
-	void setCheckIndentToken(const std::string &nm) {
-		lex.declareCheckIndentToken(nm, ts[nm]);
+	void setCheckIndentToken(const std::string &nm, int enforce = 0) {
+		lex.declareCheckIndentToken(nm, ts[nm], enforce);
 	}
-	void setEOLToken(const std::string &nm) {
-		lex.declareEOLToken(nm, ts[nm]);
+	void setEOLToken(const std::string &nm, int enforce = 0) {
+		lex.declareEOLToken(nm, ts[nm], enforce);
 	}
-    void setSOFToken(const std::string &nm) {
-        lex.declareSOFToken(nm, ts[nm]);
+    void setSOFToken(const std::string &nm, int enforce = 0) {
+        lex.declareSOFToken(nm, ts[nm], enforce);
     }
-	void setEOFToken(const std::string &nm) {
-		lex.declareEOFToken(nm, ts[nm]);
+	void setEOFToken(const std::string &nm, int enforce = 0) {
+		lex.declareEOFToken(nm, ts[nm], enforce);
 	}
 	ostream& print_rule(ostream& s, const CFGRule &r)const {
 		s << nts[r.A] << " -> ";
@@ -520,6 +520,7 @@ class ParserState {
     };
     State state = AtStart;
 public:
+    bool atEnd() const{ return state == AtEnd; }
     ParserState(ParseContext *px, std::string txt, const string &start = "");
     ParseTree parse_next();
 };

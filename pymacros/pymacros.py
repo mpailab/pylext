@@ -2,8 +2,8 @@ import os
 from ctypes import *
 from typing import List
 
-# parser = cdll.LoadLibrary('../lib/libpymacro.dylib')
-parser = cdll.LoadLibrary('../bin/pymacro.dll')
+parser = cdll.LoadLibrary('../lib/libpymacro.dylib')
+# parser = cdll.LoadLibrary('../bin/pymacro.dll')
 
 parser.get_last_error.restype = c_char_p
 
@@ -22,7 +22,7 @@ def get_dll_func(dll, func, restype=None, err_code=None):
     else:
         def g(*args):
             r = f(*args)
-            if (restype is c_int and r.value == err_code) or (restype is not c_int and not r):
+            if (restype is c_int and r == err_code) or (restype is not c_int and not r):
                 raise CppError(c_char_p(parser.get_last_error()).value.decode('utf8'))
             return restype(r)
         g.__name__ = func
@@ -143,14 +143,14 @@ class ParseContext:
         rhs = b' '.join(str(x).encode('utf8') for x in rhs)
         lhs = lhs.encode('utf8')
         rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
-        print(f'add macro rule {rule_id}')
+        # print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
 
     def add_syntax_rule(self, lhs: str, rhs, apply):
         rhs = b' '.join(str(x).encode('utf8') for x in rhs)
         lhs = lhs.encode('utf8')
         rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
-        print(f'add syntax rule {rule_id}')
+        # print(f'add syntax rule {rule_id}')
         self.syntax_rules[rule_id] = apply
 
 
@@ -200,10 +200,15 @@ class Parser:
         return self
 
     def __next__(self):
-        node = continue_parse(self.state)
-        if not node.value:
-            raise StopIteration
-        return ParseNode(node)
+        try:
+            node = continue_parse(self.state)
+            if not node.value:
+                raise StopIteration
+            return ParseNode(node)
+        except CppError as e:
+            if e.args[0]:
+                raise
+        raise StopIteration
 
 
 def parse_gen(px, text):
@@ -214,9 +219,11 @@ def parse_gen(px, text):
 
 
 def syn_expand(node: ParseNode):
-    print(f'in syn_expand, rule = {node.rule}')
+    # print(f'in syn_expand, rule = {node.rule}')
     px = parse_context()
     f = px.syntax_function(node.rule)
+    if not f:
+        raise Exception(f'syn_expand: cannot find syntax expand function for rule {node.rule}')
     return f(*node.children) if f else node
 
 
@@ -229,8 +236,8 @@ def macro_expand(px: ParseContext, node: ParseNode):
         node = f(*node.children)
 
     for i in range(len(node.children)):
-        node.children[i] = macro_expand(px, node.children[i])
-
+        node[i] = macro_expand(px, node[i])
+    #print(node)
     return node
 
 
@@ -248,6 +255,8 @@ def load_file(text, globals):
         for stmt_ast in parse_gen(px, text):
             stmt_ast = macro_expand(px, stmt_ast)
             stmt = ast_to_text(px, stmt_ast)
+            print(f'=========================\nexecute:\n{stmt}\n--- Output: ---')
             expanded += stmt
             exec(stmt, globals, globals)
+            print('==========================')
     return expanded
