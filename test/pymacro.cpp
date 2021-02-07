@@ -59,7 +59,7 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm,
 	//n[0].term = m->uniq_name("syntax_"+n[0].term);
 	if (!expand.empty()) {
 		ParseNode* stmts = n[off+2].ch[0];
-		string qq = "$$INDENT\n";
+		string qq = "\n$$INDENT\n";
 		for (auto& arg : expand) {
 		    qq+="{}=syn_expand({})\n"_fmt(arg, arg);
 		}
@@ -210,18 +210,18 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
     });
 
 	g0.addLexerRule("comment", "'#' [^\\n]*");
-	string text = loadfile("syntax/python.txt");
+	string text = loadfile("../pymacros/syntax/python.txt");
 	parse(px0, text);
 
     pg->setStart("text");
 	// g.setSOFToken("SOF");
-	addRule(*pg, "text -> INDENTED root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
+	addRule(*pg, "text -> root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
 	    if(read_by_stmt) {
             n.reset(n->ch[0]);
             n->type = ParseNode::Final;
         }
 	});
-    addRule(*pg, "text -> text INDENTED root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
+    addRule(*pg, "text -> text root_stmt", [read_by_stmt](ParseContext&, ParseNodePtr& n){
         if(read_by_stmt) {
             n.reset(n->ch[1]);
             n->type = ParseNode::Final;
@@ -444,4 +444,8 @@ char* ast_to_text(void* pcontext, void *pn) {
         setError(e);
         return 0;
     }
+}
+
+extern "C" DLL_EXPORT int identity(int x) {
+    return x;
 }

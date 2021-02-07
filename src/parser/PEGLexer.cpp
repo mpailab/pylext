@@ -1,5 +1,5 @@
 #include "PEGLexer.h"
-
+/*
 int PEGLexer::declareCompToken(const vector<pair<bool, string>> &toks, int num)
 {
     Assert(toks.size()>1);
@@ -28,18 +28,19 @@ int PEGLexer::declareCompToken(const vector<pair<bool, string>> &toks, int num)
     compTokens[t] = move(ct);
     composite.add(t);
     return _intnum[num] = t;
-}
+}*/
 
 void LexIterator::readToken_p(const NTSet *t)
 {
     curr_t.clear();
     bool spec = t && t->intersects(lex->special);
-    if (spec && readSpecToken(t))
+    if (spec && readSpecToken(*t))
         return;
+    was_eol = false;
 
     if (!s[pos]) {
-        if(spec && lex->eof>=0 && t->has(lex->eof))
-            outputToken(lex->eof, Location{cpos}, emptystr(pos), Token::Special);
+        if(spec && lex->eof.allow(*t))
+            outputToken(lex->eof.num, Location{cpos}, emptystr(pos), Token::Special);
         else _at_end = true;
         return;
     }
@@ -89,7 +90,7 @@ void LexIterator::readToken(const NTSet &t)
 {
     Assert(_accepted);
     curr_t.clear();
-    if (t.intersects(lex->composite)) {
+    /*if (t.intersects(lex->composite)) {
         auto st = state();
         Token res, rr;
         int bpos = -1, imax = -1, i1=-1, m = 0;
@@ -118,7 +119,7 @@ void LexIterator::readToken(const NTSet &t)
             _accepted = false;
             return;
         }
-    }
+    }*/
     if (try_first && tryFirstAction(t)) return;
     readWs();
 
@@ -186,7 +187,7 @@ void LexIterator::acceptToken(Token &tok)
     }
     Assert(s + pos <= tok.text.b);
 
-    if (tok.nonconst == Token::Composite) {
+    /*if (tok.nonconst == Token::Composite) {
         Token r, rr;
         for (auto[nc, tk] : lex->compTokens[lex->internalNum(tok.type)].t) {
             readWs();
@@ -198,10 +199,10 @@ void LexIterator::acceptToken(Token &tok)
             }
         }
         Assert(tok.text.b + tok.text.len == s + pos);
-    } else {
+    } else*/ {
         shift(int(tok.text.b - (s + pos)));
         tok.loc.beg = cpos;
-        if (tok.type == lex->eof)_at_end = true;
+        if (tok.type == lex->eof.num)_at_end = true;
         shift(tok.text.len);
     }
     tok.loc.end = cpos;
@@ -209,38 +210,46 @@ void LexIterator::acceptToken(Token &tok)
     _accepted = true;
 }
 
-bool LexIterator::readSpecToken(const NTSet *t) { // Чтение специальных токенов
-    if (_at_start && lex->sof >= 0 && t->has(lex->sof)) { // начало файла
-        outputToken(lex->sof, Location{cpos}, emptystr(pos), Token::Special);
+bool LexIterator::readSpecToken(const NTSet &t) { // Чтение специальных токенов
+    if (_at_start && lex->sof.num >= 0 && lex->sof.allow(t)) { // начало файла
+        outputToken(lex->sof.num, Location{cpos}, emptystr(pos), Token::Special);
         _at_start = false;
         return true;
     }
-    if (cpos.line > cprev.line + nlines && lex->eol >= 0 &&
-        t->has(lex->eol)) { // Переход на новую строку (считается, если после чтения пробелов/комментариев привело к увеличению номера строки
-        outputToken(lex->eol, Location{cpos}, emptystr(pos), Token::Special);
+    if (cpos.line > cprev.line + nlines && lex->eol.allow(t)) { // Переход на новую строку (считается, если после чтения пробелов/комментариев привело к увеличению номера строки
+        outputToken(lex->eol.num, Location{cpos}, emptystr(pos), Token::Special);
         nlines++;
+        was_eol = true;
         return true;
     }
-    // Если увеличение отступа допустимо, то оно читается вне зависимости от того, что дальше
-    if (s[pos] && lex->indent >= 0 && t->has(lex->indent)) {
+    // preindent: Если увеличение отступа допустимо, то оно читается вне зависимости от того, что дальше
+    if (s[pos] && lex->preindent.allow(t)) {
         // Запрещено читать 2 раза подряд увеличение отступа с одной и той же позиции
         // иначе может произойти зацикливание, если неправильная грамматика, например, есть правило A -> indent A ...
         if (indents.back().col != cprev.col || indents.back().line != cprev.line) {
             indents.push_back(IndentSt{false, cprev.line, cprev.col, indents.back().col + 1 });
-            outputToken(lex->indent, Location{cprev}, emptystr(pos), Token::Special);
+            outputToken(lex->preindent.num, Location{cprev}, emptystr(pos), Token::Special);
             return true;
         }
     }
-    if (cpos.col < indents.back().col && lex->dedent >= 0 && t->has(lex->dedent)) { // Уменьшение отступа
+    // indent: Если произошло увеличение отступа, и оно зарегистрировано как токен, то оно читается
+    if (was_eol && cpos.col > indents.back().col && s[pos] && lex->indent.allow(t)) {
+        // Запрещено читать 2 раза подряд увеличение отступа с одной и той же позиции
+        // иначе может произойти зацикливание, если неправильная грамматика, например, есть правило A -> indent A ...
+        indents.push_back(IndentSt{true, cpos.line, cpos.col, cpos.col });
+        outputToken(lex->indent.num, Location{{cpos.line,1}, cpos}, emptystr(pos), Token::Special);
+        return true;
+    }
+    if (cpos.col < indents.back().col && lex->dedent.allow(t)) { // Уменьшение отступа
         indents.pop_back();
         if (!indents.back().fix) {
             indents.back().fix = true;
             indents.back().col = max(indents.back().col, cpos.col);
         }
-        outputToken(lex->dedent, Location{cpos}, emptystr(pos), Token::Special);
+        outputToken(lex->dedent.num, Location{cpos}, emptystr(pos), Token::Special);
         return true;
     }
-    if (s[pos] && lex->check_indent >= 0 && t->has(lex->check_indent)) { // Проверка отступа
+    if (s[pos] && lex->check_indent.allow(t)) { // Проверка отступа
         auto &b       = indents.back();
         bool indented = false;
         if (cpos.col >= b.col) {
@@ -256,10 +265,11 @@ bool LexIterator::readSpecToken(const NTSet *t) { // Чтение специал
                 indented = (b.start_col == cprev.col);  // Текст начался в той же строке, что и блок с отступами
             }
             if (indented) {
-                outputToken(lex->check_indent, Location{cpos}, emptystr(pos), Token::Special);
+                outputToken(lex->check_indent.num, Location{cpos}, emptystr(pos), Token::Special);
                 return true;
             }
         }
     }
+    was_eol = false;
     return false;
 }

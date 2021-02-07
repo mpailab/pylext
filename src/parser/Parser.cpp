@@ -66,13 +66,15 @@ void ParseNode::serialize(vector<unsigned char>& res) {
 }
 
 void printSpecial(ostream& os, int tn, GrammarState* g, PrintState& pst) {
-	if (tn == g->lex.indent) {
+	if (tn == g->lex.indent.num || tn == g->lex.preindent.num) {
 		pst.indent++;
-		pst.endl(os);
-	} else if (tn == g->lex.dedent) {
+        if(tn == g->lex.preindent.num)
+            pst.endl(os);
+        else os<<string(pst.tab, ' ');
+	} else if (tn == g->lex.dedent.num) {
 		pst.indent--;
 		pst.endl(os);
-	} else if (tn == g->lex.eol) {
+	} else if (tn == g->lex.eol.num) {
 		pst.endl(os);
 	}
 }
@@ -85,7 +87,7 @@ void printTerminal(std::ostream& os, int t, const string &tok, GrammarState* g, 
 	int tn = g->lex.internalNum(t);
 	if (g->lex.special.has(tn)) {
 		printSpecial(os, tn, g, pst);
-	} else if (tok.empty() && g->lex.composite.has(tn)) {
+	} else /*if (tok.empty() && g->lex.composite.has(tn)) {
 		for (auto& x : g->lex.compTokens[tn].t) {
 			if (x.first) {
 				if (g->lex.special.has(x.second)) {
@@ -97,7 +99,7 @@ void printTerminal(std::ostream& os, int t, const string &tok, GrammarState* g, 
 				//os << g->lex.ctokens[x.second] << " ";
 			}
 		}
-	} else
+	} else*/
 		os << tok << " ";
 }
 
@@ -748,7 +750,8 @@ int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs,
 		throw GrammarError("semantic actions not supported for rules with priorities");
 	for (auto &y : rhs) {
 		if (y.size() > 1) {
-			string nm;
+		    throw GrammarError("composite tokens currently not supported");
+			/*string nm;
 			bool nc = false;
 			vector<pair<bool, string>> yy(y.size());
 			for (int i = 0; i < (int)y.size(); i++) {
@@ -768,7 +771,7 @@ int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs,
 				}
 			}
 			lex.declareCompToken(yy, ts[nm]); 
-			rule.rhs.push_back(RuleElem{ ts[nm],false,true, nc });
+			rule.rhs.push_back(RuleElem{ ts[nm],false,true, nc });*/
 		} else if (y.empty()) continue;
 		else {
 			auto &x = y[0];

@@ -43,9 +43,9 @@ struct Token {
 		Const=0,
 		Special,
 		NonConst,
-		Composite
+		//Composite
 	};
-	int type = 0, type2 = -1;
+	int type = 0; //, type2 = -1;
 	Location loc;
 	Substr text;
 	TType nonconst = NonConst;
@@ -62,7 +62,14 @@ struct Token {
 };
 
 struct PEGLexer {
-	struct CompositeToken {
+    struct SpecialToken {
+        int num = -1;
+        int ext_num = -1;
+        bool enforce = false;
+        bool allow(const NTSet& s) const{ return num>=0 && (enforce || s.has(num)); }
+        explicit SpecialToken(bool enforce_): enforce(enforce_){}
+    };
+	/*struct CompositeToken {
 		vector<pair<bool,int>> t; // Номера токенов, из которых состоит составной токен
 	};
 	vector<CompositeToken> compTokens;
@@ -77,7 +84,7 @@ struct PEGLexer {
 		}
 		if (l1 != l2)return l1 > l2 ? 1 : -1;
 		return r;
-	}
+	}*/
 	// string text;
 	PEGGrammar peg;
 	// PackratParser packrat;
@@ -94,10 +101,10 @@ struct PEGLexer {
 	// vector<pair<int, string>> addedCTokens;
 	unordered_map<int, int> _counter; // !!!!!! Для отладки !!!!!!
 	int ws_token=-1;
-	int indent = -1, dedent = -1, check_indent = -1; // Токены для отслеживания отступов: indent -- увеличить отступ, dedent -- уменьшить отступ, check_indent -- проверить отступ
-	int eol = -1, sof = -1, eof = -1; // Токены для конца строки и начала и конца файла
+	SpecialToken preindent{false}, indent{true}, dedent{true}, check_indent{false}; // Токены для отслеживания отступов: indent -- увеличить отступ, dedent -- уменьшить отступ, check_indent -- проверить отступ
+	SpecialToken eol{false}, sof{true}, eof{true}; // Токены для конца строки и начала и конца файла
 	NTSet special;   // Имеющиеся специальные токены (отступы, начала / концы строк)
-	NTSet composite; // Составные токены
+	//NTSet composite; // Составные токены
 	NTSet simple;    // Простые токены (не являющиеся составными)
 
 	PEGLexer() { 
@@ -108,32 +115,35 @@ struct PEGLexer {
 		return _ten[intnum];
 	}
 
-	int _declareSpecToken(const std::string &nm, int ext_num, int *_pnum, const std::string& intname) {
-		if (*_pnum >= 0) {
-			if (_ten[*_pnum] == nm) return *_pnum;
-			else throw GrammarError(intname + " token already declared with name `" + _ten[*_pnum] + "`");
+	int _declareSpecToken(const std::string &nm, int ext_num, SpecialToken *tok, const std::string& intname, int enforce) {
+        if(enforce)
+            tok->enforce = enforce > 0;
+		if (tok->num >= 0) {
+			if (_ten[tok->num] == nm) return tok->num;
+			else throw GrammarError(intname + " token already declared with name `" + _ten[tok->num] + "`");
 		}
-		*_pnum = declareNCToken(nm, ext_num, true);
-		special.add(*_pnum);
-		return *_pnum;
+		tok->num = declareNCToken(nm, ext_num, true);
+		tok->ext_num = ext_num;
+		special.add(tok->num);
+		return tok->num;
 	}
-	int declareIndentToken(const std::string &nm, int ext_num) {
-		return _declareSpecToken(nm, ext_num, &indent, "indent");
+	int declareIndentToken(const std::string &nm, int ext_num, int enforce=0) {
+		return _declareSpecToken(nm, ext_num, &indent, "indent", enforce);
 	}
-	int declareDedentToken(const std::string &nm, int ext_num) {
-		return _declareSpecToken(nm, ext_num, &dedent, "dedent");
+	int declareDedentToken(const std::string &nm, int ext_num, int enforce=0) {
+		return _declareSpecToken(nm, ext_num, &dedent, "dedent", enforce);
 	}
-	int declareCheckIndentToken(const std::string &nm, int ext_num) {
-		return _declareSpecToken(nm, ext_num, &check_indent, "check_indent");
+	int declareCheckIndentToken(const std::string &nm, int ext_num, int enforce=0) {
+		return _declareSpecToken(nm, ext_num, &check_indent, "check_indent", enforce);
 	}
-	int declareEOLToken(const std::string &nm, int ext_num) {
-		return _declareSpecToken(nm, ext_num, &eol, "EOL");
+	int declareEOLToken(const std::string &nm, int ext_num, int enforce=0) {
+		return _declareSpecToken(nm, ext_num, &eol, "EOL", enforce);
 	}
-	int declareEOFToken(const std::string &nm, int ext_num) {
-		return _declareSpecToken(nm, ext_num, &eof, "EOF");
+	int declareEOFToken(const std::string &nm, int ext_num, int enforce=0) {
+		return _declareSpecToken(nm, ext_num, &eof, "EOF", enforce);
 	}
-    int declareSOFToken(const std::string &nm, int ext_num) {
-        return _declareSpecToken(nm, ext_num, &sof, "SOF");
+    int declareSOFToken(const std::string &nm, int ext_num, int enforce=0) {
+        return _declareSpecToken(nm, ext_num, &sof, "SOF", enforce);
     }
 	void addPEGRule(const string &nt, const string &rhs, int ext_num, bool to_begin = false) {
 		int errpos = -1;
@@ -144,17 +154,17 @@ struct PEGLexer {
 		peg.add_rule(nt, e, to_begin);
 		if (ext_num)declareNCToken(nt,ext_num);
 	}
-	int declareNCToken(const string& nm, int num, bool spec = false) {
+	int declareNCToken(const string& nm, int ext_num, bool spec = false) {
 		int t = _ten[nm];
 		int a = peg._en.num(nm);
 		if (!spec && a < 0)throw Exception("Cannot declare token `" + nm + "` when no rules exists");
 		if (t >= (int)tokens.size())
 			tokens.resize(t+1,make_pair(-1,-1));
-		tokens[t] = make_pair(a,num);
+		tokens[t] = make_pair(a,ext_num);
 		simple.add(t);
-		return _intnum[num] = t;
+		return _intnum[ext_num] = t;
 	}
-	int declareCompToken(const vector<pair<bool,string>>&toks, int num);
+	//int declareCompToken(const vector<pair<bool,string>>&toks, int num);
 	int internalNum(const string& nm) {
 		return _ten[nm];
 	}
@@ -266,6 +276,7 @@ class LexIterator {
     const char *s = nullptr;
     Pos cpos, cprev;
     bool rdws = true;
+    bool was_eol = false;
     int nlines = 0;
     int pos = 0;
     LexIterator *old_it = nullptr;
@@ -325,16 +336,16 @@ class LexIterator {
         readToken_p(t);
         _accepted = false;
     }
-    bool trySOF(Token *res) { // начало файла
+    /*bool trySOF(Token *res) { // начало файла
         if (!_at_start) return false;
-        *res = Token(lex->tokens[lex->sof].second, Location{cpos}, emptystr(pos), Token::Special);
+        *res = Token(lex->sof.ext_num, Location{cpos}, emptystr(pos), Token::Special);
         _at_start = false;
         return true;
     }
     bool tryEOL(Token *res) {
         // Переход на новую строку (считается, если после чтения пробелов/комментариев привело к увеличению номера строки
         if (cpos.line <= cprev.line + nlines) return false;
-        *res = {lex->tokens[lex->eol].second, Location{cpos}, emptystr(pos), Token::Special};
+        *res = {lex->eol.ext_num, Location{cpos}, emptystr(pos), Token::Special};
         nlines++;
         return true;
     }
@@ -344,7 +355,7 @@ class LexIterator {
         // иначе может произойти зацикливание, если неправильная грамматика, например, есть правило A -> indent A ...
         if (!s[pos] || (indents.back().col == cprev.col && indents.back().line == cprev.line)) return false;
         push_indent(IndentSt{ false, cprev.line, cprev.col, indents.back().col + 1 });
-        *res = {lex->tokens[lex->indent].second, Location{cprev}, emptystr(pos), Token::Special};
+        *res = {lex->indent.ext_num, Location{cprev}, emptystr(pos), Token::Special};
         return true;
     }
     bool tryDedent(Token *res) {  // Уменьшение отступа
@@ -356,7 +367,7 @@ class LexIterator {
             st.col = max(st.col, cpos.col);
             change_indent(st);
         }
-        *res = {lex->tokens[lex->dedent].second, Location{cpos}, emptystr(pos), Token::Special};
+        *res = {lex->dedent.ext_num, Location{cpos}, emptystr(pos), Token::Special};
         return true;
     }
     bool tryCheckIndent(Token *res)
@@ -377,12 +388,12 @@ class LexIterator {
         } else if(b.start_col != cprev.col) // Текст начался в той же строке, что и блок с отступами
             return false;
 
-        *res = Token(lex->tokens[lex->check_indent].second, Location{cpos}, emptystr(pos), Token::Special);
+        *res = Token(lex->check_indent.ext_num, Location{cpos}, emptystr(pos), Token::Special);
         return true;
     }
     bool tryEOF(Token *res) {
         if (s[pos]) return false;
-        *res = Token(lex->tokens[lex->eof].second, Location{cpos}, emptystr(pos), Token::Special);
+        *res = Token(lex->eof.ext_num, Location{cpos}, emptystr(pos), Token::Special);
         return true;
     }
     bool tryNCToken(int t, Token *res) {
@@ -395,12 +406,12 @@ class LexIterator {
             }
         }
         if (lex->special.has(t)) {
-            if (t == lex->sof && trySOF(res)) return true;
-            if (t == lex->eol && tryEOL(res)) return true;
-            if (t == lex->indent && tryIndent(res)) return true;
-            if (t == lex->dedent && tryDedent(res)) return true;
-            if (t == lex->check_indent && tryCheckIndent(res)) return true;
-            if (t == lex->eof && tryEOF(res)) return true;
+            if (t == lex->sof.num && trySOF(res)) return true;
+            if (t == lex->eol.num && tryEOL(res)) return true;
+            if (t == lex->indent.num && tryIndent(res)) return true;
+            if (t == lex->dedent.num && tryDedent(res)) return true;
+            if (t == lex->check_indent.num && tryCheckIndent(res)) return true;
+            if (t == lex->eof.num && tryEOF(res)) return true;
             return false;
         }
         int end = 0;
@@ -410,9 +421,10 @@ class LexIterator {
             return true;
         }
         return false;
-    }
+    }*/
     void readWs() {
         if (lex->ws_token >= 0 && rdws) {
+            was_eol = false;
             cprev = cpos;
             int end = 0;
             if (packrat.parse(lex->ws_token, pos, end, 0) && end > pos)
@@ -426,7 +438,7 @@ class LexIterator {
     }
     Substr substr(int position, int len) const{ return Substr{s + position, len}; }
     Substr emptystr(int position) const { return Substr{s + position, 0}; }
-    bool readComposite(int i, Token &res)
+    /*bool readComposite(int i, Token &res)
     {
         for (auto[nc, tok] : lex->compTokens[i].t) {
             readWs();
@@ -450,13 +462,13 @@ class LexIterator {
             }
         }
         return true;
-    }
+    }*/
     bool tryFirstAction(const NTSet &t);
     void readToken(const NTSet &t);
     void outputToken(int tok_id, Location loc, Substr str, Token::TType type) {
         curr_t.emplace_back(lex->tokens[tok_id].second, loc, str, type);
     }
-    bool readSpecToken(const NTSet *t);
+    bool readSpecToken(const NTSet &t);
     void readToken_p(const NTSet *t);
     string genErrorMsg(const NTSet *t, int bpos);
 

@@ -4,13 +4,13 @@
 
 %indent: INDENT;
 %dedent: DEDENT;
-%check_indent: INDENTED;
+# %check_indent: INDENTED;
 %eol: EOL;
 
-# %syntax: new_syntax -> INDENTED new_syntax_expr ';';
+# %syntax: new_syntax -> new_syntax_expr ';';
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#%syntax: if_stmt         -> if_stmt_noelse [INDENTED+'else' ':' suite];
+#%syntax: if_stmt         -> if_stmt_noelse ['else' ':' suite];
 
 %token: ident = `[_a-zA-Z][_a-zA-Z0-9]*`;
 
@@ -37,10 +37,10 @@
 %token: imagnumber = `(floatnumber / digitpart)[jJ]`;
 
 # %syntax: text -> root_stmts;
-# %syntax: root_stmts -> [root_stmts] INDENTED root_stmt;
+# %syntax: root_stmts -> [root_stmts] root_stmt;
 %syntax: root_stmt -> stmt;
 
-%syntax: decorator -> '@' dotted_ident ['(' [arglist] ')'] EOL INDENTED;
+%syntax: decorator -> '@' dotted_ident ['(' [arglist] ')'] EOL;
 # %syntax: decorators -> decorator [decorators];
 %syntax: decorated -> {decorator} classdef;
 %syntax: decorated -> {decorator} funcdef;
@@ -137,25 +137,25 @@
 
 %syntax: compound_stmt   -> if_stmt | while_stmt | for_stmt | try_stmt | with_stmt | funcdef | classdef | decorated | async_stmt;
 %syntax: async_stmt      -> 'async' (funcdef | with_stmt | for_stmt);
-%syntax: if_stmt_noelse  -> 'if' identdexpr_test ':' suite | if_stmt_noelse INDENTED+'elif' identdexpr_test ':' suite;
+%syntax: if_stmt_noelse  -> 'if' identdexpr_test ':' suite | if_stmt_noelse 'elif' identdexpr_test ':' suite;
 ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-%syntax: if_stmt         -> if_stmt_noelse [INDENTED+'else' ':' suite];
+%syntax: if_stmt         -> if_stmt_noelse ['else' ':' suite];
 
-%syntax: while_stmt      -> 'while' identdexpr_test ':' suite [INDENTED+'else' ':' suite];
-%syntax: for_stmt        -> 'for' exprlist 'in' testlist ':' [longstring] suite [INDENTED+'else' ':' suite];
-%syntax: try_stmt        -> 'try' ':' suite INDENTED+'finally' ':' suite
-				          | 'try' ':' suite excepts [INDENTED+'else' ':' suite] [INDENTED+'finally' ':' suite];
+%syntax: while_stmt      -> 'while' identdexpr_test ':' suite ['else' ':' suite];
+%syntax: for_stmt        -> 'for' exprlist 'in' testlist ':' [longstring] suite ['else' ':' suite];
+%syntax: try_stmt        -> 'try' ':' suite 'finally' ':' suite
+				          | 'try' ':' suite excepts ['else' ':' suite] ['finally' ':' suite];
 %syntax: excepts         -> except_clause ':' suite | excepts except_clause ':' suite;
 %syntax: with_items      -> [with_items ','] with_item;
 %syntax: with_stmt       -> 'with' with_items ':' [longstring] suite;
 %syntax: with_item       -> test ['as' expr];
 
-%syntax: except_clause   -> INDENTED + 'except' [test ['as' ident]];
+%syntax: except_clause   -> 'except' [test ['as' ident]];
 
-%syntax: indented_stmt   -> INDENTED stmt; # | stmts1 INDENTED stmt;
+%syntax: indented_stmt   -> stmt; # | stmts1 stmt;
 
-# %syntax: suite           -> INDENT INDENTED simple_stmt DEDENT | INDENT {indented_stmt} DEDENT;
-%syntax: suite           -> INDENT {indented_stmt} DEDENT;
+%syntax: suite           -> simple_stmt | EOL INDENT {indented_stmt} DEDENT;
+# %syntax: suite           -> INDENT {indented_stmt} DEDENT;
 
 %syntax: identdexpr_test -> test [':=' test];
 %syntax: test            -> or_test | or_test 'if' or_test 'else' test | lambdef;

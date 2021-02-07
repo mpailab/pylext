@@ -3,10 +3,10 @@
 # Они используются при преобразовании узла дерева в питоновский объект функцией syn_expand:
 # Если узел соответствует правилу, объявленному с ключевым словом syntax, то он раскрывается описанной функцией
 # функция syn_expand применяется к аргументам макроса и других синтаксических расширений, помеченных символом *
-syntax(matchcase, INDENTED , pattern: expr, ':', action: suite):
+syntax(matchcase, pattern: expr, ':', action: suite):
     print(f'in matchcase 0')
     return (pattern, `True`, action)
-syntax(matchcase, INDENTED, pattern: expr, 'if', cond:test, ':', action: suite):
+syntax(matchcase, pattern: expr, 'if', cond:test, ':', action: suite):
     print(f'in matchcase 1')
     return (pattern,cond,action)
 syntax(matchcases, x:*matchcase): # здесь к x применяется syn_expand
@@ -26,7 +26,7 @@ def match2cmp(x, pat):
         return `True`
     return comparison`${x} == ${pat}`
 
-defmacro match(stmt, 'match', x:expr, ':', INDENT, mc:*matchcases, DEDENT):
+defmacro match(stmt, 'match', x:expr, ':', EOL, INDENT, mc:*matchcases, DEDENT):
     print(f'in match expand, mc = {mc}')
     conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mc]
     for i in range(3):
@@ -34,7 +34,7 @@ defmacro match(stmt, 'match', x:expr, ':', INDENT, mc:*matchcases, DEDENT):
     head = if_stmt_noelse`if ${conds[0][0]} and ${conds[0][1]}: ${conds[0][2]}`
     print(2)
     for (c, cond, s) in conds[1:]:
-        head = if_stmt_noelse`${head} $$INDENTED elif ${c} and ${cond}: ${s}`
+        head = if_stmt_noelse`${head} elif ${c} and ${cond}: ${s}`
     return head
 
 # Тестируем макрос
