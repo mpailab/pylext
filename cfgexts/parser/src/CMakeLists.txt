@@ -4,4 +4,4 @@ add_library(parser STATIC
     format.cpp
     PackratParser.cpp
     Parser.cpp
-)
+    PEGLexer.cpp)

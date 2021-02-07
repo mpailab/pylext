@@ -50,8 +50,7 @@ public:
 		if((_p = x._p))
 			_p->refs++;
 	}
-	GCPtr(GCPtr&& x)  noexcept {
-		_p = x._p;
+	GCPtr(GCPtr&& x) noexcept : _p(x._p) {
 		x._p = 0;
 	}
 	GCPtr& operator=(const GCPtr& x) {

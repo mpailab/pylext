@@ -1,5 +1,7 @@
 #include "base.h"
 
+#include <utility>
+
 int addRule(GrammarState& gr, const string& s, SemanticAction act, int id) {
 	int pos = 0, i = 0;
 	string A;
@@ -30,7 +32,7 @@ int addRule(GrammarState& gr, const string& s, SemanticAction act, int id) {
 			pos = q;
 		} else throw Exception("Error : unexpected symbol '"s + s[pos] + "'");
 	}
-	return gr.addRule(A, rhs, act, id);
+	return gr.addRule(A, rhs, std::move(act), id);
 	//return true;
 }
 
@@ -66,7 +68,7 @@ vector<vector<vector<string>>> getVariants(ParseNode* n) {
 		return res;
 	case Maybe:
 		res = getVariants(n->ch[0]);
-		res.push_back({});
+		res.emplace_back();
 		return res;
 	case Concat:
 		res = { {} };
@@ -84,12 +86,33 @@ vector<vector<vector<string>>> getVariants(ParseNode* n) {
 			res[0][0] += getVariants(m)[0][0];
 		}
 		return res;
+    default:
+        if(n->rule_id>0)
+            throw Exception("Invalid rule_id flag {}"_fmt(n->rule_id));
 	}
 	Assert(n->isTerminal());
 	return { { { n->term } } };
 }
 
-void init_base_grammar(GrammarState& st, shared_ptr<GrammarState> target) {
+/// f(f(x1,...,xn),y1,..,ym) -> f(x1,...,xn,y1,...,ym)
+void flatten(ParseContext&, ParseNodePtr& n) {
+    n[0].ch.insert(n[0].ch.end(), n->ch.begin() + 1, n->ch.end());
+    n.reset(&n[0]);
+    // n->flattened = true;
+}
+
+/// f(f(x1,...,xn),y1,..,ym) -> f(x1,...,xn,y1,...,ym)
+void flatten_check(ParseContext&, ParseNodePtr& n) {
+    if(n[0].flattened && n[0].rule == n->rule) {
+        n[0].ch.insert(n[0].ch.end(), n->ch.begin() + 1, n->ch.end());
+        n.reset(&n[0]);
+    }
+    n->flattened = true;
+}
+
+
+void init_base_grammar(GrammarState& st, GrammarState* target) {
+    //auto target = px->g;
 	st.setStart("text");// , "new_token", "new_rule");
 	st.setWsToken("ws");
 	st.addLexerRule("ws", R"(([ \t\n\r] / comment)*)");
@@ -111,13 +134,13 @@ void init_base_grammar(GrammarState& st, shared_ptr<GrammarState> target) {
 	addRule(st, "token_sum -> token_sum '+' token_sum", Plus);
 	addRule(st, "rule_symbol -> token_sum");
 	//addRule(st, "rule_symbol -> sq_string");
-	addRule(st, "rule_symbol -> '(' rule_rhs ')'");// , [](ParseContext&g, ParseNode&n) { n = std::move(n[0]); });// TODO: потенциальная утечка памяти -- проверить !!!
+	addRule(st, "rule_symbol -> '(' rule_rhs ')'");
 	addRule(st, "rule_symbol -> '[' rule_rhs ']'", Maybe);
+
 	addRule(st, "rule_rhs_seq -> rule_symbol");
 	addRule(st, "rule_rhs_seq -> rule_rhs_seq rule_symbol", Concat);
 	addRule(st, "rule_rhs -> rule_rhs_seq");
 	addRule(st, "rule_rhs -> rule_rhs_seq '|' rule_rhs", Or);
-	if (!target)target.reset(&st, [](GrammarState*) {});
 
 	addRule(st, "new_syntax_expr -> '%' 'syntax' ':' ident '->' rule_rhs", [target](ParseContext& pt, ParseNodePtr& n) {
 		Assert(n[0].isTerminal());
@@ -170,7 +193,7 @@ void init_base_grammar(GrammarState& st, shared_ptr<GrammarState> target) {
 	addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '=' peg_expr_def", [target](ParseContext& g, ParseNodePtr& n) { target->addLexerRule(n.get(), false); });
 	addRule(st, "new_syntax_expr -> '%' 'pexpr' ':' ident '/=' peg_expr_def", [target](ParseContext& g, ParseNodePtr& n) { target->addLexerRule(n.get(), false); });
 
-	if (&st != target.get()) {
+	if (&st != target) {
 		addRule(st, "new_syntax_expr -> '%' 'start' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setStart(n[0].term); });
 		addRule(st, "new_syntax_expr -> '%' 'ws' ':' ident", [target](ParseContext& g, ParseNodePtr& n) { target->setWsToken(n[0].term); });
 		st.addLexerRule("comment", "'#' [^\\n]*");

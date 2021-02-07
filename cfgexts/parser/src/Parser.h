@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <functional>
 #include <set>
+#include <map>
 #include <utility>
 #include <vector>
 #include <cctype>
@@ -50,12 +51,13 @@ public:
 	int rule=-1;          // Номер правила (-1 => терминал)
 	int rule_id = -1;     // Внешний номер правила
 	string term;          // Строковое значение (если терминал)
-	//ParseTree* tree = 0;  // Ссылка на дерево разбора
 	//ParseNode* p = 0;     // Ссылка на родительский узел
 	int size = 1;
 	unsigned lpr = -1, rpr = -1; // Левый и правый приоритеты (если unsigned(-1), то приоритеты не заданы)
 	vector<ParseNode* /*,BinAlloc<ParseNode>*/> ch; // Дочерние узлы
 	Location loc;         // Размещение фрагмента в тексте
+	bool flattened = false;
+
 	[[nodiscard]] bool isTerminal()const {
 		return rule < 0;
 	}
@@ -92,7 +94,6 @@ public:
 		return this; // корень остаётся прежним
 	}
 	ParseNode& operator=(ParseNode&&) = default;
-	//void del();
 	~ParseNode() = default;
 	void serialize(vector<unsigned char>& res);
 };
@@ -104,7 +105,7 @@ struct PStack;
 
 class ParseErrorHandler {
 public:
-	struct alignas(8) Hint {
+	struct Hint {
 		enum Type {
 			Uncorrectable,
 			SkipT,
@@ -118,38 +119,12 @@ public:
 	virtual Hint onNoShiftReduce(GrammarState* g, const SStack& s, const PStack& p, const Token& tok);
 };
 
-class ParseContext {
-    int _qid = -1;
-    bool _qq = false;
-public:
-    [[nodiscard]] bool inQuote() const{ return _qq; }
-	GrammarState* g=0;
-	shared_ptr<ParseErrorHandler> error_handler;
-	GCAlloc<ParseNode> pnalloc;
-	void setQuoteRuleId(int id) {
-		_qid = id;
-	}
-	template<class ... Args>
-	ParseNodePtr newnode(Args && ... args) {
-		return ParseNodePtr(pnalloc.allocate(args...));
-	}
-	void del(ParseNodePtr& x) {
-		ParseNode* y = x.get();
-		x.reset();
-		if (y && !y->refs)
-			pnalloc.deallocate(y);
-	}
-	explicit ParseContext(GrammarState *gg=0):g(gg){}
-	ParseNode* quasiquote(const string& nt, const string& q, const std::initializer_list<ParseNode*>& args, int qid=-1);
-	ParseNode* quasiquote(const string& nt, const string& q, const std::vector<ParseNode*>& args, int qid=-1);
-
-    ParseNode *quasiquote(const string &nt, const string &q, const vector<ParseNodePtr> &args, int qid);
-};
 
 struct ParseTree {
 	ParseNodePtr root;
 	ParseTree() = default;
-	ParseTree(ParseTree && t) noexcept = default;
+	// ParseTree(ParseTree && t) noexcept = default;
+    // ParseTree& operator = (ParseTree && t) = default;
     explicit ParseTree(ParseNode* pn): root(pn) {}
 };
 
@@ -176,7 +151,7 @@ struct NTTreeNode {
 	
 	[[nodiscard]] const NTTreeNode* nextN(int A)const {
 		auto it = ntEdges.find(A);
-		if (it == ntEdges.end())return 0;
+		if (it == ntEdges.end())return nullptr;
 		return it->second.get();
 	}
 	[[nodiscard]] int rule(int A)const {
@@ -246,15 +221,16 @@ public:
 };
 
 // Элемент правой части правила (терминал или нетерминал)
-struct alignas(8) RuleElem {
+struct RuleElem {
 	int num; // Номер
 	bool cterm; // для терминала: является ли он константным
 	bool term;  // true => терминал, false => нетерминал
 	bool save;  // Следует ли данный элемент сохранять в дереве разбора; по умолчанию save = !cterm, поскольку только неконстантные элементы имеет смысл сохранять
 };
 
+class ParseContext;
 class GrammarState;
-typedef function<void(ParseContext& g, ParseNodePtr&)> SemanticAction;
+using SemanticAction = function<void(ParseContext& g, ParseNodePtr&)>;
 
 class CFGRule {
 public:
@@ -269,8 +245,8 @@ public:
 template<class T>
 class dvector {
 	vector<T> v;
+    int mx = -1;
 public:
-	int mx = -1;
 	const T& operator[](size_t i)const {
 		return v[i];
 	}
@@ -285,11 +261,12 @@ public:
 		mx = -1;
 	}
 };
+
 void setDebug(int b);
 
 class GrammarState {
 public:
-	any data;
+	// any data;
 	using NewNTAction = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления нового нетерминала
 	using NewTAction  = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления н6ового терминала
 
@@ -300,6 +277,7 @@ public:
 	Enumerator<string, unordered_map> ts;  // Нумерация терминалов
 	unordered_map<string, int> _start_nt;
 	vector<CFGRule> rules;
+	std::map<pair<string, vector<vector<string>>>, int> rule_map;
 
 	vector<NewNTAction> on_new_nt_actions;
 	vector<NewTAction> on_new_t_actions;
@@ -312,7 +290,7 @@ public:
 			const NTTreeNode* v;
 			NTSet M;
 		};
-		struct alignas(16) PV {
+		struct PV {
 			const NTTreeNode* v;
 			int A;
 			int B; // reduction: B -> A -> rule
@@ -331,13 +309,13 @@ public:
 		explicit LockTemp(GrammarState* gr) :g(gr) {
 			g->temp_used++;
 			if (len(g->tmp) < g->temp_used)
-				g->tmp.emplace_back(new Temp);
+				g->tmp.emplace_back(std::make_unique<Temp>());
 		}
 		Temp* operator->() const { return g->tmp[g->temp_used - 1].get(); }
 		~LockTemp() { g->tmp[--g->temp_used]->clear(); }
 		LockTemp() = delete;
 		LockTemp(const LockTemp& l) = delete;
-		LockTemp(LockTemp&& l) noexcept: g(l.g) { l.g = 0; }
+		LockTemp(LockTemp&& l) noexcept: g(l.g) { l.g = nullptr; }
 		LockTemp& operator=(const LockTemp&) = delete;
 		LockTemp& operator=(LockTemp&&) = delete;
 	};
@@ -406,47 +384,27 @@ public:
 		//if (!syntax.empty())
 		//	syntaxDefNT = nts[syntax];
 	}
-	int getStartNT(const string& nt) {
-	    if (_start_nt.empty()){
-	        setStart(nt);
-	        _start_nt[nt] = start;
-	    }
-	    if(_start_nt.count(nt))return _start_nt[nt];
-        int S0 = nts["_start_"+nt];
-        CFGRule r;
-        r.A = S0;
-        r.rhs.resize(2);
-        r.rhs[0].num = nts[nt];
-        r.rhs[0].save = true;
-        r.rhs[0].term = false;
-        r.rhs[1].term = true;
-        r.rhs[1].save = false;
-        r.rhs[1].num = 0;
-        r.action = [](ParseContext&px, ParseNodePtr & n){ n.reset(n->ch[0]); };
-        addRule(r);
-        _start_nt[nt] = S0;
-        return S0;
-	}
+	int getStartNT(const string& nt);
 	void setWsToken(const string& ws) {
 		lex.setWsToken(ws);
 	}
-	void setIndentToken(const std::string &nm) {
-		lex.declareIndentToken(nm, ts[nm]);
+	void setIndentToken(const std::string &nm, int enforce = 0) {
+		lex.declareIndentToken(nm, ts[nm], enforce);
 	}
-	void setDedentToken(const std::string &nm) {
-		lex.declareDedentToken(nm, ts[nm]);
+	void setDedentToken(const std::string &nm, int enforce = 0) {
+		lex.declareDedentToken(nm, ts[nm], enforce);
 	}
-	void setCheckIndentToken(const std::string &nm) {
-		lex.declareCheckIndentToken(nm, ts[nm]);
+	void setCheckIndentToken(const std::string &nm, int enforce = 0) {
+		lex.declareCheckIndentToken(nm, ts[nm], enforce);
 	}
-	void setEOLToken(const std::string &nm) {
-		lex.declareEOLToken(nm, ts[nm]);
+	void setEOLToken(const std::string &nm, int enforce = 0) {
+		lex.declareEOLToken(nm, ts[nm], enforce);
 	}
-    void setSOFToken(const std::string &nm) {
-        lex.declareSOFToken(nm, ts[nm]);
+    void setSOFToken(const std::string &nm, int enforce = 0) {
+        lex.declareSOFToken(nm, ts[nm], enforce);
     }
-	void setEOFToken(const std::string &nm) {
-		lex.declareEOFToken(nm, ts[nm]);
+	void setEOFToken(const std::string &nm, int enforce = 0) {
+		lex.declareEOFToken(nm, ts[nm], enforce);
 	}
 	ostream& print_rule(ostream& s, const CFGRule &r)const {
 		s << nts[r.A] << " -> ";
@@ -470,6 +428,53 @@ public:
 	}
 };
 
+class ParseContext {
+    int _qid = -1;
+    bool _qq = false;
+    std::shared_ptr<GrammarState> g_;
+    shared_ptr<ParseErrorHandler> error_handler_;
+    GCAlloc<ParseNode> pnalloc_;
+    SpecialLexerAction specialQQAction;
+public:
+    void setSpecialQQAction(SpecialLexerAction a){
+        specialQQAction = a;
+    }
+    void setErrorHandler(ParseErrorHandler* h){
+        error_handler_.reset(h);
+    }
+    ParseErrorHandler& error_handler() const {
+        return *error_handler_;
+    }
+    bool inQuote() const { return _qq; }
+    GrammarState& grammar() const { return *g_; }
+    const std::shared_ptr<GrammarState>& grammar_ptr()const{ return g_; }
+    void setGrammar(const std::shared_ptr<GrammarState>& pg) {
+        if(_qq)
+            throw Exception("Cannot change grammar while in quasiquote parse");
+        g_ = pg;
+    }
+    void setQuoteRuleId(int id) {
+        _qid = id;
+    }
+    template<class ... Args>
+    ParseNodePtr newnode(Args && ... args) {
+        return ParseNodePtr(pnalloc_.allocate(args...));
+    }
+    void del(ParseNodePtr& x) {
+        ParseNode* y = x.get();
+        x.reset();
+        if (y && !y->refs)
+            pnalloc_.deallocate(y);
+    }
+    ParseContext(): g_(new GrammarState), error_handler_(new ParseErrorHandler) {}
+    explicit ParseContext(GrammarState *gg): g_(gg) {}
+    explicit ParseContext(std::shared_ptr<GrammarState> &gg): g_(gg) {}
+    ParseNode* quasiquote(const string& nt, const string& q, const std::initializer_list<ParseNode*>& args, int qid, int qmanyid);
+    ParseNode* quasiquote(const string& nt, const string& q, const std::vector<ParseNode*>& args, int qid, int qmanyid);
+
+    ParseNode *quasiquote(const string &nt, const string &q, const vector<ParseNodePtr> &args, int qid, int qmanyid);
+};
+
 struct LAInfo {
 	NTSet t, nt;
 	LAInfo& operator |=(const LAInfo &i) { 
@@ -477,11 +482,11 @@ struct LAInfo {
 		return *this;
 	}
 };
-typedef PosHash<int, LAInfo> LAMap;
+using LAMap = PosHash<int, LAInfo>;
 
 struct RulePos {
-	mutable const NTTreeNode* sh = 0;
-	const NTTreeNode *v = 0; // Текущая вершина в дереве правил
+	mutable const NTTreeNode* sh = nullptr;
+	const NTTreeNode *v = nullptr; // Текущая вершина в дереве правил
 	NTSet M;                 // Множество нетерминалов в корне дерева
 };
 
@@ -502,8 +507,8 @@ struct PStack {
 
 class ParserState {
     LR0State s0;
-    GrammarState* g = 0;
-    ParseContext* pt = 0;
+    GrammarState* g = nullptr;
+    ParseContext* pt = nullptr;
     LexIterator lit;
     SStack ss;
     PStack sp;
@@ -515,40 +520,57 @@ class ParserState {
     };
     State state = AtStart;
 public:
+    bool atEnd() const{ return state == AtEnd; }
     ParserState(ParseContext *px, std::string txt, const string &start = "");
     ParseTree parse_next();
 };
-ParseTree parse(ParseContext &pt, const std::string &text, const string &start = "");
+ParseTree parse(ParseContext &pt, const std::string &text, const string &start = "", const SpecialLexerAction& la = {});
 
 struct ParserError : public Exception {
 	Location loc;
 	string err;
 	ParserError(Location l, string e): Exception(), loc(l), err(move(e)) {}
-	[[nodiscard]] const char *what()const noexcept override{return err.c_str();}
-};
-
-struct ParseBreak {
-    ParseNode* result;
-    ParseBreak(ParseNode* res): result(res){}
+	[[nodiscard]] const char *what()const noexcept override { return err.c_str(); }
 };
 
 void print_tree(std::ostream& os, ParseTree& t, GrammarState* g);
+void print_tree(std::ostream& os, ParseNode *pn, GrammarState* g);
 
 string tree2str(ParseTree& t, GrammarState* g);
+string tree2str(ParseNode* pn, GrammarState* g);
 
 void tree2file(const string& fn, ParseTree& t, GrammarState* g);
 
 /** Рекурсивно заменяет листья в поддереве n с rule_id=QExpr, на соответствующие поддеревья */
 template<class It>
-ParseNode* replace_trees_rec(ParseNode* n, It& pos, const It& end, int rnum) {
-	if (n->rule_id == rnum) {
+ParseNode* replace_trees_rec(ParseNode* n, It& pos, const It& end, int nargs, int rnum, int qmanyid, bool *many) {
+	if (n->rule_id == rnum || n->rule_id == qmanyid) {
 		if (pos == end)
-			throw ParserError{ n->loc, "not enough arguments for quasiquote" };
+			throw ParserError{ n->loc, "not enough arguments for quasiquote, {} given"_fmt(nargs) };
 		ParseNode* res = &**pos;
+		if(n->rule_id == qmanyid && many) {
+		    n->rule_id = qmanyid;
+            *many = true;
+        }
 		++pos;
 		return res;
 	}
-	for (auto& ch : n->ch)
-		ch = replace_trees_rec(ch, pos, end, rnum);
+	bool m = false;
+	size_t nch = 0;
+	for (auto& ch : n->ch) {
+        ch = replace_trees_rec(ch, pos, end, nargs, rnum, qmanyid, &m);
+        nch += ch->rule_id==qmanyid ? ch->ch.size() : 1;
+    }
+	if(m) {
+	    vector<ParseNode*> v(nch, nullptr);
+	    size_t p = 0;
+	    for(auto* ch : n->ch) {
+	        if(ch->rule_id==qmanyid) {
+                for (auto *cc : ch->ch)
+                    v[p++] = cc;
+            } else v[p++] = ch;
+	    }
+	    n->ch = std::move(v);
+	}
 	return n;
 }

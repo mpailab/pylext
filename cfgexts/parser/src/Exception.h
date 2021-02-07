@@ -4,14 +4,14 @@
 
 struct Exception :std::exception {
 	std::string msg;
-	const char *str = 0;
+	const char *str = nullptr;
 	Exception() noexcept = default;
 	explicit Exception(const char* s) noexcept;
 	explicit Exception(std::string s) noexcept;
 	[[nodiscard]] const char* what()const noexcept override { return str ? str : msg.c_str(); }
 	void prepend_msg(const std::string &s) {
 	    msg = s+what();
-	    str = 0;
+	    str = nullptr;
 	}
 };
 
@@ -34,7 +34,7 @@ struct RRConflict: SyntaxError {
 };
 
 struct AssertionFailed : std::exception {
-	const char* str = 0;
+	const char* str = nullptr;
 	explicit AssertionFailed(const char* s)noexcept :str(s) {}
 	[[nodiscard]] const char* what()const noexcept override {	return str;	}
 };

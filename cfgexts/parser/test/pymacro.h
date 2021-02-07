@@ -30,11 +30,31 @@ struct PyMacroModule {
 	}
 };
 
-void init_python_grammar(GrammarState& g, bool read_by_stmt=true);
+
+class PythonParseContext: public ParseContext{
+    struct VecCmp {
+        template<class T>
+        bool operator()(const T& x, const T& y)const { return x<y; }
+
+        template<class T>
+        bool operator()(const vector<T>&x, const vector<T>&y) const {
+            return std::lexicographical_compare(x.begin(), x.end(), y.begin(), y.end(), *this);
+        }
+    };
+public:
+    PythonParseContext() = default;
+    explicit PythonParseContext(GrammarState* g): ParseContext(g){}
+    map<vector<vector<vector<string>>>, string, VecCmp> ntmap;
+    PyMacroModule pymodule;
+};
+
+void init_python_grammar(PythonParseContext*px, bool read_by_stmt=true);
 ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /// Обёртки для простого экспорта из dll
+extern "C" DLL_EXPORT char* get_last_error();
+
 extern "C" DLL_EXPORT void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn);
 
 extern "C" DLL_EXPORT void* new_python_context(int by_stmt);
@@ -44,9 +64,11 @@ extern "C" DLL_EXPORT void del_python_context(void*);
 extern "C" DLL_EXPORT void inc_pn_num_refs(void *pn);
 extern "C" DLL_EXPORT void dec_pn_num_refs(void *pn);
 
+extern "C" DLL_EXPORT char* ast_to_text(void *px, void *pn);
+
 extern "C" DLL_EXPORT int get_pn_num_children(void* pn);
 extern "C" DLL_EXPORT void* get_pn_child(void* pn, int i);
-extern "C" DLL_EXPORT void set_pn_child(void* pn, int i, void* ch);
+extern "C" DLL_EXPORT int set_pn_child(void* pn, int i, void* ch);
 
 extern "C" DLL_EXPORT int get_pn_rule(void* pn);
 extern "C" DLL_EXPORT int pn_equal(void* pn1, void* pn2);
@@ -56,7 +78,5 @@ extern "C" DLL_EXPORT int add_rule(void* px, char* lhs, char *rhs);
 
 extern "C" DLL_EXPORT void* new_parser_state(void* px, const char* text, const char *start);
 extern "C" DLL_EXPORT void* continue_parse(void* state);
+extern "C" DLL_EXPORT int at_end(void *state);
 extern "C" DLL_EXPORT void del_parser_state(void* state);
-
-
-
