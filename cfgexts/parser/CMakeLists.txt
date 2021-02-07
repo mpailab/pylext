@@ -1,4 +1,4 @@
-option(BUILD_CFGEXTS "Build package cfgexts" ON)
+option(BUILD_CFGEXTS "Build package cfgexts" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
