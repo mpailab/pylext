@@ -6,18 +6,18 @@ cdef extern from "apply.h":
     void c_loadFile "loadFile" (const string &filename) except +
     int c_pass_arg "pass_arg" (int x)
     int c_pass_arg_except "pass_arg_except" (int x) except +
-    void* c_c_quasiquote "c_quasiquote" (void* px, char* nt, int n, char** data, void** pn)
-    void* c_new_python_context "new_python_context" (int by_stmt, string syntax_file)
+    void* c_c_quasiquote "c_quasiquote" (void* px, char* nt, int n, char** data, void** pn) except +
+    void* c_new_python_context "new_python_context" (int by_stmt, string syntax_file) except +
     void c_del_python_context "del_python_context" (void*)
     void c_inc_pn_num_refs "inc_pn_num_refs" (void* pn)
     void c_dec_pn_num_refs "dec_pn_num_refs" (void* pn)
     int c_get_pn_num_children "get_pn_num_children" (void* pn)
-    void* c_get_pn_child "get_pn_child" (void* pn, int i)
-    int c_set_pn_child "set_pn_child" (void* pn, int i, void* ch)
-    int c_get_pn_rule "get_pn_rule" (void* pn)
+    void* c_get_pn_child "get_pn_child" (void* pn, int i) except +
+    int c_set_pn_child "set_pn_child" (void* pn, int i, void* ch) except +
+    int c_get_pn_rule "get_pn_rule" (void* pn) except +
     int c_pn_equal "pn_equal" (void* pn1, void* pn2)
-    int c_add_rule "add_rule" (void* px, char* lhs, char *rhs)
-    void* c_new_parser_state "new_parser_state" (void* px, const char* text, const char *start)
-    void* c_continue_parse "continue_parse" (void* state)
+    int c_add_rule "add_rule" (void* px, char* lhs, char *rhs) except +
+    void* c_new_parser_state "new_parser_state" (void* px, const char* text, const char *start) except +
+    void* c_continue_parse "continue_parse" (void* state) except +
     void c_del_parser_state "del_parser_state" (void* state)
-    char* c_ast_to_text "ast_to_text" (void* pcontext, void* pn)
+    char* c_ast_to_text "ast_to_text" (void* pcontext, void* pn) except +

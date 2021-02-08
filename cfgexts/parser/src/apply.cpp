@@ -375,12 +375,14 @@ std::vector<char>& errorStringBuf() {
 }
 
 void setError(const std::exception&e) {
-    string msg = e.what();
-    errorStringBuf().assign(msg.c_str(), msg.c_str()+msg.size() + 1);
+    throw e;
+    //string msg = e.what();
+    //errorStringBuf().assign(msg.c_str(), msg.c_str()+msg.size() + 1);
 }
 
 void setError(const std::string& msg) {
-    errorStringBuf().assign(msg.c_str(), msg.c_str() + msg.size() + 1);
+    throw Exception(msg);
+    //errorStringBuf().assign(msg.c_str(), msg.c_str() + msg.size() + 1);
 }
 
 char* get_last_error() {
@@ -388,16 +390,16 @@ char* get_last_error() {
 }
 
 void* new_python_context(int by_stmt, const string syntax_file) {
-    try {
+    //try {
         //auto *g = new GrammarState;
         auto* px = new PythonParseContext;
         init_python_grammar(px, by_stmt != 0, syntax_file);
-        cout << "create px = " << px << endl;
+        //cout << "create px = " << px << endl;
         return px;
-    } catch (std::exception &e) {
-        setError(e);
-        return 0;
-    }
+    //} catch (std::exception &e) {
+    //    setError(e);
+    //    return 0;
+    //}
 }
 
 void del_python_context(void *px) {
@@ -405,17 +407,17 @@ void del_python_context(void *px) {
 }
 
 void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn){
-    try {
+    //try {
         //setDebug(0x7FFFFFFF);
         vector<string> qp(data, data + n);
         vector<ParseNode*> subtrees((ParseNode**)pn, (ParseNode**)pn + n - 1);
         ParseNodePtr res = quasiquote(*(ParseContext*)px, nt, qp, subtrees);
         setDebug(0);
         return res.get();
-    } catch(std::exception & e) {
-        setError(e);
-        return 0;
-    }
+    //} catch(std::exception & e) {
+    //    setError(e);
+    //    return 0;
+    //}
 }
 
 void inc_pn_num_refs(void *pn) {
@@ -431,25 +433,24 @@ int pn_equal(void *pn1, void *pn2) {
 }
 
 int get_pn_num_children(void* pn) {
-    return len(((ParseNode*)pn)->ch);
+    return pn ? len(((ParseNode*)pn)->ch) : 0;
 }
 
 void* get_pn_child(void* pn, int i) {
     if (i < 0 || i >= len(((ParseNode*)pn)->ch)) {
-        setError("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
-        return 0;
+        throw std::invalid_argument("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
+        //setError("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
+        //return 0;
     }
     return ((ParseNode*)pn)->ch[i];
 }
 
 int set_pn_child(void* pn, int i, void* ch) {
     if (!ch) {
-        setError("Cannot set null parse node as child");
-        return -1;
+        throw std::invalid_argument("Cannot set null parse node as child");
     }
     if (i < 0 || i >= len(((ParseNode*)pn)->ch)) {
-        setError("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
-        return -1;
+        throw std::invalid_argument("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
     }
     ((ParseNode*)pn)->ch[i] = (ParseNode*)ch;
     return 0;
@@ -460,24 +461,24 @@ int get_pn_rule(void* pn) {
 }
 
 int add_rule(void* px, char* lhs, char *rhs) {
-    try {
+    //try {
         return addRule(((ParseContext*)px)->grammar(), string(lhs) + " -> " + rhs);
-    } catch (std::exception &e) {
+    /*} catch (std::exception &e) {
         setError(e);
         return -1;
-    }
+    }*/
 }
 
 void* new_parser_state(void *px, const char* text, const char *start) {
     //cout<<"px = "<<px<<endl;
     //cout<<"text = "<<text<<endl;
     //cout<<"start = "<<start<<endl;
-    try {
+    //try {
         return new ParserState((ParseContext*)px, text, start);
-    } catch(std::exception &e) {
+    /*} catch(std::exception &e) {
         setError(e);
         return 0;
-    }
+    }*/
 }
 
 int at_end(void *state) {
@@ -485,14 +486,14 @@ int at_end(void *state) {
 }
 
 void* continue_parse(void *state) {
-    try {
+    //try {
         ParseTree tree = ((ParserState*)state)->parse_next();
-        setError("");
+        //setError("");
         return tree.root.get();
-    } catch (std::exception &e) {
+    /*} catch (std::exception &e) {
         setError(e);
         return 0;
-    }
+    }*/
 }
 
 void del_parser_state(void* state) {
@@ -500,7 +501,7 @@ void del_parser_state(void* state) {
 }
 
 char* ast_to_text(void* pcontext, void *pn) {
-    try {
+    //try {
         auto* node = (ParseNode*)pn;
         auto* px = (ParseContext*)pcontext;
         static vector<char> buf;
@@ -509,8 +510,8 @@ char* ast_to_text(void* pcontext, void *pn) {
         memcpy(buf.data(), s.c_str(), s.size() + 1);
         //cout<<buf.data()<<endl;
         return buf.data();
-    } catch (std::exception& e) {
+    /*} catch (std::exception& e) {
         setError(e);
         return 0;
-    }
+    }*/
 }
