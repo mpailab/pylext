@@ -387,7 +387,7 @@ char* get_last_error() {
     return errorStringBuf().data();
 }
 
-void* new_python_context(int by_stmt, const string syntax_file) {
+void* new_python_context(int by_stmt, const string& syntax_file) {
     try {
         //auto *g = new GrammarState;
         auto* px = new PythonParseContext;
@@ -404,12 +404,10 @@ void del_python_context(void *px) {
     delete (ParseContext*)px;
 }
 
-void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn){
+void* c_quasiquote(void* px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees) {
     try {
         //setDebug(0x7FFFFFFF);
-        vector<string> qp(data, data + n);
-        vector<ParseNode*> subtrees((ParseNode**)pn, (ParseNode**)pn + n - 1);
-        ParseNodePtr res = quasiquote(*(ParseContext*)px, nt, qp, subtrees);
+        ParseNodePtr res = quasiquote(*(ParseContext*)px, nt, parts, subtrees);
         setDebug(0);
         return res.get();
     } catch(std::exception & e) {
@@ -459,7 +457,7 @@ int get_pn_rule(void* pn) {
     return ((ParseNode*)pn)->rule;
 }
 
-int add_rule(void* px, char* lhs, char *rhs) {
+int add_rule(void* px, const string& lhs, const string& rhs) {
     try {
         return addRule(((ParseContext*)px)->grammar(), string(lhs) + " -> " + rhs);
     } catch (std::exception &e) {
@@ -468,7 +466,7 @@ int add_rule(void* px, char* lhs, char *rhs) {
     }
 }
 
-void* new_parser_state(void *px, const char* text, const char *start) {
+void* new_parser_state(void *px, const string& text, const string& start) {
     //cout<<"px = "<<px<<endl;
     //cout<<"text = "<<text<<endl;
     //cout<<"start = "<<start<<endl;

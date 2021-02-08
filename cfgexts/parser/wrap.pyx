@@ -1,5 +1,6 @@
 
 from libcpp.string cimport string
+from libcpp.vector cimport vector
 from libc.stdlib cimport malloc, free
 from cpython.long cimport PyLong_FromVoidPtr as from_cptr
 from cpython.long cimport PyLong_AsVoidPtr as to_cptr
@@ -11,19 +12,6 @@ cdef inline to_bytes (text):
 
 cdef inline to_str (text):
     return text.decode('utf-8')
-
-cdef char ** to_cstr_arr(list_str):
-    list_str = [to_bytes(x) for x in list_str]
-    cdef char **ret = <char **>malloc(len(list_str) * sizeof(char *))
-    for i in xrange(len(list_str)):
-        ret[i] = list_str[i]
-    return ret
-
-cdef void ** to_cptr_arr(list_ptr):
-    cdef void **ret = <void **>malloc(len(list_ptr) * sizeof(void *))
-    for i in xrange(len(list_ptr)):
-        ret[i] = to_cptr(list_ptr[i])
-    return ret
 
 def apply (text):
     return to_str(c_apply(to_bytes(text)))
@@ -41,12 +29,11 @@ def pass_arg_cython(int x):
     return x
 
 def c_quasiquote (px, nt, n, data, pn):
-    cdef char** _data = to_cstr_arr(data)
-    cdef void** _pn = to_cptr_arr(pn)
-    res = from_cptr(c_c_quasiquote(to_cptr(px), to_bytes(nt), n, _data, _pn))
-    free(_data)
-    free(_pn)
-    return res
+    cdef vector[string] _data = [to_bytes(x) for x in data]
+    cdef vector[ParseNode*] subtrees
+    for i in range(len(pn)):
+        subtrees.push_back(<ParseNode*> to_cptr(pn[i]))
+    return from_cptr(c_c_quasiquote(to_cptr(px), to_bytes(nt), _data, subtrees))
 
 def new_python_context (by_stmt, syntax_file):
     return from_cptr(c_new_python_context(by_stmt, to_bytes(syntax_file)))

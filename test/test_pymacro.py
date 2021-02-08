@@ -43,7 +43,7 @@ class ParseNode:
 
 class ParseContext:
     def __init__(self, syntax_file):
-        self.px = new_python_context(0, syntax_file)
+        self.px = new_python_context(1, syntax_file)
         self.syntax_rules = {}
         self.macro_rules = {}
 
@@ -187,7 +187,10 @@ module_vars = {
     'syn_expand'  : syn_expand,
     'quasiquote'  : quasiquote
 }
+start = time.time()
 res = load_file(text, module_vars, sys.argv[2])
+end = time.time()
+print("Time of load_file :", end - start)
 print(f'\n=========== Vars of macro module ===========')
 for k, v in module_vars.items():
     if k != '__builtins__':
