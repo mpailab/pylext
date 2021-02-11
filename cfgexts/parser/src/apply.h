@@ -4,33 +4,54 @@
 
 using namespace std;
 
+struct PyMacro
+{
+	string name;
+	int rule_id;
+};
+
+struct PySyntax
+{
+	string name;
+	int rule_id;
+};
+
+struct PyMacroModule
+{
+	unordered_map<int, PyMacro> macros;
+	unordered_map<int, PySyntax> syntax;
+	//int num = 0;
+	unordered_map<string, int> nums;
+	string uniq_name(const string& start) {
+		int n = nums[start]++;
+		return start + '_' + to_string(n);
+	}
+};
+
+class PythonParseContext: public ParseContext{
+    struct VecCmp {
+        template<class T>
+        bool operator()(const T& x, const T& y)const { return x<y; }
+
+        template<class T>
+        bool operator()(const vector<T>&x, const vector<T>&y) const {
+            return std::lexicographical_compare(x.begin(), x.end(), y.begin(), y.end(), *this);
+        }
+    };
+public:
+    PythonParseContext() = default;
+    explicit PythonParseContext(GrammarState* g): ParseContext(g){}
+    map<vector<vector<vector<string>>>, string, VecCmp> ntmap;
+    PyMacroModule pymodule;
+};
+
 string apply (string text);
 void loadFile(const string &filename);
 
 int pass_arg(int x);
 int pass_arg_except(int x);
 
-void* c_quasiquote(void* px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
-
-void* new_python_context(int by_stmt, const string& syntax_file);
-void del_python_context(void*);
-
-
-void inc_pn_num_refs(void* pn);
-void dec_pn_num_refs(void* pn);
-
-int get_pn_num_children(void* pn);
-void* get_pn_child(void* pn, int i);
-int set_pn_child(void* pn, int i, void* ch);
-
-int get_pn_rule(void* pn);
-int pn_equal(void* pn1, void* pn2);
-
-
-int add_rule(void* px, const string& lhs, const string& rhs);
-
-void* new_parser_state(void* px, const string& text, const string& start);
-void* continue_parse(void* state);
-void del_parser_state(void* state);
-
-char* ast_to_text(void* pcontext, void* pn);
+void init_python_grammar(PythonParseContext* px, bool read_by_stmt, const string &syntax_file);
+ParseNode* quasiquote(ParseContext* px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
+bool equal_subtrees(ParseNode* x, ParseNode* y);
+char* ast_to_text(ParseContext* px, ParseNode *pn);

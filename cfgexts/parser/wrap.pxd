@@ -1,27 +1,37 @@
 
+from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
 cdef extern from "Parser.h":
-    cdef cppclass ParseNode
+    cdef cppclass GrammarState
+    cdef cppclass ParseContext:
+        GrammarState& grammar()
+    cdef cppclass ParseNode:
+        int rule
+        int refs
+        vector[ParseNode*] ch
+    cdef cppclass ParseNodePtr:
+        ParseNode* get()
+    cdef cppclass ParserState:
+        ParserState(ParseContext *px, string txt, const string &start) except +
+        ParseTree parse_next() except +
+    cdef cppclass ParseTree:
+        ParseNodePtr root
+    cdef cppclass PythonParseContext:
+        PythonParseContext()
+    cdef cppclass SemanticAction
 
 cdef extern from "apply.h":
     string c_apply "apply" (string text)
     void c_loadFile "loadFile" (const string &filename) except +
     int c_pass_arg "pass_arg" (int x)
     int c_pass_arg_except "pass_arg_except" (int x) except +
-    void* c_c_quasiquote "c_quasiquote" (void* px, const string& nt, const vector[string]& data, const vector[ParseNode*]& subtrees) except +
-    void* c_new_python_context "new_python_context" (int by_stmt, const string& syntax_file) extern +
-    void c_del_python_context "del_python_context" (void*)
-    void c_inc_pn_num_refs "inc_pn_num_refs" (void* pn)
-    void c_dec_pn_num_refs "dec_pn_num_refs" (void* pn)
-    int c_get_pn_num_children "get_pn_num_children" (void* pn)
-    void* c_get_pn_child "get_pn_child" (void* pn, int i) except +
-    int c_set_pn_child "set_pn_child" (void* pn, int i, void* ch) except +
-    int c_get_pn_rule "get_pn_rule" (void* pn) except +
-    int c_pn_equal "pn_equal" (void* pn1, void* pn2)
-    int c_add_rule "add_rule" (void* px, const string& lhs, const string& rhs) except +
-    void* c_new_parser_state "new_parser_state" (void* px, const string& text, const string& start) except +
-    void* c_continue_parse "continue_parse" (void* state) except +
-    void c_del_parser_state "del_parser_state" (void* state)
-    char* c_ast_to_text "ast_to_text" (void* pcontext, void* pn) except +
+
+    void init_python_grammar(PythonParseContext* px, bool read_by_stmt, const string &syntax_file) except +
+    ParseNode* quasiquote(ParseContext* px, const string& nt, const vector[string]& parts, const vector[ParseNode*]& subtrees) except +
+    bool equal_subtrees(ParseNode* x, ParseNode* y)
+    char* c_ast_to_text "ast_to_text" (ParseContext* px, ParseNode *pn) except +
+
+cdef extern from "base.h":
+    int addRule(GrammarState& gr, const string& s) except +

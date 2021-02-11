@@ -34,47 +34,6 @@ int pass_arg_except(int x)
     return x;
 }
 
-struct PyMacro
-{
-	string name;
-	int rule_id;
-};
-
-struct PySyntax
-{
-	string name;
-	int rule_id;
-};
-
-struct PyMacroModule
-{
-	unordered_map<int, PyMacro> macros;
-	unordered_map<int, PySyntax> syntax;
-	//int num = 0;
-	unordered_map<string, int> nums;
-	string uniq_name(const string& start) {
-		int n = nums[start]++;
-		return start + '_' + to_string(n);
-	}
-};
-
-class PythonParseContext: public ParseContext{
-    struct VecCmp {
-        template<class T>
-        bool operator()(const T& x, const T& y)const { return x<y; }
-
-        template<class T>
-        bool operator()(const vector<T>&x, const vector<T>&y) const {
-            return std::lexicographical_compare(x.begin(), x.end(), y.begin(), y.end(), *this);
-        }
-    };
-public:
-    PythonParseContext() = default;
-    explicit PythonParseContext(GrammarState* g): ParseContext(g){}
-    map<vector<vector<vector<string>>>, string, VecCmp> ntmap;
-    PyMacroModule pymodule;
-};
-
 enum MacroRule {
 	QExpr = SynTypeLast + 1,
 	QStarExpr,
@@ -204,17 +163,18 @@ void make_qq(ParseContext& px, ParseNodePtr& n) {
     make_qqir(px, n, n->ch[0], "expr");
 }
 
-ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees){
+ParseNode* quasiquote(ParseContext* px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees){
     if (parts.size() != subtrees.size()+1)
         throw GrammarError("in quasiquote nubmer of string parts = {}, number of subtrees = {}"_fmt(parts.size(), subtrees.size()));
     string qq; // = parts[0];
     for(int i=0; i<len(subtrees); i++) {
         qq += parts[i];
-        ((qq += '$') += px.grammar().nts[subtrees[i]->nt])+=' ';
+        ((qq += '$') += px->grammar().nts[subtrees[i]->nt])+=' ';
     }
     qq += parts.back();
     //try {
-        return ParseNodePtr(px.quasiquote(nt, qq, subtrees, QExpr, QStarExpr));
+        ParseNodePtr res = ParseNodePtr(px->quasiquote(nt, qq, subtrees, QExpr, QStarExpr));
+        return res.get();
     //} catch (Exception &e){
         //e.prepend_msg("In quasiquote `{}`: "_fmt(qq));
     //    throw move(e);
@@ -389,121 +349,10 @@ char* get_last_error() {
     return errorStringBuf().data();
 }
 
-void* new_python_context(int by_stmt, const string& syntax_file) {
-    // try {
-        //auto *g = new GrammarState;
-        auto* px = new PythonParseContext;
-        init_python_grammar(px, by_stmt != 0, syntax_file);
-        //cout << "create px = " << px << endl;
-        return px;
-    //} catch (std::exception &e) {
-    //    setError(e);
-    //    return 0;
-    //}
-}
-
-void del_python_context(void *px) {
-    delete (ParseContext*)px;
-}
-
-void* c_quasiquote(void* px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees) {
-    // try {
-        //setDebug(0x7FFFFFFF);
-        ParseNodePtr res = quasiquote(*(ParseContext*)px, nt, parts, subtrees);
-        setDebug(0);
-        return res.get();
-    //} catch(std::exception & e) {
-    //    setError(e);
-    //    return 0;
-    //}
-}
-
-void inc_pn_num_refs(void *pn) {
-    if(pn) ((ParseNode*)pn)->refs++;
-}
-
-void dec_pn_num_refs(void *pn) {
-    if(pn) ((ParseNode*)pn)->refs--;
-}
-
-int pn_equal(void *pn1, void *pn2) {
-    return equal_subtrees((ParseNode*)pn1, (ParseNode*)pn2);
-}
-
-int get_pn_num_children(void* pn) {
-    return pn ? len(((ParseNode*)pn)->ch) : 0;
-}
-
-void* get_pn_child(void* pn, int i) {
-    if (i < 0 || i >= len(((ParseNode*)pn)->ch)) {
-        throw std::invalid_argument("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
-        //setError("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
-        //return 0;
-    }
-    return ((ParseNode*)pn)->ch[i];
-}
-
-int set_pn_child(void* pn, int i, void* ch) {
-    if (!ch) {
-        throw std::invalid_argument("Cannot set null parse node as child");
-    }
-    if (i < 0 || i >= len(((ParseNode*)pn)->ch)) {
-        throw std::invalid_argument("Parse node child index {} out of range ({})"_fmt(i, len(((ParseNode*)pn)->ch)));
-    }
-    ((ParseNode*)pn)->ch[i] = (ParseNode*)ch;
-    return 0;
-}
-
-int get_pn_rule(void* pn) {
-    return ((ParseNode*)pn)->rule;
-}
-
-int add_rule(void* px, const string& lhs, const string& rhs) {
-    // try {
-        return addRule(((ParseContext*)px)->grammar(), string(lhs) + " -> " + rhs);
-    /*} catch (std::exception &e) {
-        setError(e);
-        return -1;
-    }*/
-}
-
-void* new_parser_state(void *px, const string& text, const string& start) {
-    //cout<<"px = "<<px<<endl;
-    //cout<<"text = "<<text<<endl;
-    //cout<<"start = "<<start<<endl;
+char* ast_to_text(ParseContext* px, ParseNode *pn) {
     //try {
-        return new ParserState((ParseContext*)px, text, start);
-    /*} catch(std::exception &e) {
-        setError(e);
-        return 0;
-    }*/
-}
-
-int at_end(void *state) {
-    return ((ParserState*)state)->atEnd();
-}
-
-void* continue_parse(void *state) {
-    //try {
-        ParseTree tree = ((ParserState*)state)->parse_next();
-        //setError("");
-        return tree.root.get();
-    /*} catch (std::exception &e) {
-        setError(e);
-        return 0;
-    }*/
-}
-
-void del_parser_state(void* state) {
-    delete (ParserState*)state;
-}
-
-char* ast_to_text(void* pcontext, void *pn) {
-    //try {
-        auto* node = (ParseNode*)pn;
-        auto* px = (ParseContext*)pcontext;
         static vector<char> buf;
-        auto s = tree2str(node, px->grammar_ptr().get());
+        auto s = tree2str(pn, px->grammar_ptr().get());
         buf.resize(s.size() + 1);
         memcpy(buf.data(), s.c_str(), s.size() + 1);
         //cout<<buf.data()<<endl;

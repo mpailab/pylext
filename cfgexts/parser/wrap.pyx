@@ -29,50 +29,79 @@ def pass_arg_cython(int x):
     return x
 
 def c_quasiquote (px, nt, n, data, pn):
-    cdef vector[string] _data = [to_bytes(x) for x in data]
+    cdef vector[string] parts = [to_bytes(x) for x in data]
     cdef vector[ParseNode*] subtrees
     for i in range(len(pn)):
         subtrees.push_back(<ParseNode*> to_cptr(pn[i]))
-    return from_cptr(c_c_quasiquote(to_cptr(px), to_bytes(nt), _data, subtrees))
+    return from_cptr(quasiquote(<ParseContext*> to_cptr(px), to_bytes(nt), parts, subtrees))
 
 def new_python_context (by_stmt, syntax_file):
-    return from_cptr(c_new_python_context(by_stmt, to_bytes(syntax_file)))
+    cdef PythonParseContext* px = new PythonParseContext()
+    init_python_grammar(px, by_stmt != 0, to_bytes(syntax_file))
+    return from_cptr(px)
 
-def del_python_context (x):
-    c_del_python_context(to_cptr(x))
+def del_python_context (px):
+    cdef ParseContext* c_px = <ParseContext*> to_cptr(px)
+    del c_px
 
 def inc_pn_num_refs (pn):
-    c_inc_pn_num_refs(to_cptr(pn))
+    cdef ParseNode* c_pn = <ParseNode*> to_cptr(pn)
+    if c_pn is not NULL:
+        c_pn.refs += 1
 
 def dec_pn_num_refs (pn):
-    c_dec_pn_num_refs(to_cptr(pn))
+    cdef ParseNode* c_pn = <ParseNode*> to_cptr(pn)
+    if c_pn is not NULL:
+        c_pn.refs -= 1
 
 def get_pn_num_children (pn):
-    return c_get_pn_num_children(to_cptr(pn))
+    cdef ParseNode* c_pn = <ParseNode*> to_cptr(pn)
+    return 0 if c_pn is NULL else c_pn.ch.size()
 
 def get_pn_child (pn, i):
-    return from_cptr(c_get_pn_child(to_cptr(pn), i))
+    cdef ParseNode* c_pn = <ParseNode*> to_cptr(pn)
+
+    if i < 0 or i >= c_pn.ch.size():
+        raise ValueError(f"Parse node child index {i} out of range ({c_pn.ch.size()})")
+
+    return from_cptr(c_pn.ch[i])
 
 def set_pn_child (pn, i, ch):
-    return c_set_pn_child(to_cptr(pn), i, to_cptr(ch))
+    cdef ParseNode* c_pn = <ParseNode*> to_cptr(pn)
+    cdef ParseNode* c_ch = <ParseNode*> to_cptr(ch)
+
+    if c_ch is NULL:
+        raise ValueError("Cannot set null parse node as child")
+
+    if i < 0 or i >= c_pn.ch.size():
+        raise ValueError(f"Parse node child index {i} out of range ({c_pn.ch.size()})")
+
+    c_pn.ch[i] = c_ch
 
 def get_pn_rule (pn):
-    return c_get_pn_rule(to_cptr(pn))
+    cdef ParseNode* c_pn = <ParseNode*> to_cptr(pn)
+    return c_pn.rule
 
 def pn_equal (pn1, pn2):
-    return c_pn_equal(to_cptr(pn1), to_cptr(pn2))
+    return equal_subtrees(<ParseNode*> to_cptr(pn1), <ParseNode*> to_cptr(pn2))
 
 def add_rule (px, lhs, rhs):
-    return c_add_rule(to_cptr(px), to_bytes(lhs), to_bytes(rhs))
+    cdef ParseContext* c_px = <ParseContext*> to_cptr(px)
+    return addRule(c_px.grammar(), to_bytes(lhs + " -> " + rhs))
 
 def new_parser_state (px, text, start):
-    return from_cptr(c_new_parser_state(to_cptr(px), to_bytes(text), to_bytes(start)))
+    cdef ParserState* _state = new ParserState(<ParseContext*> to_cptr(px), to_bytes(text), to_bytes(start))
+    return from_cptr(_state)
 
 def continue_parse (state):
-    return from_cptr(c_continue_parse(to_cptr(state)))
+    cdef ParserState* c_state = <ParserState*> to_cptr(state)
+    cdef ParseTree tree = c_state.parse_next()
+    cdef ParseNode* root = tree.root.get()
+    return from_cptr(root)
 
 def del_parser_state (state):
-    c_del_parser_state(to_cptr(state))
+    cdef ParserState* c_state = <ParserState*> to_cptr(state)
+    del c_state
 
-def ast_to_text (pcontext, pn):
-    return to_str(c_ast_to_text(to_cptr(pcontext), to_cptr(pn)))
+def ast_to_text (px, pn):
+    return to_str(c_ast_to_text(<ParseContext*> to_cptr(px), <ParseNode*> to_cptr(pn)))
