@@ -134,7 +134,7 @@ class Parser:
 def parse_gen(px, text):
     print(f'px = {px}')
     for node in Parser(px, text):
-        print('yield node')
+        # print('yield node')
         yield node
 
 
@@ -171,11 +171,12 @@ def load_file(text, globals, syntax_file):
         for stmt_ast in parse_gen(px, text):
             stmt_ast = macro_expand(px, stmt_ast)
             stmt = ast_to_text(px, stmt_ast)
-            print(f'=========================\nexecute:\n{stmt}\n--- Output: ---')
+            # print(f'=========================\nexecute:\n{stmt}\n--- Output: ---')
             expanded += stmt
             exec(stmt, globals, globals)
-            print('==========================')
+            # print('==========================')
     return expanded
+
 
 with open(sys.argv[1]) as f:
     text = ''.join(f)
@@ -190,9 +191,23 @@ module_vars = {
 start = time.time()
 res = load_file(text, module_vars, sys.argv[2])
 end = time.time()
+
 print("Time of load_file :", end - start)
 print(f'\n=========== Vars of macro module ===========')
 for k, v in module_vars.items():
     if k != '__builtins__':
         print(f'{k} = {v}')
 print(f'============================================')
+
+print(f'result size = {len(res)}')
+
+with open('output.py', 'w') as f:
+    f.write('def syntax_rule(*args): return (lambda x: x)\n')
+    f.write('def macro_rule(*args): return (lambda x: x)\n')
+    f.write(res)
+
+start = time.time()
+import output
+end = time.time()
+
+print(f"Time of import output file: {end - start:.3f}")
