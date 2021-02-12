@@ -122,6 +122,8 @@ class ParseContext:
         # self.globals = globals
         self.syntax_rules = {}
         self.macro_rules = {}
+        self.exported_syntax = []
+        self.exported_macro = []
 
     def syntax_function(self, rule):
         return self.syntax_rules.get(rule, None)
@@ -147,20 +149,36 @@ class ParseContext:
     def __del__(self):
         del_python_context(self.px)
 
-    def add_macro_rule(self, lhs: str, rhs, apply):
+    def add_macro_rule(self, lhs: str, rhs, apply, export=False):
         rhs = b' '.join(str(x).encode('utf8') for x in rhs)
         lhs = lhs.encode('utf8')
         rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
         # print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
+        if export:
+            self.exported_macro.append(dict(lhs=lhs, rhs=rhs, apply=apply))
 
-    def add_syntax_rule(self, lhs: str, rhs, apply):
+    def add_syntax_rule(self, lhs: str, rhs, apply, export=False):
         rhs = b' '.join(str(x).encode('utf8') for x in rhs)
         lhs = lhs.encode('utf8')
         rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
         # print(f'add syntax rule {rule_id}')
         self.syntax_rules[rule_id] = apply
+        if export:
+            self.exported_syntax.append(dict(lhs=lhs, rhs=rhs, apply=apply))
 
+    def gen_syntax_import(self):
+        res = "def _import_grammar(px: ParseContext):\n" \
+              "  # во-первых, импортируем грамматику из всех подмодулей, если такие были\n" \
+              "  if '_imported_syntax_modules' in globals():\n" \
+              "    for sm in _imported_syntax_modules:\n" \
+              "      if hasattr(sm, '_import_grammar'):\n" \
+              "        sm._import_grammar(px)\n\n"
+        for d in self.exported_syntax:
+            res += f'''  px.add_syntax_rule({d['lhs']}, {repr(d['rhs'])}, apply={d['apply'].__name__})\n'''
+        for d in self.exported_macro:
+            res += f'''  px.add_macro_rule({d['lhs']}, {repr(d['rhs'])}, apply={d['apply'].__name__})\n'''
+        return res
 
 def parse_context() -> ParseContext:
     return __parse_context__
@@ -169,7 +187,7 @@ def parse_context() -> ParseContext:
 def macro_rule(lhs: str, rhs: list):
     def set_func(expand_func):
         if parse_context() is not None:
-            parse_context().add_macro_rule(lhs, rhs, expand_func)
+            parse_context().add_macro_rule(lhs, rhs, expand_func, export=True)
         return expand_func
     return set_func
 
@@ -177,7 +195,7 @@ def macro_rule(lhs: str, rhs: list):
 def syntax_rule(lhs: str, rhs: list):
     def set_func(expand_func):
         if parse_context() is not None:
-            parse_context().add_syntax_rule(lhs, rhs, expand_func)
+            parse_context().add_syntax_rule(lhs, rhs, expand_func, export=True)
         return expand_func
     return set_func
 
@@ -268,4 +286,9 @@ def load_file(text, globals):
             expanded += stmt
             exec(stmt, globals, globals)
             dbgprint('==========================', 1)
+        stmt = px.gen_syntax_import()
+        print(f"syntax import function:\n{stmt}")
+        exec(stmt)
+        expanded += stmt
+
     return expanded
