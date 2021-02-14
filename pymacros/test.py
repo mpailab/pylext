@@ -12,17 +12,19 @@ from ctypes import *
 # print(dll.test_exn(-100))
 
 from pymacros import *
+import pymacros
 
-with open('example/match_macro.py') as f:
+with open('example/operator_macro.py') as f:
     text = ''.join(f)
 
 # px = new_python_context()
 # ps = new_parser_state(px, b'0', b'')  # text.encode('utf8'), b'')
 # del_parser_state(ps)
 # del_python_context(px)
-dbg_flag = 1
+#pymacros.dbg_flag = 1
 module_vars = {'__name__': '__main__'}
-exec('from pymacros import syntax_rule, macro_rule, syn_expand, quasiquote', module_vars, module_vars)
+exec('from pymacros import syntax_rule, macro_rule, syn_expand, quasiquote, set_cpp_debug, parse_context', module_vars, module_vars)
+# exec('from ctypes import c_char_p', module_vars, module_vars)
 res = load_file(text, module_vars)
 print(f'\n=========== Vars of macro module ===========')
 for k, v in module_vars.items():

@@ -9,8 +9,8 @@
 #include "Parser.h"
 using namespace std;
 
-int addRule(GrammarState& gr, const string& s, SemanticAction act = SemanticAction(), int id = -1);
-int addRule(GrammarState& gr, const string& s, int id);
+int addRule(GrammarState& gr, const string& s, SemanticAction act = SemanticAction(), int id = -1, int lpr=-1, int rpr=-1);
+int addRule(GrammarState& gr, const string& s, int id, int lpr=-1, int rpr=-1);
 string loadfile(const string& fn);
 
 std::string read_whole_file(const std::string& fn);

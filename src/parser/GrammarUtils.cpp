@@ -1,8 +1,8 @@
-#include "base.h"
+#include "GrammarUtils.h"
 
 #include <utility>
 
-int addRule(GrammarState& gr, const string& s, SemanticAction act, int id) {
+int addRule(GrammarState& gr, const string& s, SemanticAction act, int id, int lpr, int rpr) {
 	int pos = 0, i = 0;
 	string A;
 	vector<string> rhs;
@@ -32,12 +32,12 @@ int addRule(GrammarState& gr, const string& s, SemanticAction act, int id) {
 			pos = q;
 		} else throw Exception("Error : unexpected symbol '"s + s[pos] + "'");
 	}
-	return gr.addRule(A, rhs, std::move(act), id);
+	return gr.addRule(A, rhs, std::move(act), id, lpr, rpr);
 	//return true;
 }
 
-int addRule(GrammarState& gr, const string& s, int id) {
-	return addRule(gr, s, SemanticAction(), id);
+int addRule(GrammarState& gr, const string& s, int id, int lpr, int rpr) {
+	return addRule(gr, s, SemanticAction(), id, lpr, rpr);
 }
 
 string loadfile(const string& fn) {

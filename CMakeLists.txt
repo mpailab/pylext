@@ -25,6 +25,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 include_directories(src/parser)
 include_directories(src/format)
+include_directories(src/pymacro)
 
 add_subdirectory(src)
 add_subdirectory(test)

@@ -22,7 +22,7 @@
 # %token: sstring         = `shortstring`;
 # %syntax: text -> stringliteral | bytesliteral;
 
-%token: integer      =  `decinteger / bininteger / octinteger / hexinteger`;
+%token: integer      =  `bininteger / octinteger / hexinteger / decinteger`;
 %pexpr: decinteger   =  `[1-9] ('_'?[0-9])* / '0'+ ('_' '0')*`;
 %pexpr: bininteger   =  `'0'[bB] ('_'?[01])+`;
 %pexpr: octinteger   =  `'0'[oO] ('_'?[0-7])+`;
@@ -30,7 +30,7 @@
 
 %token: floatnumber   =  `pointfloat / exponentfloat`;
 %pexpr: digitpart     =  `[0-9] ('_'?[0-9])*`;
-%pexpr: pointfloat    =  `digitpart? '.' digitpart / digitpart '.'`;
+%pexpr: pointfloat    =  `digitpart? '.' digitpart / digitpart '.'!('.')`;
 %pexpr: exponentfloat =  `(digitpart / pointfloat) [Ee][+\-]? digitpart`;
 
 

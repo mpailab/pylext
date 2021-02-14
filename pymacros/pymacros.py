@@ -50,9 +50,11 @@ get_pn_child = get_dll_func(parser, 'get_pn_child', c_void_p, 0)
 set_pn_child = get_dll_func(parser, 'set_pn_child', c_int, err_code=-1)
 
 get_pn_rule = get_dll_func(parser, 'get_pn_rule', c_int)
+get_terminal_str = get_dll_func(parser, 'get_terminal_str', c_char_p, 0)
+
 pn_equal = get_dll_func(parser, 'pn_equal', c_int)
 
-add_rule = get_dll_func(parser, 'add_rule', c_int)
+add_rule = get_dll_func(parser, 'add_rule', c_int, -1)
 
 new_parser_state = get_dll_func(parser, 'new_parser_state', c_void_p, 0)
 continue_parse = get_dll_func(parser, 'continue_parse', c_void_p, 0)
@@ -60,6 +62,7 @@ del_parser_state = get_dll_func(parser, 'del_parser_state')
 
 _ast_to_text = get_dll_func(parser, 'ast_to_text', c_char_p, 0)
 
+set_cpp_debug = get_dll_func(parser, 'set_cpp_debug', c_int)
 
 new_python_context.restype = c_void_p
 new_parser_state.restype = c_void_p
@@ -108,6 +111,15 @@ class ParseNode:
     def rule(self):
         return int(get_pn_rule(self.p).value)
 
+    @property
+    def str(self):
+        # print(f'str = {get_terminal_str(self.p).value}')
+        return get_terminal_str(self.p).value.decode('utf8')
+
+    @property
+    def is_terminal(self):
+        return self.rule < 0
+
     def __eq__(self, other):
         assert type(other) is ParseNode
         return parser.pn_equal(self.p, other.p) != 0
@@ -117,13 +129,18 @@ class ParseNode:
 
 
 class ParseContext:
-    def __init__(self):  # , globals: dict):
+    def __init__(self, globals: dict):
         self.px = new_python_context()
-        # self.globals = globals
+        self.globals = globals
         self.syntax_rules = {}
         self.macro_rules = {}
         self.exported_syntax = []
         self.exported_macro = []
+
+    def eval(self, expr):
+        if type(expr) is ParseNode:
+            expr = ast_to_text(self, expr)
+        return eval(expr, self.globals)
 
     def syntax_function(self, rule):
         return self.syntax_rules.get(rule, None)
@@ -149,23 +166,29 @@ class ParseContext:
     def __del__(self):
         del_python_context(self.px)
 
-    def add_macro_rule(self, lhs: str, rhs, apply, export=False):
+    def add_macro_rule(self, lhs: str, rhs, apply, export=False, lpriority=None, rpriority=None):
+        if lpriority is None: lpriority = -1
+        if rpriority is None: rpriority = -1
         rhs = b' '.join(str(x).encode('utf8') for x in rhs)
         lhs = lhs.encode('utf8')
+        # print(f'add rule: {lhs} -> {rhs}:',end='')
         rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
+        # print(f' id = {rule_id}, f = {apply}')
         # print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
         if export:
-            self.exported_macro.append(dict(lhs=lhs, rhs=rhs, apply=apply))
+            self.exported_macro.append(dict(lhs=lhs, rhs=rhs, apply=apply, lpr=lpriority, rpr=rpriority))
 
-    def add_syntax_rule(self, lhs: str, rhs, apply, export=False):
+    def add_syntax_rule(self, lhs: str, rhs, apply, export=False, lpriority=None, rpriority=None):
+        if lpriority is None: lpriority = -1
+        if rpriority is None: rpriority = -1
         rhs = b' '.join(str(x).encode('utf8') for x in rhs)
         lhs = lhs.encode('utf8')
         rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
         # print(f'add syntax rule {rule_id}')
         self.syntax_rules[rule_id] = apply
         if export:
-            self.exported_syntax.append(dict(lhs=lhs, rhs=rhs, apply=apply))
+            self.exported_syntax.append(dict(lhs=lhs, rhs=rhs, apply=apply, lpr=lpriority, rpr=rpriority))
 
     def gen_syntax_import(self):
         res = "def _import_grammar(px: ParseContext):\n" \
@@ -175,27 +198,28 @@ class ParseContext:
               "      if hasattr(sm, '_import_grammar'):\n" \
               "        sm._import_grammar(px)\n\n"
         for d in self.exported_syntax:
-            res += f'''  px.add_syntax_rule({d['lhs']}, {repr(d['rhs'])}, apply={d['apply'].__name__})\n'''
+            res += f'''  px.add_syntax_rule({d['lhs']}, {repr(d['rhs'])}, apply={d['apply'].__name__}, lpriority={d['lpr']}, rpriority={d['rpr']})\n'''
         for d in self.exported_macro:
-            res += f'''  px.add_macro_rule({d['lhs']}, {repr(d['rhs'])}, apply={d['apply'].__name__})\n'''
+            res += f'''  px.add_macro_rule({d['lhs']}, {repr(d['rhs'])}, apply={d['apply'].__name__}, lpriority={d['lpr']}, rpriority={d['rpr']})\n'''
         return res
+
 
 def parse_context() -> ParseContext:
     return __parse_context__
 
 
-def macro_rule(lhs: str, rhs: list):
+def macro_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     def set_func(expand_func):
         if parse_context() is not None:
-            parse_context().add_macro_rule(lhs, rhs, expand_func, export=True)
+            parse_context().add_macro_rule(lhs, rhs, expand_func, export=True, lpriority=lpriority, rpriority=rpriority)
         return expand_func
     return set_func
 
 
-def syntax_rule(lhs: str, rhs: list):
+def syntax_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     def set_func(expand_func):
         if parse_context() is not None:
-            parse_context().add_syntax_rule(lhs, rhs, expand_func, export=True)
+            parse_context().add_syntax_rule(lhs, rhs, expand_func, export=True, lpriority=lpriority, rpriority=rpriority)
         return expand_func
     return set_func
 
@@ -245,6 +269,9 @@ def parse_gen(px, text):
 
 
 def syn_expand(node: ParseNode):
+    if node.is_terminal:
+        return node.str
+
     # print(f'in syn_expand, rule = {node.rule}')
     px = parse_context()
     f = px.syntax_function(node.rule)
@@ -257,6 +284,7 @@ def macro_expand(px: ParseContext, node: ParseNode):
     """ Раскрывает макросы в синтаксическом дереве """
     while True:
         f = px.macro_function(node.rule)
+        # print(f'{node.rule}, f = {f}')
         if f is None:
             break
         node = f(*node.children)
@@ -277,7 +305,7 @@ def ast_to_text(px: ParseContext, ast: ParseNode):
 def load_file(text, globals):
     """ Читает файл, раскрывыая макросы и сразу выполняя раскрытые блоки """
     expanded = ""
-    with ParseContext() as px:
+    with ParseContext(globals) as px:
         for stmt_ast in parse_gen(px, text):
             stmt_ast = macro_expand(px, stmt_ast)
             stmt = ast_to_text(px, stmt_ast)

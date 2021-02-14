@@ -1,4 +1,4 @@
-#include "pymacro.h"
+#include "PyMacro.h"
 
 #include <iostream>
 #include <algorithm>
@@ -6,7 +6,7 @@
 //#include <fstream>
 //#include <iomanip>
 #include "Parser.h"
-#include "base.h"
+#include "GrammarUtils.h"
 #include "format.h"
 
 using namespace std;
@@ -115,7 +115,10 @@ void make_qqir(ParseContext& px, ParseNodePtr& root, ParseNode* n, const std::st
         // TODO: Парсить f string и раскрывать макросы в выражениях
         if (n->ch[i]->term.find('{') != string::npos)
             qq += 'f';
-        tostr(qq, n->ch[i]->term, '"');
+        qq += "\"\"\"";
+        qq += n->ch[i]->term;
+        qq += "\"\"\"";
+        // tostr(qq, n->ch[i]->term, '"');
     }
 
     qq += "],[";
@@ -406,9 +409,9 @@ int get_pn_rule(void* pn) {
     return ((ParseNode*)pn)->rule;
 }
 
-int add_rule(void* px, char* lhs, char *rhs) {
+int add_rule(void* px, char* lhs, char *rhs, int lpr, int rpr) {
     try {
-        return addRule(((ParseContext*)px)->grammar(), string(lhs) + " -> " + rhs);
+        return addRule(((ParseContext*)px)->grammar(), string(lhs) + " -> " + rhs, lpr, rpr);
     } catch (std::exception &e) {
         setError(e);
         return -1;
@@ -460,6 +463,20 @@ char* ast_to_text(void* pcontext, void *pn) {
         setError(e);
         return 0;
     }
+}
+
+const char* get_terminal_str(void* pn){
+    auto *node = (ParseNode*)pn;
+    if (!node->isTerminal()) {
+        setError("get string value of nonterminal");
+        return nullptr;
+    }
+    return node->term.c_str();
+}
+
+int set_cpp_debug(int dbg){
+    setDebug(dbg);
+    return 0;
 }
 
 extern "C" DLL_EXPORT int identity(int x) {

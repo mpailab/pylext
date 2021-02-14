@@ -71,12 +71,15 @@ extern "C" DLL_EXPORT void* get_pn_child(void* pn, int i);
 extern "C" DLL_EXPORT int set_pn_child(void* pn, int i, void* ch);
 
 extern "C" DLL_EXPORT int get_pn_rule(void* pn);
+extern "C" DLL_EXPORT const char* get_terminal_str(void* pn);
 extern "C" DLL_EXPORT int pn_equal(void* pn1, void* pn2);
 
 
-extern "C" DLL_EXPORT int add_rule(void* px, char* lhs, char *rhs);
+extern "C" DLL_EXPORT int add_rule(void* px, char* lhs, char *rhs, int lpr, int rpr);
 
 extern "C" DLL_EXPORT void* new_parser_state(void* px, const char* text, const char *start);
 extern "C" DLL_EXPORT void* continue_parse(void* state);
 extern "C" DLL_EXPORT int at_end(void *state);
 extern "C" DLL_EXPORT void del_parser_state(void* state);
+
+extern "C" DLL_EXPORT int set_cpp_debug(int dbg);
