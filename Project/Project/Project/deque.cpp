@@ -1,4 +1,4 @@
-﻿#include <iostream>
+#include <iostream>
 #include <deque>    
 #include <iterator>     
 #include <string>  
@@ -16,7 +16,7 @@
 using namespace std;
 
 
-
+/*
 class Vertix_Const
 {
 public:
@@ -132,6 +132,7 @@ public:
 
 
 };
+*/
 
 struct hash_pair {
     template <class T1, class T2>
@@ -396,6 +397,10 @@ int main()
         Vertix_Const ver(32);
         dq4.push_front(ver);
     }
+    /*for (i=0;i<1000;i++)
+    {
+            umap[i] = -1;
+    }*/
     for (i = 0; i < 2000; i++)
     {
         dq2.push_front(umap);
