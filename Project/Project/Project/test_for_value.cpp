@@ -12,11 +12,14 @@
 #include <immintrin.h>
 #include <intrin.h>
 #include <stdio.h>
+#include <random>
 #include "Structure.h"
 using namespace std;
 
 int value(int nmb, deque<array<int, 1000>>& dq)
 {
+    unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 g1(seed1);
     int i, j, x, y, k;
     k = 0;
     std::array<int, 1000> a;
@@ -30,15 +33,15 @@ int value(int nmb, deque<array<int, 1000>>& dq)
         dq.pop_back();
         for (j = 0; j < 10; j++)
         {
-            x = rand() % 2000;
-            y = rand() % 1000;
+            x = g1() % 2000;
+            y = g1() % 1000;
             if (dq.at(x)[y] != -1)
             {
                 k++;
             }
             else
             {
-                dq[x][y] = rand() % 1000;
+                dq[x][y] = g1() % 1000;
             }
         }
     }
@@ -47,6 +50,8 @@ int value(int nmb, deque<array<int, 1000>>& dq)
 
 int value2(int nmb, deque< unordered_map<int, int>>& dq)
 {
+    unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 g1(seed1);
     int i, j, x, y, k;
     k = 0;
     unordered_map<int, int> umap1;
@@ -56,11 +61,11 @@ int value2(int nmb, deque< unordered_map<int, int>>& dq)
         dq.pop_back();
         for (j = 0; j < 10; j++)
         {
-            x = rand() % 2000;
-            y = rand() % 1000;
+            x = g1() % 2000;
+            y = g1() % 1000;
             if (dq.at(x).find(y) == dq.at(x).cend())
             {
-                dq[x][y] = rand() % 1000;
+                dq[x][y] = g1() % 1000;
             }
             else
             {
@@ -73,6 +78,8 @@ int value2(int nmb, deque< unordered_map<int, int>>& dq)
 
 int value3(int nmb, deque<vector<int>>& dq)
 {
+    unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 g1(seed1);
     int i, j, x, y, k;
     k = 0;
     vector<int> vect1;
@@ -86,15 +93,15 @@ int value3(int nmb, deque<vector<int>>& dq)
         dq.pop_back();
         for (j = 0; j < 10; j++)
         {
-            x = rand() % 2000;
-            y = rand() % 1000;
+            x = g1() % 2000;
+            y = g1() % 1000;
             if (dq.at(x)[y] != -1)
             {
                 k++;
             }
             else
             {
-                dq[x][y] = rand() % 1000;
+                dq[x][y] = g1() % 1000;
             }
         }
     }
@@ -103,6 +110,8 @@ int value3(int nmb, deque<vector<int>>& dq)
 
 int value4(int nmb, deque<Vertix_Const>& dq)
 {
+    unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 g1(seed1);
     int i, j, x, y, k;
     k = 0;
     for (i = 0; i < nmb; i++)
@@ -112,8 +121,8 @@ int value4(int nmb, deque<Vertix_Const>& dq)
         dq.pop_back();
         for (j = 0; j < 10; j++)
         {
-            x = rand() % 2000;
-            y = rand() % 1024;
+            x = g1() % 2000;
+            y = g1() % 1024;
             if (dq.at(x).get(y) != -1)
             {
                 k++;
@@ -125,18 +134,20 @@ int value4(int nmb, deque<Vertix_Const>& dq)
 
 int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2)
 {
+    unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 g1(seed1);
     int i, j, x, y, k;
     k = 0;
     for (i = 0; i < nmb; i++)
     {
         for (j = 0; j < 10; j++)
         {
-            x = rand() % 2000;
-            y = rand() % 1000;
+            x = g1() % 2000;
+            y = g1() % 1000;
             pair<int, int> p1(x, y);
             if (umap2.find(p1) == umap2.cend())
             {
-                umap2[p1] = rand() % 1000;
+                umap2[p1] = g1() % 1000;
             }
             else
             {
@@ -202,14 +213,15 @@ int main()
     high_resolution_clock::time_point t10 = high_resolution_clock::now();
     duration<double> time_span5 = duration_cast<duration<double>>(t10 - t9);
     std::cout << "Time for value for deque of Vertix_MAP: " << time_span5.count() << " seconds." << endl;
-
+    unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 g1(seed1);
     for (int i = 0; i < nmb; i++)
     {
         int x, y;
-        x = rand() % 2000;
-        y = rand() % 1000;
+        x = g1() % 2000;
+        y = g1() % 1000;
         pair<int, int> p1(x, y);
-        umap2[p1] = rand() % 1000;
+        umap2[p1] = g1() % 1000;
     }
 
     high_resolution_clock::time_point t11 = high_resolution_clock::now();

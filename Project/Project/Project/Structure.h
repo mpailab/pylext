@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <cmath>
 #include <vector>
+#include <random>
 #include <immintrin.h>
 #include <intrin.h>
 #include <stdio.h>
@@ -41,8 +42,10 @@ public:
             counts[i] = sum;
             sum += x;
         }
+        unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+        std::mt19937 g1(seed1);
         for (int i = 0; i < sum; i++) {
-            values.push_back(rand());
+            values.push_back(g1());
         }
     }
 
