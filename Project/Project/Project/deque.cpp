@@ -1,4 +1,4 @@
-#include <iostream>
+/*#include <iostream>
 #include <deque>    
 #include <iterator>     
 #include <string>  
@@ -16,7 +16,7 @@
 using namespace std;
 
 
-/*
+
 class Vertix_Const
 {
 public:
@@ -132,7 +132,7 @@ public:
 
 
 };
-*/
+
 
 struct hash_pair {
     template <class T1, class T2>
@@ -195,35 +195,6 @@ int return_value(array<int, 1000> a, deque<array<int, 1000>>& dq, int x, int y)
     }
 };
 
-int value(int nmb, deque<array<int, 1000>>& dq)
-{
-    int i, j, x, y, k;
-    k = 0;
-    std::array<int, 1000> a;
-    for (i = 0; i < 1000; i++)
-    {
-        a[i] = -1;
-    }
-    for (i = 0; i < nmb; i++)
-    {
-        dq.push_front(a);
-        dq.pop_back();
-        for (j = 0; j < 10; j++)
-        {
-            x = rand() % 2000;
-            y = rand() % 1000;
-            if (dq.at(x)[y] != -1)
-            {
-                k++;
-            }
-            else
-            {
-                dq[x][y] = rand() % 1000;
-            }
-        }
-    }
-    return k;
-};
 
 void shift_right2(int s, unordered_map<int, int> umap, deque< unordered_map<int, int>>& dq)
 {
@@ -264,36 +235,6 @@ int return_value2(unordered_map<int, int> umap, deque< unordered_map<int, int>>&
     }
 };
 
-int value2(int nmb, deque< unordered_map<int, int>>& dq)
-{
-    int i, j, x, y, k;
-    k = 0;
-    unordered_map<int, int> umap1;
-    /*for (i=0;i<1000;i++)
-    {
-        umap1[i] = -1;
-    }*/
-    for (i = 0; i < nmb; i++)
-    {
-        dq.push_front(umap1);
-        dq.pop_back();
-        for (j = 0; j < 10; j++)
-        {
-            x = rand() % 2000;
-            y = rand() % 1000;
-            /*if (dq.at(x)[y] != -1)
-            {
-                k++;
-            }
-            else
-            {*/
-            dq[x][y] = rand() % 1000;
-            //} 
-        }
-    }
-    return k;
-};
-
 void resize(int size, int dq_size, deque<vector<int>>& dq)
 {
     int i, j;
@@ -323,57 +264,7 @@ void resize(int size, int dq_size, deque<vector<int>>& dq)
     }
 };
 
-int value3(int nmb, deque<vector<int>>& dq)
-{
-    int i, j, x, y, k;
-    k = 0;
-    vector<int> vect1;
-    for (i = 0; i < 1000; i++)
-    {
-        vect1.push_back(-1);
-    }
-    for (i = 0; i < nmb; i++)
-    {
-        dq.push_front(vect1);
-        dq.pop_back();
-        for (j = 0; j < 10; j++)
-        {
-            x = rand() % 2000;
-            y = rand() % 1000;
-            if (dq.at(x)[y] != -1)
-            {
-                k++;
-            }
-            else
-            {
-                dq[x][y] = rand() % 1000;
-            }
-        }
-    }
-    return k;
-};
 
-int value4(int nmb, deque<Vertix_Const>& dq)
-{
-    int i, j, x, y, k;
-    k = 0;
-    for (i = 0; i < nmb; i++)
-    {
-        Vertix_Const ver(32);
-        dq.push_front(ver);
-        dq.pop_back();
-        for (j = 0; j < 10; j++)
-        {
-            x = rand() % 2000;
-            y = rand() % 1024;
-            if (dq.at(x).ret(y) != -1)
-            {
-                k++;
-            }
-        }
-    }
-    return k;
-}
 
 int main()
 {
@@ -397,19 +288,16 @@ int main()
         Vertix_Const ver(32);
         dq4.push_front(ver);
     }
-    /*for (i=0;i<1000;i++)
+    for (i=0;i<1000;i++)
     {
             umap[i] = -1;
-    }*/
+    }
     for (i = 0; i < 2000; i++)
     {
         dq2.push_front(umap);
     };
 
-    for (i = 0; i < 1000; i++)
-    {
-        a3[i] = -1;
-    }
+    a3.fill(-1);
 
     for (i = 0; i < 2000; i++)
     {
@@ -537,3 +425,4 @@ int main()
     system("pause");
     return 0;
 }
+*/

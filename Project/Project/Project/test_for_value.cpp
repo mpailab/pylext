@@ -12,7 +12,7 @@
 #include <immintrin.h>
 #include <intrin.h>
 #include <stdio.h>
-#include <Structure.h>
+#include "Structure.h"
 using namespace std;
 
 int value(int nmb, deque<array<int, 1000>>& dq)
@@ -114,7 +114,7 @@ int value4(int nmb, deque<Vertix_Const>& dq)
         {
             x = rand() % 2000;
             y = rand() % 1024;
-            if (dq.at(x).ret(y) != -1)
+            if (dq.at(x).get(y) != -1)
             {
                 k++;
             }
@@ -123,7 +123,7 @@ int value4(int nmb, deque<Vertix_Const>& dq)
     return k;
 }
 
-int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2;)
+int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2)
 {
     int i, j, x, y, k;
     k = 0;
@@ -149,25 +149,32 @@ int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2;)
 
 int main()
 {
-    for (i = 0; i < 2000; i++)
+    using namespace std::chrono;
+
+    int nmb;
+    cout << "Give number of iterations:" << endl;
+    cin >> nmb;
+    cout << endl;
+
+    for (int i = 0; i < 2000; i++)
     {
         Vertix_Const ver(32);
         dq4.push_front(ver);
     }
 
-    for (i = 0; i < 2000; i++)
+    for (int i = 0; i < 2000; i++)
     {
         dq2.push_front(umap);
     };
 
     a3.fill(-1);
 
-    for (i = 0; i < 2000; i++)
+    for (int i = 0; i < 2000; i++)
     {
         dq1.push_front(a3);
     };
 
-    resize(1100, dq_size, dq3);
+    resize(1100, DQ_SIZE, dq3);
 
 
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
@@ -186,7 +193,7 @@ int main()
     int answer3;
     answer3 = value3(nmb, dq3);
     high_resolution_clock::time_point t8 = high_resolution_clock::now();
-    duration<double> time_span2 = duration_cast<duration<double>>(t8 - t7);
+    duration<double> time_span4 = duration_cast<duration<double>>(t8 - t7);
     std::cout << "Time for value for deque of integers: " << time_span4.count() << " seconds." << endl;
 
     high_resolution_clock::time_point t9 = high_resolution_clock::now();
@@ -196,8 +203,9 @@ int main()
     duration<double> time_span5 = duration_cast<duration<double>>(t10 - t9);
     std::cout << "Time for value for deque of Vertix_MAP: " << time_span5.count() << " seconds." << endl;
 
-    for (i = 0; i < nmb; i++)
+    for (int i = 0; i < nmb; i++)
     {
+        int x, y;
         x = rand() % 2000;
         y = rand() % 1000;
         pair<int, int> p1(x, y);
@@ -205,7 +213,7 @@ int main()
     }
 
     high_resolution_clock::time_point t11 = high_resolution_clock::now();
-    int answer4;
+    int answer5;
     answer5 = value5(nmb, umap2);
     high_resolution_clock::time_point t12 = high_resolution_clock::now();
     duration<double> time_span6 = duration_cast<duration<double>>(t12 - t11);
