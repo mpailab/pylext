@@ -91,6 +91,40 @@ public:
             return values[x];
     }
     
+    void add(int n,int value) {
+        int x = hash(n), d;
+        if (x != -1) {
+            values[x] = value;
+        } else {
+            d = n / BIT_SIZE;
+            mask[d] = mask[d] | uint64_t(1) << (n % BIT_SIZE);
+            int sum = 0;
+            for (int i = 0; i < SIZE_OF_VERTIX; i++)
+            {
+                int x = __popcnt64(mask[i]);
+                counts[i] = sum;
+                sum += x;
+            }
+            values.insert(values.begin() + hash(n),value);
+        }
+        
+    }
+
+    void del(int n) {
+        int x = hash(n), d;
+        if (x != -1) {
+            d = n / BIT_SIZE;
+            mask[d] = mask[d] | ~(uint64_t(1) << (n % BIT_SIZE));
+            int sum = 0;
+            for (int i = 0; i < SIZE_OF_VERTIX; i++)
+            {
+                int x = __popcnt64(mask[i]);
+                counts[i] = sum;
+                sum += x;
+            }
+            values.erase(values.begin() + hash(n));
+        }
+    }
   
 }; 
 
