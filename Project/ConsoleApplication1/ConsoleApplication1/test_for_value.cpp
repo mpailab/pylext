@@ -295,4 +295,5 @@ int value_bigumap(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2, 
         std::chrono::high_resolution_clock::time_point t10 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span6 = std::chrono::duration_cast<std::chrono::duration<double>>(t10 - t9);
         std::cout << "Time for value for big unordered map: " << time_span6.count() << " seconds." << endl;
+        return 0;
     }

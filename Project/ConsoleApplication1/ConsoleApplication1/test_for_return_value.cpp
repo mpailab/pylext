@@ -202,5 +202,6 @@ int return_value3(vector<int> vect1, deque< vector<int> >& dq, int x, int y)
         high_resolution_clock::time_point t6 = high_resolution_clock::now();
         duration<double> time_span3 = duration_cast<duration<double>>(t6 - t5);
         std::cout << "Time for return_value for vector: " << time_span3.count() << " seconds." << endl;
+        return 0;
 
     }

@@ -53,26 +53,28 @@ constexpr int DQ_SIZE = 2000;
         }
         Vertix_Const(vector<pair<int, int>> dict) {
             mask.fill(uint64_t(0));
-            sort(dict.begin(), dict.end(), [](pair<int, int> x, pair<int, int> y) { return x.first < y.first; });
-            for (int i = 0; i < dict.size(); i++) {
-                int d;
-                bool res = true;
-                for (int j = 0; j < i; j++) {
-                    if (dict[j].first == dict[i].second) {
-                        res = false;
+            if (dict.size() != 0) {
+                sort(dict.begin(), dict.end(), [](pair<int, int> x, pair<int, int> y) { return x.first < y.first; });
+                for (int i = 0; i < dict.size(); i++) {
+                    int d;
+                    bool res = true;
+                    for (int j = 0; j < i; j++) {
+                        if (dict[j].first == dict[i].second) {
+                            res = false;
+                        }
+                    }
+                    if (res) {
+                        d = dict[i].first / BIT_SIZE;
+                        mask[d] = mask[d] | uint64_t(1) << (dict[i].first % BIT_SIZE);
+                        values.push_back(dict[i].second);
                     }
                 }
-                if (res) {
-                    d = dict[i].first / BIT_SIZE;
-                    mask[d] = mask[d] | uint64_t(1) << (dict[i].first % BIT_SIZE);
-                    values.push_back(dict[i].second);
+                int sum = 0;
+                for (int i = 0; i < SIZE_OF_VERTIX; i++) {
+                    int x = __popcnt64(mask[i]);
+                    counts[i] = sum;
+                    sum += x;
                 }
-            }
-            int sum = 0;
-            for (int i = 0; i < SIZE_OF_VERTIX; i++) {
-                int x = __popcnt64(mask[i]);
-                counts[i] = sum;
-                sum += x;
             }
         }
 
@@ -105,11 +107,13 @@ constexpr int DQ_SIZE = 2000;
                 mask[d] = mask[d] | uint64_t(1) << (n % BIT_SIZE);
                 int sum = 0;
                 for (int i = 0; i < SIZE_OF_VERTIX; i++) {
-                    int x = __popcnt64(mask[i]);
+                    int l = __popcnt64(mask[i]);
                     counts[i] = sum;
-                    sum += x;
+                    sum += l;
                 }
-                values.insert(values.begin() + hash(n), value);
+                x = hash(n);
+                //cout << x;
+                values.insert(values.begin() + x, value);
             }
 
         }
@@ -118,14 +122,14 @@ constexpr int DQ_SIZE = 2000;
             int x = hash(n), d;
             if (x != -1) {
                 d = n / BIT_SIZE;
-                mask[d] = mask[d] | ~(uint64_t(1) << (n % BIT_SIZE));
+                mask[d] = mask[d] & ~(uint64_t(1) << (n % BIT_SIZE));
                 int sum = 0;
                 for (int i = 0; i < SIZE_OF_VERTIX; i++) {
-                    int x = __popcnt64(mask[i]);
+                    int l = __popcnt64(mask[i]);
                     counts[i] = sum;
-                    sum += x;
+                    sum += l;
                 }
-                values.erase(values.begin() + hash(n));
+                values.erase(values.begin() + x);
             }
         }
 
