@@ -1,5 +1,6 @@
 ﻿#include "Structure.h"
 using namespace std;
+// with new rand;
 
 //DAS_G
 struct hash_pair {
@@ -8,10 +9,19 @@ struct hash_pair {
     {
         return hash<uint64_t>{}((uint64_t(p.first)«32) | uint64_t(p.second));
     }*/
-    size_t operator () (const std::pair<T1, T2>& p) const {
+    /*size_t operator () (const std::pair<T1, T2>& p) const {
         auto h1 = hash<uint64_t>{}(p.first);
         auto h2 = hash<uint64_t>{}(p.second);
         return h1<<32 | h2;
+    }*/
+    size_t operator()(const pair<T1, T2>& p) const
+    {
+        std::size_t seed = 0;
+        auto hash1 = hash<T1>{}(p.first);
+        auto hash2 = hash<T2>{}(p.second);
+        seed ^= hash1 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= hash2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        return seed;
     }
 };
 
@@ -45,10 +55,11 @@ void resize2(int size, int dq_size, deque<vector<int>>& dq)
 };
 
 
-int value(int nmb, deque<array<int, 1000>>& dq)
+int value(int nmb, deque<array<int, 1000>>& dq, vector<int> rand1, vector<int> rand2, vector<int> rand3)
 {
-    int i, j, x, y, k;
+    int i, j, x, y, k, s;
     k = 0;
+    s = 0;
     std::array<int, 1000> a;
     for (i = 0; i < 1000; i++)
     {
@@ -60,25 +71,27 @@ int value(int nmb, deque<array<int, 1000>>& dq)
         dq.pop_back();
         for (j = 0; j < 10; j++)
         {
-            x = rand() % 2000;
-            y = rand() % 1000;
+            x = rand1[s];
+            y = rand2[s];
             if (dq.at(x)[y] != -1)
             {
                 k++;
             }
             else
             {
-                dq[x][y] = rand() % 1000;
+                dq[x][y] = rand3[s];
             }
+            s++;
         }
     }
     return k;
 };
 
-int value2(int nmb, deque< unordered_map<int, int>>& dq)
+int value2(int nmb, deque< unordered_map<int, int>>& dq, vector<int> rand1, vector<int> rand2, vector<int> rand3)
 {
-    int i, j, x, y, k;
+    int i, j, x, y, k, s;
     k = 0;
+    s = 0;
     unordered_map<int, int> umap1;
     for (i = 0; i < nmb; i++)
     {
@@ -86,25 +99,27 @@ int value2(int nmb, deque< unordered_map<int, int>>& dq)
         dq.pop_back();
         for (j = 0; j < 10; j++)
         {
-            x = rand() % 2000;
-            y = rand() % 1000;
+            x = rand1[s];
+            y = rand2[s];
             if (dq.at(x).find(y) == dq.at(x).cend())
             {
-                dq[x][y] = rand() % 1000;
+                dq[x][y] = rand3[s];
             }
             else
             {
                 k++;
             }
+            s++;
         }
     }
     return k;
 };
 
-int value3(int nmb, deque<vector<int>>& dq)
+int value3(int nmb, deque<vector<int>>& dq, vector<int> rand1, vector<int> rand2, vector<int> rand3)
 {
-    int i, j, x, y, k;
+    int i, j, x, y, k, s;
     k = 0;
+    s = 0;
     vector<int> vect1;
     for (i = 0; i < 1000; i++)
     {
@@ -116,16 +131,17 @@ int value3(int nmb, deque<vector<int>>& dq)
         dq.pop_back();
         for (j = 0; j < 10; j++)
         {
-            x = rand() % 2000;
-            y = rand() % 1000;
+            x = rand1[s];
+            y = rand2[s];
             if (dq.at(x)[y] != -1)
             {
                 k++;
             }
             else
             {
-                dq[x][y] = rand() % 1000;
+                dq[x][y] = rand3[s];
             }
+            s++;
         }
     }
     return k;
@@ -153,25 +169,27 @@ int value4(int nmb, deque<Vertix_Const>& dq)
     return k;
 }
 
-int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2)
+int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2, vector<int> rand1, vector<int> rand2, vector<int> rand3)
 {
-    int i, j, x, y, k;
+    int i, j, x, y, k, s;
     k = 0;
+    s = 0;
     for (i = 0; i < nmb; i++)
     {
         for (j = 0; j < 10; j++)
         {
-            x = rand() % 2000;
-            y = rand() % 1000;
+            x = rand1[s];
+            y = rand2[s];
             pair<int, int> p1(x, y);
             if (umap2.find(p1) == umap2.cend())
             {
-                umap2[p1] = rand() % 1000;
+                umap2[p1] = rand3[s];
             }
             else
             {
                 k++;
             }
+            s++;
         }
     }
     return k;
@@ -223,35 +241,33 @@ int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2)
 
         for (int i = 0; i < nmb*10; i++)
         {
-            rand1[i] = g1() % 2000;
+            rand1.push_back(g1() % 2000);
         }
         for (int i = 0; i < nmb * 10; i++)
         {
-            rand2[i] = g1() % 1000;
+            rand2.push_back(g1() % 1000);
         }
         for (int i = 0; i < nmb * 10; i++)
         {
-            rand3[i] = g1() % 1000;
+            rand3.push_back(g1() % 1000);
         }
-
-        cout << "rand1.size() = " << rand1.size() << endl;
 
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-        int answer1 = value(nmb, dq1);
+        int answer1 = value(nmb, dq1, rand1, rand2, rand3);
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-        std::cout << "Time for value for array: " << time_span.count() << " seconds." << endl;
+        std::cout << "Time for value for deque of array: " << time_span.count() << " seconds." << endl;
 
         std::chrono::high_resolution_clock::time_point t3 = std::chrono::high_resolution_clock::now();
-        int answer2 = value2(nmb, dq2);
+        int answer2 = value2(nmb, dq2, rand1, rand2, rand3);
         std::chrono::high_resolution_clock::time_point t4 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span2 = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
-        std::cout << "Time for value for unordered map: " << time_span2.count() << " seconds." << endl;
+        std::cout << "Time for value for deque of unordered map: " << time_span2.count() << " seconds." << endl;
 
         std::chrono::high_resolution_clock::time_point t5 = std::chrono::high_resolution_clock::now();
         int answer3;
-        answer3 = value3(nmb, dq3);
+        answer3 = value3(nmb, dq3, rand1, rand2, rand3);
         std::chrono::high_resolution_clock::time_point t6 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span4 = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t5);
         std::cout << "Time for value for deque of integers: " << time_span4.count() << " seconds." << endl;
@@ -274,7 +290,7 @@ int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2)
 
         std::chrono::high_resolution_clock::time_point t9 = std::chrono::high_resolution_clock::now();
         int answer5;
-        answer5 = value5(nmb, umap2);
+        answer5 = value5(nmb, umap2, rand1, rand2, rand3);
         std::chrono::high_resolution_clock::time_point t10 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span6 = std::chrono::duration_cast<std::chrono::duration<double>>(t10 - t9);
         std::cout << "Time for value for big unordered map: " << time_span6.count() << " seconds." << endl;

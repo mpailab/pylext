@@ -118,6 +118,8 @@ int return_value3(vector<int> vect1, deque< vector<int> >& dq, int x, int y)
         deque<vector<int>> dq3;
         unordered_map<int, int> umap;
         unordered_map<pair<int, int>, int, hash_pair> umap2;
+        unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+        mt19937 g1(seed1);
 
         deque<Vertix_Const> dq4;
         using namespace std::chrono;
@@ -125,6 +127,18 @@ int return_value3(vector<int> vect1, deque< vector<int> >& dq, int x, int y)
         cout << "Give number of iterations:" << endl;
         cin >> nmb;
         cout << endl;
+
+        vector<int> rand1;
+        vector<int> rand2;
+
+        for (int i = 0; i < nmb; i++)
+        {
+            rand1.push_back(g1() % 3000);
+        }
+        for (int i = 0; i < nmb; i++)
+        {
+            rand2.push_back(g1() % 1000);
+        }
 
         for (int i = 0; i < 2000; i++)
         {
@@ -157,8 +171,8 @@ int return_value3(vector<int> vect1, deque< vector<int> >& dq, int x, int y)
         int ans, x, y;
         for (int i = 0; i < nmb; i++)
         {
-            x = rand() % 3000;
-            y = rand() % 1000;
+            x = rand1[i];
+            y = rand2[i];
             ans = return_value(a3, dq1, x, y);
         }
         high_resolution_clock::time_point t2 = high_resolution_clock::now();
@@ -169,8 +183,8 @@ int return_value3(vector<int> vect1, deque< vector<int> >& dq, int x, int y)
         int ans2;
         for (int i = 0; i < nmb; i++)
         {
-            x = rand() % 3000;
-            y = rand() % 1000;
+            x = rand1[i];
+            y = rand2[i];
             ans2 = return_value2(umap, dq2, x, y);
         }
         high_resolution_clock::time_point t4 = high_resolution_clock::now();
@@ -181,8 +195,8 @@ int return_value3(vector<int> vect1, deque< vector<int> >& dq, int x, int y)
         int ans3;
         for (int i = 0; i < nmb; i++)
         {
-            x = rand() % 3000;
-            y = rand() % 1000;
+            x = rand1[i];
+            y = rand2[i];
             ans3 = return_value3(vect1, dq3, x, y);
         }
         high_resolution_clock::time_point t6 = high_resolution_clock::now();
