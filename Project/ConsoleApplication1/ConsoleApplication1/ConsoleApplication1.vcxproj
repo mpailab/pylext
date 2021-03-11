@@ -139,6 +139,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="correct_test.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="test_for_value.cpp" />
     <ClCompile Include="test_for_return_value.cpp" />
