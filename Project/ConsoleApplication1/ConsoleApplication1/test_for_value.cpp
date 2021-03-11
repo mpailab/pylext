@@ -188,6 +188,8 @@ int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2)
         deque<vector<int>> dq3;
         unordered_map<int, int> umap;
         unordered_map<pair<int, int>, int, hash_pair> umap2;
+        unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+        std::mt19937 g1(seed1);
 
         deque<Vertix_Const> dq4;
         int nmb;
@@ -214,6 +216,25 @@ int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2)
         };
 
         resize2(1100, DQ_SIZE, dq3);
+
+        vector<int> rand1;
+        vector<int> rand2;
+        vector<int> rand3;
+
+        for (int i = 0; i < nmb*10; i++)
+        {
+            rand1[i] = g1() % 2000;
+        }
+        for (int i = 0; i < nmb * 10; i++)
+        {
+            rand2[i] = g1() % 1000;
+        }
+        for (int i = 0; i < nmb * 10; i++)
+        {
+            rand3[i] = g1() % 1000;
+        }
+
+        cout << "rand1.size() = " << rand1.size() << endl;
 
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
