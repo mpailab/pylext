@@ -29,10 +29,12 @@ private:
     vector<int> values;
 public:
     Vertix_Const(int n) {
+        unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+        std::mt19937 g1(seed1);
         mask.fill(uint64_t(0));
         for (int i = 0; i < n; i++) {
             int r;
-            r = rand() % SIZE_OF_VERTIX * BIT_SIZE;
+            r = g1() % SIZE_OF_VERTIX * BIT_SIZE;
             mask[r / BIT_SIZE] = mask[r / BIT_SIZE] | (uint64_t(1) << (r % BIT_SIZE));
         }
         int sum = 0;
@@ -42,16 +44,13 @@ public:
             counts[i] = sum;
             sum += x;
         }
-        unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-        std::mt19937 g1(seed1);
         for (int i = 0; i < sum; i++) {
             values.push_back(g1());
         }
     }
-
-    Vertix_Const(const vector<pair<int,int>> &dict) {
+    Vertix_Const(vector<pair<int,int>> dict) {
         mask.fill(uint64_t(0));
-        //sort(dict.begin(), dict.end(), [](pair<int, int> x, pair<int, int> y) { return x.first < y.first; });
+        sort(dict.begin(), dict.end(), [](pair<int, int> x, pair<int, int> y) { return x.first < y.first; });
         for (int i = 0; i < dict.size(); i++) {
             int d;
             bool res = true;
@@ -67,8 +66,7 @@ public:
             }
         }
         int sum = 0;
-        for (int i = 0; i < SIZE_OF_VERTIX; i++)
-        {
+        for (int i = 0; i < SIZE_OF_VERTIX; i++) {
             int x = __popcnt64(mask[i]);
             counts[i] = sum;
             sum += x;
@@ -102,8 +100,7 @@ public:
             d = n / BIT_SIZE;
             mask[d] = mask[d] | uint64_t(1) << (n % BIT_SIZE);
             int sum = 0;
-            for (int i = 0; i < SIZE_OF_VERTIX; i++)
-            {
+            for (int i = 0; i < SIZE_OF_VERTIX; i++) {
                 int x = __popcnt64(mask[i]);
                 counts[i] = sum;
                 sum += x;
@@ -119,8 +116,7 @@ public:
             d = n / BIT_SIZE;
             mask[d] = mask[d] | ~(uint64_t(1) << (n % BIT_SIZE));
             int sum = 0;
-            for (int i = 0; i < SIZE_OF_VERTIX; i++)
-            {
+            for (int i = 0; i < SIZE_OF_VERTIX; i++) {
                 int x = __popcnt64(mask[i]);
                 counts[i] = sum;
                 sum += x;
