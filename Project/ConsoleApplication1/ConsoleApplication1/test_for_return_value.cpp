@@ -1,6 +1,7 @@
 #include "Structure.h"
 using namespace std;
 
+
 void resize1(int size, int dq_size, deque<vector<int>>& dq)
 {
     int i, j;

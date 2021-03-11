@@ -1,7 +1,7 @@
 ﻿#include "Structure.h"
 using namespace std;
 
-
+//DAS_G
 struct hash_pair {
     template <class T1, class T2>
     /*size_t operator()(const pair<int, int>& p) const 
