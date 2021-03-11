@@ -1,8 +1,6 @@
 ﻿#include "Structure.h"
 using namespace std;
-// with new rand;
 
-//DAS_G
 struct hash_pair {
     template <class T1, class T2>
     /*size_t operator()(const pair<int, int>& p) const 
@@ -55,7 +53,7 @@ void resize2(int size, int dq_size, deque<vector<int>>& dq)
 };
 
 
-int value(int nmb, deque<array<int, 1000>>& dq, vector<int> rand1, vector<int> rand2, vector<int> rand3)
+int value_dqarr(int nmb, deque<array<int, 1000>>& dq, vector<int> rand1, vector<int> rand2, vector<int> rand3)
 {
     int i, j, x, y, k, s;
     k = 0;
@@ -87,12 +85,13 @@ int value(int nmb, deque<array<int, 1000>>& dq, vector<int> rand1, vector<int> r
     return k;
 };
 
-int value2(int nmb, deque< unordered_map<int, int>>& dq, vector<int> rand1, vector<int> rand2, vector<int> rand3)
+int value_dqumap(int nmb, deque< unordered_map<int, int>>& dq, vector<int> rand1, vector<int> rand2, vector<int> rand3)
 {
     int i, j, x, y, k, s;
     k = 0;
     s = 0;
     unordered_map<int, int> umap1;
+    cout << "umap1 size: " << umap1.bucket_count() * sizeof(void*) + umap1.size() * (sizeof(int) + sizeof(int) + sizeof(void*)) + sizeof(umap1) << endl;
     for (i = 0; i < nmb; i++)
     {
         dq.push_front(umap1);
@@ -115,7 +114,7 @@ int value2(int nmb, deque< unordered_map<int, int>>& dq, vector<int> rand1, vect
     return k;
 };
 
-int value3(int nmb, deque<vector<int>>& dq, vector<int> rand1, vector<int> rand2, vector<int> rand3)
+int value_dqvect(int nmb, deque<vector<int>>& dq, vector<int> rand1, vector<int> rand2, vector<int> rand3)
 {
     int i, j, x, y, k, s;
     k = 0;
@@ -125,6 +124,7 @@ int value3(int nmb, deque<vector<int>>& dq, vector<int> rand1, vector<int> rand2
     {
         vect1.push_back(-1);
     }
+    cout << "vect1 size: " << sizeof(int) * vect1.capacity() << endl;
     for (i = 0; i < nmb; i++)
     {
         dq.push_front(vect1);
@@ -147,7 +147,7 @@ int value3(int nmb, deque<vector<int>>& dq, vector<int> rand1, vector<int> rand2
     return k;
 };
 
-int value4(int nmb, deque<Vertix_Const>& dq)
+int value_dqvertix(int nmb, deque<Vertix_Const>& dq)
 {
     int i, j, x, y, k;
     k = 0;
@@ -169,7 +169,7 @@ int value4(int nmb, deque<Vertix_Const>& dq)
     return k;
 }
 
-int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2, vector<int> rand1, vector<int> rand2, vector<int> rand3)
+int value_bigumap(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2, vector<int> rand1, vector<int> rand2, vector<int> rand3)
 {
     int i, j, x, y, k, s;
     k = 0;
@@ -254,27 +254,27 @@ int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2, vector<
 
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-        int answer1 = value(nmb, dq1, rand1, rand2, rand3);
+        int answer1 = value_dqarr(nmb, dq1, rand1, rand2, rand3);
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
         std::cout << "Time for value for deque of array: " << time_span.count() << " seconds." << endl;
 
         std::chrono::high_resolution_clock::time_point t3 = std::chrono::high_resolution_clock::now();
-        int answer2 = value2(nmb, dq2, rand1, rand2, rand3);
+        int answer2 = value_dqumap(nmb, dq2, rand1, rand2, rand3);
         std::chrono::high_resolution_clock::time_point t4 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span2 = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
         std::cout << "Time for value for deque of unordered map: " << time_span2.count() << " seconds." << endl;
 
         std::chrono::high_resolution_clock::time_point t5 = std::chrono::high_resolution_clock::now();
         int answer3;
-        answer3 = value3(nmb, dq3, rand1, rand2, rand3);
+        answer3 = value_dqvect(nmb, dq3, rand1, rand2, rand3);
         std::chrono::high_resolution_clock::time_point t6 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span4 = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t5);
         std::cout << "Time for value for deque of integers: " << time_span4.count() << " seconds." << endl;
 
         std::chrono::high_resolution_clock::time_point t7 = std::chrono::high_resolution_clock::now();
         int answer4;
-        answer4 = value4(nmb, dq4);
+        answer4 = value_dqvertix(nmb, dq4);
         std::chrono::high_resolution_clock::time_point t8 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span5 = std::chrono::duration_cast<std::chrono::duration<double>>(t8 - t7);
         std::cout << "Time for value for deque of Vertix_MAP: " << time_span5.count() << " seconds." << endl;
@@ -290,7 +290,7 @@ int value5(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2, vector<
 
         std::chrono::high_resolution_clock::time_point t9 = std::chrono::high_resolution_clock::now();
         int answer5;
-        answer5 = value5(nmb, umap2, rand1, rand2, rand3);
+        answer5 = value_bigumap(nmb, umap2, rand1, rand2, rand3);
         std::chrono::high_resolution_clock::time_point t10 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span6 = std::chrono::duration_cast<std::chrono::duration<double>>(t10 - t9);
         std::cout << "Time for value for big unordered map: " << time_span6.count() << " seconds." << endl;
