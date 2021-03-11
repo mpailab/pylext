@@ -111,7 +111,9 @@ constexpr int DQ_SIZE = 2000;
                     counts[i] = sum;
                     sum += l;
                 }
-                values.insert(values.begin() + hash(n), value);
+                x = hash(n);
+                //cout << x;
+                values.insert(values.begin() + x, value);
             }
 
         }
@@ -120,7 +122,7 @@ constexpr int DQ_SIZE = 2000;
             int x = hash(n), d;
             if (x != -1) {
                 d = n / BIT_SIZE;
-                mask[d] = mask[d] | ~(uint64_t(1) << (n % BIT_SIZE));
+                mask[d] = mask[d] & ~(uint64_t(1) << (n % BIT_SIZE));
                 int sum = 0;
                 for (int i = 0; i < SIZE_OF_VERTIX; i++) {
                     int l = __popcnt64(mask[i]);
