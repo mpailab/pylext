@@ -109,7 +109,7 @@ int value_dqumap(int nmb, deque< unordered_map<int, int>>& dq, vector<int> rand1
                 k++;
             }
             s++;
-        }
+        } 
     }
     return k;
 };
@@ -192,6 +192,7 @@ int value_bigumap(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2, 
             s++;
         }
     }
+    cout << "big_umap size: " << umap2.bucket_count() * sizeof(void*) + umap2.size() * (2*sizeof(int) + sizeof(int) + 2*sizeof(void*)) + sizeof(umap2) << endl;
     return k;
 };
 
