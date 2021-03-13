@@ -6,15 +6,9 @@
 #include <fstream>
 #include "Timer.h"
 
-void next_tok(const char* text, int &pos) { // Пропускает текущий токен и переходит к следующему
-    if (isalnum(text[pos]) || text[pos]=='_') { // Пропускаем число или идентификатор
-        while (isalnum(text[pos]) || text[pos]=='_')
-            pos++;
-    } else pos++; // Если не число и не буква, то скорее всего это знак операции или скобка, пропускаем один символ
-
-    while(isspace(text[pos])) // Пропускаем все пробелы
-        pos++;
-}
+void next_tok(const char* text, int &pos);
+std::string read_file(const std::string& filename);
+std::vector<std::string> read_words(const std::string& filename);
 
 template<class Trie>
 void fill_trie(Trie& tr, const std::vector<std::string>& words){
@@ -42,7 +36,8 @@ double test_trie_find_speed(const std::vector<std::string>& kwords, int num_trie
     return double(ncalls)/tm.time(); // Возвращаем число вызовов в секунду
 }
 
-template<class Trie> int test_trie_copy_speed(const std::vector<std::string>& kwords, int num_tries, double timeout) {
+template<class Trie>
+int test_trie_copy_speed(const std::vector<std::string>& kwords, int num_tries, double timeout) {
     std::vector<Trie> tr(num_tries), tr2 = tr, *p1 = &tr, *p2 = &tr2;
     for(auto &t : tr)
         fill_trie(t, kwords);
@@ -78,19 +73,6 @@ void test_trie(const std::string& name, const std::vector<std::string>& kwords, 
     std::cout << name << " copy  : " << int(copy_speed) << " calls/s" << std::endl;
 }
 
-std::string read_file(const std::string& filename) {
-    std::ifstream f(filename, std::ios::in);
-    return std::string(std::istream_iterator<char>(f), std::istream_iterator<char>());
-}
-
-std::vector<std::string> read_words(const std::string& filename){
-    std::ifstream f(filename, std::ios::in);
-    std::string buf;
-    std::vector<std::string> res;
-    while(f >> buf)
-        res.push_back(buf);
-    return res;
-}
 
 template<class Trie>
 void test_trie(const std::string& name, const std::string& kwfile, const std::string& file, int num_tries = 100, double timeout = 1) {
@@ -98,4 +80,3 @@ void test_trie(const std::string& name, const std::string& kwfile, const std::st
     auto text = read_file(file);
     test_trie<Trie>(name, kw, text, num_tries, timeout);
 }
-
