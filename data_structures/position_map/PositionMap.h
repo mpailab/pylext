@@ -1,6 +1,6 @@
 #include <unordered_map>
 #include <stdexcept>
-//#include <concepts>
+#include <concepts>
 #include "Common.h"
 
 class AssertionFailed: public std::runtime_error {
@@ -51,13 +51,13 @@ public:
     explicit PositionMapUM(V default_val={}): _default(default_val){}
     // Ищет в структуре данных ключ (pos, nt) и возвращает 0, если не найдено и указатель на значение, если надено
     const V* find(int pos, int nt) const {
-        ASSERT(pos>=erased);
+        //ASSERT(pos>=erased);
         auto it = _data.find(std::make_pair(pos, nt));
         return (it==_data.end()) ? nullptr : &it->second;
     }
     // Делает то же самое, но если ключ (pos, nt) не найден, то добавляется значение V{} с таким ключом и возвращается ссылка на него
     V& operator()(int pos, int nt) {
-        ASSERT(pos>=erased);
+        //ASSERT(pos>=erased);
         return _data.insert(std::make_pair(std::make_pair(pos, nt), _default)).first->second;
     }
 
