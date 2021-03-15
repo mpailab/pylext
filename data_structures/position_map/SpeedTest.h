@@ -10,8 +10,8 @@ using namespace std;
 template<class PM>
 int run_posmap_speed_test(int nmb, const vector<vector<array<int,3>>> &rand_vals, int calls_per_shift=10) //requires IPositionMap<PM, int>
 {
-    unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-    std::mt19937 g1(seed1);
+    //unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    //std::mt19937 g1(seed1);
     int k = 0;
     PM umap{-1};
     for (int i = 0; i < nmb; i++) {
