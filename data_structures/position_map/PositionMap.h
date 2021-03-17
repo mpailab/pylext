@@ -4,12 +4,14 @@
 #include <stdexcept>
 #include <concepts>
 #include <string>
+#include <numeric>
 #include "Common.h"
 
 class AssertionFailed: public std::runtime_error {
 public:
     AssertionFailed(const std::string& s):std::runtime_error(s){}
 };
+
 
 #ifdef _DEBUG
 #define ASSERT(x) { if(!(x)) throw AssertionFailed("Assertion " #x " failed at " _FILE_ ", line "+std::to_string(__LINE__)); }
@@ -44,6 +46,7 @@ public:
     // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
     void forget_before(int pos);
 };*/
+
 
 template<class V>
 class PositionMapUM {
@@ -104,5 +107,83 @@ public:
         for (int i = 0; i < pos - erased; i++)
             _data.pop_back();
         erased = std::max(pos, erased); 
+    }
+};
+
+
+template<class V>
+class PositionMapDV {
+    int erased = 0;
+    V _default;
+    std::deque<std::vector<V>> _data;
+public:
+    explicit PositionMapDV(V default_val = {}) : _default(default_val) {}
+    // Ищет в структуре данных ключ (pos, nt) и возвращает 0, если не найдено и указатель на значение, если надено
+    const V* find(int pos, int nt) const {
+        ASSERT(pos >= erased);
+        int len = int(_data.size() - 1);
+        return ((pos - erased) > len) ? nullptr : &(_data[pos - erased][nt]);
+        //auto it = _data.find(std::make_pair(pos, nt));
+        //return (it == _data.end()) ? nullptr : &it->second;
+    }
+    // Делает то же самое, но если ключ (pos, nt) не найден, то добавляется значение V{} с таким ключом и возвращается ссылка на него
+    V& operator()(int pos, int nt) {
+        ASSERT(pos >= erased);
+        int len = int(_data.size() - 1);
+        if ((pos - erased) > len) {
+            std::vector<V> _buf(1024);
+            std::iota(std::begin(_buf), std::end(_buf), _default);
+            int nb = (pos - erased) - len;
+            for (int i = 0; i < nb; i++)
+                _data.push_back(_buf);
+        }
+        return _data[(pos - erased)][nt];
+        //return _data.insert(std::make_pair(std::make_pair(pos, nt), _default)).first->second;
+    }
+
+    // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
+    void erase_before(int pos) {
+        for (int i = 0; i < pos - erased; i++)
+            _data.pop_back();
+        erased = std::max(pos, erased);
+    }
+};
+
+
+template<class V>
+class PositionMapDUM {
+    int erased = 0;
+    V _default;
+    std::deque<std::unordered_map<int, V>> _data;
+public:
+    explicit PositionMapDUM(V default_val = {}) : _default(default_val) {}
+    // Ищет в структуре данных ключ (pos, nt) и возвращает 0, если не найдено и указатель на значение, если надено
+    const V* find(int pos, int nt) const {
+        ASSERT(pos >= erased);
+        int len = int(_data.size() - 1);
+        return ((pos - erased) > len) ? nullptr : &(_data[pos - erased][nt]);
+        //auto it = _data.find(std::make_pair(pos, nt));
+        //return (it == _data.end()) ? nullptr : &it->second;
+    }
+    // Делает то же самое, но если ключ (pos, nt) не найден, то добавляется значение V{} с таким ключом и возвращается ссылка на него
+    V& operator()(int pos, int nt) {
+        ASSERT(pos >= erased);
+        int len = int(_data.size() - 1);
+        if ((pos - erased) > len) {
+            std::unordered_map<int, V> _buf;
+            //std::iota(std::begin(_buf), std::end(_buf), _default);
+            int nb = (pos - erased) - len;
+            for (int i = 0; i < nb; i++)
+                _data.push_back(_buf);
+        }
+        return _data[(pos - erased)][nt];
+        //return _data.insert(std::make_pair(std::make_pair(pos, nt), _default)).first->second;
+    }
+
+    // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
+    void erase_before(int pos) {
+        for (int i = 0; i < pos - erased; i++)
+            _data.pop_back();
+        erased = std::max(pos, erased);
     }
 };

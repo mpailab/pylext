@@ -7,11 +7,7 @@ struct hash_pair {
     {
         return hash<uint64_t>{}((uint64_t(p.first)«32) | uint64_t(p.second));
     }*/
-    /*size_t operator () (const std::pair<T1, T2>& p) const {
-        auto h1 = hash<uint64_t>{}(p.first);
-        auto h2 = hash<uint64_t>{}(p.second);
-        return h1<<32 | h2;
-    }*/
+    
     size_t operator()(const pair<T1, T2>& p) const
     {
         std::size_t seed = 0;
@@ -20,6 +16,10 @@ struct hash_pair {
         seed ^= hash1 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         seed ^= hash2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         return seed;
+    }
+    size_t operator()(const std::pair<int, int>& p) const
+    {
+        return std::hash<uint64_t>{}((uint64_t(p.first) << 32) | p.second);
     }
 };
 
