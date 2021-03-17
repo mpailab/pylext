@@ -89,12 +89,8 @@ public:
     V& operator()(int pos, int nt) {
         //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
-        if ((pos - erased) > len ) {
-            std::array<V, 1024> _buf;
-            _buf.fill(_default);
-            int nb = (pos - erased) - len;
-            for (int i = 0; i < nb; i++)
-                _data.push_back(_buf);
+        if ((pos - erased) > len) {
+            _data.resize(pos - erased + 1, std::array<V, 1024>{_default});
         }
         return _data[(pos - erased)][nt];
     }
@@ -138,10 +134,10 @@ public:
         if ((pos - erased) > len) {
             //std::array<V, 1024> _buf;
             //_buf.fill(_default);
-            Vertix_Const<V> _buf(_default);
+            Vertix_Const<V> buf(_default);
             int nb = (pos - erased) - len;
             for (int i = 0; i < nb; i++)
-                _data.push_back(_buf);
+                _data.push_back(buf);
         }
         if (_data[(pos - erased)].hash(nt) == -1) {
             _data[(pos - erased)].add(nt,_default);
@@ -184,11 +180,16 @@ public:
         //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         if ((pos - erased) > len) {
-            std::vector<V> _buf(1024);
-            std::iota(std::begin(_buf), std::end(_buf), _default);
+            std::vector<V> buf(1024);
+            std::iota(std::begin(buf), std::end(buf), _default);
             int nb = (pos - erased) - len;
             for (int i = 0; i < nb; i++)
-                _data.push_back(_buf);
+                _data.push_back(buf);
+        }
+        if (nt > _data[(pos - erased)].size())
+        {
+            for (int i = 0; i < nt - _data[(pos - erased)].size(); i++)
+                _data[(pos - erased)].push_back(-1);
         }
         return _data[(pos - erased)][nt];
         //return _data.insert(std::make_pair(std::make_pair(pos, nt), _default)).first->second;
