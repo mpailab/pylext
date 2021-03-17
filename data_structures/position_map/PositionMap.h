@@ -109,12 +109,12 @@ public:
 
 
 template<class V>
-class PositionMapDV {
+class PositionMapDVC {
     int erased = 0;
     V _default;
     std::deque<Vertix_Const<V>> _data;
 public:
-    explicit PositionMapDV(V default_val = {}) : _default(default_val) {}
+    explicit PositionMapDVC(V default_val = {}) : _default(default_val) {}
     // Ищет в структуре данных ключ (pos, nt) и возвращает 0, если не найдено и указатель на значение, если надено
     const V* find(int pos, int nt) const {
         //ASSERT(pos >= erased);
@@ -161,7 +161,7 @@ public:
         erased = std::max(pos, erased);
     }
 };
-};
+
 
 
 template<class V>
@@ -173,7 +173,7 @@ public:
     explicit PositionMapDV(V default_val = {}) : _default(default_val) {}
     // Ищет в структуре данных ключ (pos, nt) и возвращает 0, если не найдено и указатель на значение, если надено
     const V* find(int pos, int nt) const {
-        ASSERT(pos >= erased);
+        //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         return ((pos - erased) > len) ? nullptr : &(_data[pos - erased][nt]);
         //auto it = _data.find(std::make_pair(pos, nt));
@@ -181,7 +181,7 @@ public:
     }
     // Делает то же самое, но если ключ (pos, nt) не найден, то добавляется значение V{} с таким ключом и возвращается ссылка на него
     V& operator()(int pos, int nt) {
-        ASSERT(pos >= erased);
+        //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         if ((pos - erased) > len) {
             std::vector<V> _buf(1024);
@@ -212,7 +212,7 @@ public:
     explicit PositionMapDUM(V default_val = {}) : _default(default_val) {}
     // Ищет в структуре данных ключ (pos, nt) и возвращает 0, если не найдено и указатель на значение, если надено
     const V* find(int pos, int nt) const {
-        ASSERT(pos >= erased);
+        //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         return ((pos - erased) > len) ? nullptr : &(_data[pos - erased][nt]);
         //auto it = _data.find(std::make_pair(pos, nt));
@@ -220,7 +220,7 @@ public:
     }
     // Делает то же самое, но если ключ (pos, nt) не найден, то добавляется значение V{} с таким ключом и возвращается ссылка на него
     V& operator()(int pos, int nt) {
-        ASSERT(pos >= erased);
+        //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         if ((pos - erased) > len) {
             std::unordered_map<int, V> _buf;

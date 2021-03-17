@@ -7,11 +7,7 @@ struct hash_pair {
     {
         return hash<uint64_t>{}((uint64_t(p.first)«32) | uint64_t(p.second));
     }*/
-    /*size_t operator () (const std::pair<T1, T2>& p) const {
-        auto h1 = hash<uint64_t>{}(p.first);
-        auto h2 = hash<uint64_t>{}(p.second);
-        return h1<<32 | h2;
-    }*/
+    
     size_t operator()(const pair<T1, T2>& p) const
     {
         std::size_t seed = 0;
@@ -20,6 +16,10 @@ struct hash_pair {
         seed ^= hash1 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         seed ^= hash2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         return seed;
+    }
+    size_t operator()(const std::pair<int, int>& p) const
+    {
+        return std::hash<uint64_t>{}((uint64_t(p.first) << 32) | p.second);
     }
 };
 
@@ -109,7 +109,7 @@ int value_dqumap(int nmb, deque< unordered_map<int, int>>& dq, vector<int> rand1
                 k++;
             }
             s++;
-        }
+        } 
     }
     return k;
 };
@@ -192,6 +192,7 @@ int value_bigumap(int nmb, unordered_map<pair<int, int>, int, hash_pair> umap2, 
             s++;
         }
     }
+    cout << "big_umap size: " << umap2.bucket_count() * sizeof(void*) + umap2.size() * (2*sizeof(int) + sizeof(int) + 2*sizeof(void*)) + sizeof(umap2) << endl;
     return k;
 };
 
