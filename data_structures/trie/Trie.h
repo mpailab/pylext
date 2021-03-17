@@ -31,6 +31,13 @@ struct TrieM {
 	int _size = 0;
 	T val{};
 	vector<TrieM<T>> next;
+	int used_memory() const {
+	    int res = (int)sizeof(TrieM<T>);
+        for(auto &x: next)
+            res += x.used_memory();
+        res += (next.capacity()-next.size())*(int)sizeof(TrieM<T>);
+        return res;
+	}
 	int size()const { return _size; }
 	const T* operator()(const char *m)const {
 		const TrieM<T>* curr = this;
