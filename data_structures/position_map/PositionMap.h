@@ -2,7 +2,6 @@
 #include <deque>  
 #include <array>
 #include <stdexcept>
-#include <concepts>
 #include <string>
 #include <numeric>
 #include "Common.h"
