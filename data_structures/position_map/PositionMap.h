@@ -72,6 +72,8 @@ public:
 };
 
 
+
+
 template<class V>
 class PositionMapDA {
     int erased = 0;

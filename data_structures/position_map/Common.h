@@ -166,6 +166,7 @@ public:
     }
 
     void del(int n) {
+        std::vector<V>::iterator it;
         int x = hash(n), d;
         if (x != -1) {
             d = n / BIT_SIZE;
