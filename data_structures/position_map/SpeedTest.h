@@ -105,10 +105,6 @@ void correct_test(std::string name1, std::string name2, int nmb, int calls_per_s
                 check = false;
                 //cout << "* " << r1 << " " << r2 << endl;
             }
-            else
-            {
-                cout << "* " << r1 << " " << r2 << endl;
-            }
         }
 
     }

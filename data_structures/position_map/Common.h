@@ -153,14 +153,23 @@ public:
                 counts[i] = sum;
                 sum += x;
             }
-            int i = 0;
+            values.insert(std::next(values.begin(), hash(n)), std::move(value));
+            /*int i = 0;
             int c = hash(n);
-            for (it = values.begin(); it != values.end();) {
-                if (i == c)
-                    break;
-                i++;
-            }
-            values.insert(it, value);
+            //cout << c << endl;
+            //if (c <= values.size() - 1) {
+                for (it = values.begin(); it <= values.end();) {
+                    if (i == c)
+                        break;
+                    i++;
+                }
+                cout << c << " "  << i <<  " " << endl;
+                values.insert(it, value);
+                //cout << "*";
+            //}
+            //else {
+            //    values.push_back(value);
+            //}*/
         }
 
     }
