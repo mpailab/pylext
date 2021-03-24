@@ -233,7 +233,7 @@ public:
             for (int i = 0; i < nb; i++)
                 _data.push_back(_buf);
         }
-        return _data[(pos - erased)][nt];
+        return _data[(pos - erased)].insert(std::make_pair(nt, _default)).first->second;
         //return _data.insert(std::make_pair(std::make_pair(pos, nt), _default)).first->second;
     }
 
