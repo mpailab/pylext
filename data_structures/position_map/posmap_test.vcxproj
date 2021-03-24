@@ -91,12 +91,12 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>Disabled</Optimization>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>WIN32;_WINDOWS;CMAKE_INTDIR="Debug";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
     </ClCompile>
@@ -130,12 +130,12 @@
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>MaxSpeed</Optimization>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR="Release";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <DebugInformationFormat>
@@ -171,12 +171,12 @@
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>MinSpace</Optimization>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR="MinSizeRel";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <DebugInformationFormat>
@@ -213,12 +213,12 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>MaxSpeed</Optimization>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR="RelWithDebInfo";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
     </ClCompile>
@@ -252,7 +252,7 @@
       <StdOutEncoding>UTF-8</StdOutEncoding>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
-D:\Dandara\bin\cmake.exe "-SD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map" "-BD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map" --check-stamp-file "D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeFiles/generate.stamp"
+D:\Dandara\bin\cmake.exe "-SD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures" "-BD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures" --check-stamp-file "D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeFiles/generate.stamp"
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -260,12 +260,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\Dandara\share\cmake-3.20\Modules\CMakeCInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeCXXInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeCommonLanguageInclude.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeGenericSystem.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeInitializeConfigs.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeLanguageInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeRCInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeSystemSpecificInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeSystemSpecificInitialize.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\CMakeCommonCompilerMacros.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\MSVC-C.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\MSVC-CXX.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC-C.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC-CXX.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\WindowsPaths.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeCCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeCXXCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeRCCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
-D:\Dandara\bin\cmake.exe "-SD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map" "-BD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map" --check-stamp-file "D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeFiles/generate.stamp"
+D:\Dandara\bin\cmake.exe "-SD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures" "-BD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures" --check-stamp-file "D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeFiles/generate.stamp"
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -273,12 +273,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\Dandara\share\cmake-3.20\Modules\CMakeCInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeCXXInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeCommonLanguageInclude.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeGenericSystem.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeInitializeConfigs.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeLanguageInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeRCInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeSystemSpecificInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeSystemSpecificInitialize.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\CMakeCommonCompilerMacros.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\MSVC-C.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\MSVC-CXX.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC-C.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC-CXX.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\WindowsPaths.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeCCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeCXXCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeRCCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalInputs)</AdditionalInputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
       <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
-D:\Dandara\bin\cmake.exe "-SD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map" "-BD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map" --check-stamp-file "D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeFiles/generate.stamp"
+D:\Dandara\bin\cmake.exe "-SD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures" "-BD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures" --check-stamp-file "D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeFiles/generate.stamp"
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -286,12 +286,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\Dandara\share\cmake-3.20\Modules\CMakeCInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeCXXInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeCommonLanguageInclude.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeGenericSystem.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeInitializeConfigs.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeLanguageInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeRCInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeSystemSpecificInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeSystemSpecificInitialize.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\CMakeCommonCompilerMacros.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\MSVC-C.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\MSVC-CXX.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC-C.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC-CXX.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\WindowsPaths.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeCCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeCXXCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeRCCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">%(AdditionalInputs)</AdditionalInputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
       <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
-D:\Dandara\bin\cmake.exe "-SD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map" "-BD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map" --check-stamp-file "D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeFiles/generate.stamp"
+D:\Dandara\bin\cmake.exe "-SD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures" "-BD:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures" --check-stamp-file "D:/Проги/Проект/Задача 1.1/mpailab/CFG-parser/data_structures/position_map/CMakeFiles/generate.stamp"
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -299,7 +299,7 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\Dandara\share\cmake-3.20\Modules\CMakeCInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeCXXInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeCommonLanguageInclude.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeGenericSystem.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeInitializeConfigs.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeLanguageInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeRCInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeSystemSpecificInformation.cmake;D:\Dandara\share\cmake-3.20\Modules\CMakeSystemSpecificInitialize.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\CMakeCommonCompilerMacros.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\MSVC-C.cmake;D:\Dandara\share\cmake-3.20\Modules\Compiler\MSVC-CXX.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC-C.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC-CXX.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows-MSVC.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\Windows.cmake;D:\Dandara\share\cmake-3.20\Modules\Platform\WindowsPaths.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeCCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeCXXCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeRCCompiler.cmake;D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\3.20.0-rc3\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">%(AdditionalInputs)</AdditionalInputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
     </CustomBuild>
@@ -308,8 +308,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\position_map\ZERO_CHECK.vcxproj">
-      <Project>{25F967D7-7EC1-3E9A-A78F-D9C829B986E9}</Project>
+    <ProjectReference Include="D:\Проги\Проект\Задача 1.1\mpailab\CFG-parser\data_structures\ZERO_CHECK.vcxproj">
+      <Project>{DD0FADFA-E022-3FB0-871A-5EE93C5D4531}</Project>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>

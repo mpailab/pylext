@@ -54,3 +54,10 @@ CMakeFiles
 CMakeCache.txt
 *.cmake
 
+/data_structures/ALL_BUILD.vcxproj
+/data_structures/ALL_BUILD.vcxproj.filters
+/data_structures/optimization.sln
+/data_structures/ZERO_CHECK.vcxproj
+/data_structures/ZERO_CHECK.vcxproj.filters
+/data_structures/trie/trie_test.vcxproj.filters
+/data_structures/trie/trie_test.vcxproj

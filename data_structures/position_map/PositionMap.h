@@ -74,11 +74,11 @@ public:
 
 
 
-template<class V>
+template<class V,int SIZE>
 class PositionMapDA {
     int erased = 0;
     V _default;
-    std::deque<array<V,1024>> _data;
+    std::deque<array<V,SIZE>> _data;
 public:
     explicit PositionMapDA(V default_val = {}) : _default(default_val) {}
     // Ищет в структуре данных ключ (pos, nt) и возвращает 0, если не найдено и указатель на значение, если надено
@@ -92,7 +92,7 @@ public:
         //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         if ((pos - erased) > len) {
-            _data.resize(pos - erased + 1, std::array<V, 1024>{_default});
+            _data.resize(pos - erased + 1, std::array<V, SIZE>{_default});
         }
         return _data[(pos - erased)][nt];
     }
