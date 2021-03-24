@@ -91,7 +91,9 @@ public:
         //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         if ((pos - erased) > len) {
-            _data.resize(pos - erased + 1, std::array<V, SIZE>{_default});
+            std::array<V, SIZE> buf;
+            buf.fill(_default);
+            _data.resize(pos - erased + 1, buf);
         }
         return _data[(pos - erased)][nt];
     }
@@ -182,7 +184,7 @@ public:
         int len = int(_data.size() - 1);
         if ((pos - erased) > len) {
             std::vector<V> buf(1024);
-            std::iota(std::begin(buf), std::end(buf), _default);
+            std::fill(std::begin(buf), std::end(buf), _default);
             int nb = (pos - erased) - len;
             for (int i = 0; i < nb; i++)
                 _data.push_back(buf);

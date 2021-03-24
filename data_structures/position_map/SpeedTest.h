@@ -103,7 +103,7 @@ void correct_test(std::string name1, std::string name2, int nmb, int calls_per_s
             int& r2 = umap2(i + 1, j);
             if (r1 != r2) {
                 check = false;
-                cout << "* " << r1 << " " << r2 << endl;
+                //cout << "* " << r1 << " " << r2 << endl;
             }
         }
 
