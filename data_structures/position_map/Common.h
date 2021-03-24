@@ -8,12 +8,12 @@
 #include <unordered_map>
 #include <chrono>
 #include <utility>
-#include <stdint.h>
+#include <cstdint>
 #include <cmath>
 #include <vector>
 #include <random>
 #include <immintrin.h>
-#include <intrin.h>
+//#include <intrin.h>
 #include <stdio.h>
 #include <algorithm>
 
@@ -57,7 +57,7 @@ struct HashPair {
 };
 
 int popcnt(uint64_t x) { 
-    return __popcnt64(x);
+    return (int)_mm_popcnt_u64(x);
 }
 
 constexpr int SIZE_OF_VERTIX = 16, BIT_SIZE = 64;
@@ -139,7 +139,7 @@ public:
     }
 
     void add(int n, V value) {
-        std::vector<V>::iterator it;
+        typename std::vector<V>::iterator it;
         int x = hash(n), d;
         if (x != -1) {
             values[x] = value;
@@ -166,7 +166,7 @@ public:
     }
 
     void del(int n) {
-        std::vector<V>::iterator it;
+        typename std::vector<V>::iterator it;
         int x = hash(n), d;
         if (x != -1) {
             d = n / BIT_SIZE;
