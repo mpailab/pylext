@@ -101,7 +101,7 @@ public:
     // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
     void erase_before(int pos) {
         for (int i = 0; i < pos - erased; i++)
-            _data.pop_back();
+            _data.pop_front();
         erased = std::max(pos, erased); 
     }
 };
@@ -156,7 +156,7 @@ public:
     // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
     void erase_before(int pos) {
         for (int i = 0; i < pos - erased; i++)
-            _data.pop_back();
+            _data.pop_front();
         erased = std::max(pos, erased);
     }
 };
@@ -201,7 +201,7 @@ public:
     // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
     void erase_before(int pos) {
         for (int i = 0; i < pos - erased; i++)
-            _data.pop_back();
+            _data.pop_front();
         erased = std::max(pos, erased);
     }
 };
@@ -240,7 +240,7 @@ public:
     // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
     void erase_before(int pos) {
         for (int i = 0; i < pos - erased; i++)
-            _data.pop_back();
+            _data.pop_front();
         erased = std::max(pos, erased);
     }
 };

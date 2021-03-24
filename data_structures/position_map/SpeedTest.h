@@ -73,9 +73,9 @@ void correct_test(std::string name1, std::string name2, int nmb, int calls_per_s
     PM1 umap1{ -1 };
     PM2 umap2{ -1 };
     for (int i = 0; i < nmb; i++) {
-        //umap1.erase_before(i);
-        //umap2.erase_before(i);
-        /*for (int j = 0; j < calls_per_shift; j++) {
+        umap1.erase_before(i);
+        umap2.erase_before(i);
+        for (int j = 0; j < calls_per_shift; j++) {
             int val = g1() % 1024;
             int x = g1() % 2048;
             //int x = rand_vals[i][j][0];
@@ -97,12 +97,16 @@ void correct_test(std::string name1, std::string name2, int nmb, int calls_per_s
             else {
                 k++;
             }
-        }*/
+        }
         for (int j = 0; j < 1024; j++) {
             int& r1 = umap1(i + 1, j);
             int& r2 = umap2(i + 1, j);
             if (r1 != r2) {
                 check = false;
+                //cout << "* " << r1 << " " << r2 << endl;
+            }
+            else
+            {
                 cout << "* " << r1 << " " << r2 << endl;
             }
         }
