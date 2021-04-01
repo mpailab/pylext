@@ -189,9 +189,9 @@ public:
             for (int i = 0; i < nb; i++)
                 _data.push_back(buf);
         }
-        if (nt > _data[(pos - erased)].size())
+        if (nt >= _data[(pos - erased)].size())
         {
-            for (int i = 0; i < nt - _data[(pos - erased)].size(); i++)
+            for (int i = 0; i < nt - _data[(pos - erased)].size() + 1; i++)
                 _data[(pos - erased)].push_back(-1);
         }
         return _data[(pos - erased)][nt];
