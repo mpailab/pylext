@@ -713,15 +713,17 @@ void GrammarState::error(const string & err) {
 	_err.emplace_back(lex.cpos(), err);
 }
 
-void GrammarState::addLexerRule(const string & term, const string & rhs, bool tok, bool to_begin) {
+int GrammarState::addLexerRule(const string & term, const string & rhs, bool tok, bool to_begin) {
 	if (debug_pr)
 		std::cout << "!!! Add lexer rule : " << term << " <- " << rhs << "\n";
 	int nterms = ts.size();
 	int n = tok ? ts[term] : 0;
 	lex.addPEGRule(term, rhs, n, to_begin);
-	if (n >= nterms) // Если добавился новый терминал
-		for (auto& action : on_new_t_actions)
-			action(this, term, n);
+	if (n >= nterms) { // Если добавился новый терминал
+        for (auto &action : on_new_t_actions)
+            action(this, term, n);
+    }
+    return n;
 }
 
 int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs, SemanticAction act, int id, unsigned lpr, unsigned rpr) {

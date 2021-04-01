@@ -70,10 +70,13 @@ extern "C" DLL_EXPORT int get_pn_num_children(void* pn);
 extern "C" DLL_EXPORT void* get_pn_child(void* pn, int i);
 extern "C" DLL_EXPORT int set_pn_child(void* pn, int i, void* ch);
 
+extern "C" DLL_EXPORT int get_pn_ntnum(void* pn);
 extern "C" DLL_EXPORT int get_pn_rule(void* pn);
 extern "C" DLL_EXPORT const char* get_terminal_str(void* pn);
 extern "C" DLL_EXPORT int pn_equal(void* pn1, void* pn2);
 
+extern "C" DLL_EXPORT int add_token(void* pxv, const char* nm, const char* tokdef);
+extern "C" DLL_EXPORT int add_lexer_rule(void* pxv, const char* nm, const char* rhs);
 
 extern "C" DLL_EXPORT int add_rule(void* px, char* lhs, char *rhs, int lpr, int rpr);
 

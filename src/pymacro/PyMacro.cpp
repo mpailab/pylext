@@ -417,6 +417,36 @@ char* get_last_error() {
     return errorStringBuf().data();
 }
 
+int add_lexer_rule(void *pxv, const char *nm, const char *rhs)
+{
+    auto *px = (PythonParseContext*)pxv;
+    if (px->grammar().ts.has(nm)) {
+        setError("Lexer PEG nonterminal "s + nm + " already exists");
+        return -1;
+    }
+    try {
+        return px->grammar().addLexerRule(nm, rhs);
+    } catch(Exception &e){
+        setError(e);
+        return -1;
+    }
+}
+
+int add_token(void *pxv, const char *nm, const char *tokdef)
+{
+    auto *px = (PythonParseContext*)pxv;
+    if (px->grammar().ts.has(nm)) {
+        setError("Token "s + nm + " already exists");
+        return -1;
+    }
+    try {
+        return px->grammar().addToken(nm, tokdef);
+    } catch(Exception &e){
+        setError(e);
+        return -1;
+    }
+}
+
 void* new_python_context(int by_stmt) {
     try {
         //auto *g = new GrammarState;
@@ -483,6 +513,10 @@ int set_pn_child(void* pn, int i, void* ch) {
     }
     ((ParseNode*)pn)->ch[i] = (ParseNode*)ch;
     return 0;
+}
+
+int get_pn_ntnum(void* pn) {
+    return ((ParseNode*)pn)->nt;
 }
 
 int get_pn_rule(void* pn) {

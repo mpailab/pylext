@@ -349,8 +349,8 @@ public:
 	vector<pair<Pos, string>> _err;
 	void error(const string &err);
 
-	void addLexerRule(const string& term, const string& re, bool tok=false, bool to_begin = false);
-	void addToken(const string& term, const string& re) { addLexerRule(term, re, true); }
+	int addLexerRule(const string& term, const string& re, bool tok=false, bool to_begin = false);
+	int addToken(const string& term, const string& re) { return addLexerRule(term, re, true); }
 	int addRule(const string &lhs, const vector<vector<string>> &rhs, SemanticAction act = SemanticAction(), int id = -1, unsigned lpr = -1, unsigned rpr = -1);
 	int addRule(const string &lhs, const vector<vector<string>> &rhs, int id, unsigned lpr = -1, unsigned rpr = -1) {
 		return addRule(lhs, rhs, SemanticAction(), id, lpr, rpr);

@@ -23,7 +23,7 @@ with open('example/operator_macro.py') as f:
 # del_python_context(px)
 #pymacros.dbg_flag = 1
 module_vars = {'__name__': '__main__'}
-exec('from pymacros import syntax_rule, macro_rule, syn_expand, quasiquote, set_cpp_debug, parse_context', module_vars, module_vars)
+exec('from pymacros import syntax_rule, macro_rule, syn_expand, quasiquote, set_cpp_debug, parse_context, new_token, new_lexer_rule', module_vars, module_vars)
 # exec('from ctypes import c_char_p', module_vars, module_vars)
 res = load_file(text, module_vars)
 print(f'\n=========== Vars of macro module ===========')

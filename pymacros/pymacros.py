@@ -50,11 +50,14 @@ get_pn_child = get_dll_func(parser, 'get_pn_child', c_void_p, 0)
 set_pn_child = get_dll_func(parser, 'set_pn_child', c_int, err_code=-1)
 
 get_pn_rule = get_dll_func(parser, 'get_pn_rule', c_int)
+get_pn_ntnum = get_dll_func(parser, 'get_pn_ntnum', c_int)
 get_terminal_str = get_dll_func(parser, 'get_terminal_str', c_char_p, 0)
 
 pn_equal = get_dll_func(parser, 'pn_equal', c_int)
 
 add_rule = get_dll_func(parser, 'add_rule', c_int, -1)
+add_token = get_dll_func(parser, 'add_token', c_int, -1)
+add_lexer_rule = get_dll_func(parser, 'add_lexer_rule', c_int, -1)
 
 new_parser_state = get_dll_func(parser, 'new_parser_state', c_void_p, 0)
 continue_parse = get_dll_func(parser, 'continue_parse', c_void_p, 0)
@@ -104,6 +107,10 @@ class ParseNode:
         set_pn_child(self.p, c_int32(i), value.p)
 
     @property
+    def ntnum(self):
+        return int(get_pn_ntnum(self.p).value)
+
+    @property
     def children(self):
         return [self[i] for i in range(self.num_children())]
 
@@ -134,8 +141,12 @@ class ParseContext:
         self.globals = globals
         self.syntax_rules = {}
         self.macro_rules = {}
+        self.token_rules = {}
+        self.lexer_rules = {}
         self.exported_syntax = []
         self.exported_macro = []
+        self.exported_tokens = []
+        self.exported_lexer_rules = []
 
     def eval(self, expr):
         if type(expr) is ParseNode:
@@ -165,6 +176,21 @@ class ParseContext:
 
     def __del__(self):
         del_python_context(self.px)
+
+    def add_token(self, name, rhs, apply=None, export=False):
+        rhs = rhs.encode('utf8')
+        name = name.encode('utf8')
+        rule_id = int(add_token(self.px, c_char_p(name), c_char_p(rhs)).value)
+        self.token_rules[rule_id] = apply
+        if export:
+            self.exported_tokens.append(dict(lhs=name, rhs=rhs, apply=apply))
+
+    def add_lexer_rule(self, lhs, rhs, export=False):
+        rhs = rhs.encode('utf8')
+        lhs = lhs.encode('utf8')
+        rule_id = int(add_lexer_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
+        if export:
+            self.exported_lexer_rules.append(dict(lhs=name, rhs=rhs))
 
     def add_macro_rule(self, lhs: str, rhs, apply, export=False, lpriority=None, rpriority=None):
         if lpriority is None: lpriority = -1
@@ -201,11 +227,32 @@ class ParseContext:
             res += f'''  px.add_syntax_rule({d['lhs']}, {repr(d['rhs'])}, apply={d['apply'].__name__}, lpriority={d['lpr']}, rpriority={d['rpr']})\n'''
         for d in self.exported_macro:
             res += f'''  px.add_macro_rule({d['lhs']}, {repr(d['rhs'])}, apply={d['apply'].__name__}, lpriority={d['lpr']}, rpriority={d['rpr']})\n'''
+        for d in self.exported_tokens:
+            res += f'''  px.add_token({d['lhs']}, {repr(d['rhs'])}, apply={d['apply'].__name__ if d['apply'] else 'None'})\n'''
+        for d in self.exported_lexer_rules:
+            res += f'''  px.add_lexer_rule({d['lhs']}, {repr(d['rhs'])})\n'''
         return res
 
 
 def parse_context() -> ParseContext:
     return __parse_context__
+
+
+def new_token(lhs: str, rhs: str, expand_func=None):
+    if parse_context() is not None:
+        parse_context().add_token(lhs, rhs, expand_func, export=True)
+
+
+def new_lexer_rule(lhs: str, rhs: str):
+    if parse_context() is not None:
+        parse_context().add_lexer_rule(lhs, rhs, export=True)
+
+
+def new_token_decorator(lhs: str, rhs: str):
+    def set_func(expand_func):
+        new_token(lhs, rhs, expand_func)
+        return expand_func
+    return set_func
 
 
 def macro_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
@@ -269,11 +316,14 @@ def parse_gen(px, text):
 
 
 def syn_expand(node: ParseNode):
+    px = parse_context()
     if node.is_terminal:
+        apply = px.token_rules.get(node.ntnum, None)
+        if apply is not None:
+            return apply(node.str)
         return node.str
 
     # print(f'in syn_expand, rule = {node.rule}')
-    px = parse_context()
     f = px.syntax_function(node.rule)
     if not f:
         raise Exception(f'syn_expand: cannot find syntax expand function for rule {node.rule}')
