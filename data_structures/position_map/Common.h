@@ -13,7 +13,6 @@
 #include <vector>
 #include <random>
 #include <immintrin.h>
-//#include <intrin.h>
 #include <stdio.h>
 #include <algorithm>
 
@@ -72,26 +71,6 @@ private:
     std::vector<V> values;
     V _default;
 public:
-    /*Vertix_Const(int n) {
-        unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-        std::mt19937 g1(seed1);
-        mask.fill(uint64_t(0));
-        for (int i = 0; i < n; i++) {
-            int r;
-            r = g1() % SIZE_OF_VERTIX * BIT_SIZE;
-            mask[r / BIT_SIZE] = mask[r / BIT_SIZE] | (uint64_t(1) << (r % BIT_SIZE));
-        }
-        int sum = 0;
-        for (int i = 0; i < SIZE_OF_VERTIX; i++) {
-            int x;
-            x = popcnt(mask[i]);
-            counts[i] = sum;
-            sum += x;
-        }
-        for (int i = 0; i < sum; i++) {
-            values.push_back(g1());
-        }
-    }*/
     Vertix_Const(V def) { _default = def; mask.fill(uint64_t(0)); }
     Vertix_Const(vector<pair<int, V>> dict,V def) {
         _default = def;
@@ -154,22 +133,6 @@ public:
                 sum += x;
             }
             values.insert(std::next(values.begin(), hash(n)), std::move(value));
-            /*int i = 0;
-            int c = hash(n);
-            //cout << c << endl;
-            //if (c <= values.size() - 1) {
-                for (it = values.begin(); it <= values.end();) {
-                    if (i == c)
-                        break;
-                    i++;
-                }
-                cout << c << " "  << i <<  " " << endl;
-                values.insert(it, value);
-                //cout << "*";
-            //}
-            //else {
-            //    values.push_back(value);
-            //}*/
         }
 
     }

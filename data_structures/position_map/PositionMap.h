@@ -100,8 +100,7 @@ public:
 
     // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
     void erase_before(int pos) {
-        for (int i = 0; i < pos - erased; i++)
-            _data.pop_front();
+        _data.erase(_data.begin() , std::next(_data.begin(),pos - erased));
         erased = std::max(pos, erased); 
     }
 };
@@ -126,21 +125,14 @@ public:
             else
                 return _data[(pos - erased)].get(nt);
         }
-        //return ((pos - erased) > len) ? nullptr : &(_data[pos - erased][nt]);
-        //auto it = _data.find(std::make_pair(pos, nt));
-        //return (it == _data.end()) ? nullptr : &it->second;
     }
     // Делает то же самое, но если ключ (pos, nt) не найден, то добавляется значение V{} с таким ключом и возвращается ссылка на него
     V& operator()(int pos, int nt) {
         //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         if ((pos - erased) > len) {
-            //std::array<V, 1024> _buf;
-            //_buf.fill(_default);
             Vertix_Const<V> buf(_default);
-            int nb = (pos - erased) - len;
-            for (int i = 0; i < nb; i++)
-                _data.push_back(buf);
+            _data.resize(pos - erased + 1, buf);
         }
         if (_data[(pos - erased)].hash(nt) == -1) {
             _data[(pos - erased)].add(nt,_default);
@@ -149,14 +141,11 @@ public:
         } else {
             return  _data[(pos - erased)].get(nt);
         }
-        //return _data[(pos - erased)][nt];
-        //return _data.insert(std::make_pair(std::make_pair(pos, nt), _default)).first->second;
     }
 
     // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
     void erase_before(int pos) {
-        for (int i = 0; i < pos - erased; i++)
-            _data.pop_front();
+        _data.erase(_data.begin(), std::next(_data.begin(), pos - erased));
         erased = std::max(pos, erased);
     }
 };
@@ -175,8 +164,6 @@ public:
         //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         return ((pos - erased) > len) ? nullptr : &(_data[pos - erased][nt]);
-        //auto it = _data.find(std::make_pair(pos, nt));
-        //return (it == _data.end()) ? nullptr : &it->second;
     }
     // Делает то же самое, но если ключ (pos, nt) не найден, то добавляется значение V{} с таким ключом и возвращается ссылка на него
     V& operator()(int pos, int nt) {
@@ -185,9 +172,7 @@ public:
         if ((pos - erased) > len) {
             std::vector<V> buf(1024);
             std::fill(std::begin(buf), std::end(buf), _default);
-            int nb = (pos - erased) - len;
-            for (int i = 0; i < nb; i++)
-                _data.push_back(buf);
+            _data.resize(pos - erased + 1, buf);
         }
         if (nt > _data[(pos - erased)].size())
         {
@@ -195,13 +180,11 @@ public:
                 _data[(pos - erased)].push_back(-1);
         }
         return _data[(pos - erased)][nt];
-        //return _data.insert(std::make_pair(std::make_pair(pos, nt), _default)).first->second;
     }
 
     // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
     void erase_before(int pos) {
-        for (int i = 0; i < pos - erased; i++)
-            _data.pop_front();
+        _data.erase(_data.begin(), std::next(_data.begin(), pos - erased));
         erased = std::max(pos, erased);
     }
 };
@@ -219,28 +202,21 @@ public:
         //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         return ((pos - erased) > len) ? nullptr : &(_data[pos - erased][nt]);
-        //auto it = _data.find(std::make_pair(pos, nt));
-        //return (it == _data.end()) ? nullptr : &it->second;
     }
     // Делает то же самое, но если ключ (pos, nt) не найден, то добавляется значение V{} с таким ключом и возвращается ссылка на него
     V& operator()(int pos, int nt) {
         //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         if ((pos - erased) > len) {
-            std::unordered_map<int, V> _buf;
-            //std::iota(std::begin(_buf), std::end(_buf), _default);
-            int nb = (pos - erased) - len;
-            for (int i = 0; i < nb; i++)
-                _data.push_back(_buf);
+            std::unordered_map<int, V> buf;
+            _data.resize(pos - erased + 1, buf);
         }
         return _data[(pos - erased)].insert(std::make_pair(nt, _default)).first->second;
-        //return _data.insert(std::make_pair(std::make_pair(pos, nt), _default)).first->second;
     }
 
     // Функция сообщает структуре данных, что можно стереть все ключи (p, nt) с p < pos
     void erase_before(int pos) {
-        for (int i = 0; i < pos - erased; i++)
-            _data.pop_front();
+        _data.erase(_data.begin(), std::next(_data.begin(), pos - erased));
         erased = std::max(pos, erased);
     }
 };
