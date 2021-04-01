@@ -35,13 +35,13 @@ int run_posmap_speed_test(int nmb, const vector<vector<array<int,3>>> &rand_vals
 }
 
 template<class PM>
-void speed_test(std::string name, int nmb, int calls_per_shift=10) {
+void testpm(std::string name, int nmb, int calls_per_shift=10,unsigned seed = 0) {
     using namespace std;
     using namespace chrono;
     vector<vector<array<int, 3>>> rand_vals;
 
-    unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-    std::mt19937 g1(seed1);
+    //unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 g1(seed);
     for (int i = 0; i < nmb; i++) {
         vector<array<int, 3>> rand_shift_vals;
         for (int j = 0; j < calls_per_shift; j++) {
@@ -61,14 +61,14 @@ void speed_test(std::string name, int nmb, int calls_per_shift=10) {
 }
 
 template<class PM1,class PM2>
-void correct_test(std::string name1, std::string name2, int nmb, int calls_per_shift = 10) {
+void correct_test(std::string name1, std::string name2, int nmb, int calls_per_shift = 10,unsigned seed = 0) {
     using namespace std;
     bool check = true;
     using namespace chrono;
     vector<vector<array<int, 3>>> rand_vals;
 
-    unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-    std::mt19937 g1(seed1);
+    //unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 g1(seed);
     int k = 0;
     PM1 umap1{ -1 };
     PM2 umap2{ -1 };
