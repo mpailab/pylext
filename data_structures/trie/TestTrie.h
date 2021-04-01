@@ -66,8 +66,8 @@ void test_trie(const std::string& name, const std::vector<std::string>& kwords, 
     double bytes_per_symbol = test_trie_memory<Trie>(kwords);
     std::cout << name << " memory: " << bytes_per_symbol << " bytes/symbol" << std::endl;
 
-    //double find_speed = test_trie_find_speed<Trie>(kwords, num_tries, text.c_str(), timeout);
-    //std::cout << name << " find  : " << int(find_speed) << " calls/s" << std::endl;
+    double find_speed = test_trie_find_speed<Trie>(kwords, num_tries, text.c_str(), timeout);
+    std::cout << name << " find  : " << int(find_speed) << " calls/s" << std::endl;
 
     double copy_speed = test_trie_copy_speed<Trie>(kwords, num_tries, timeout);
     std::cout << name << " copy  : " << int(copy_speed) << " calls/s" << std::endl;

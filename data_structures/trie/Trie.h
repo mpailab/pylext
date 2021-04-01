@@ -87,7 +87,7 @@ struct TrieUM {
 	T val{};
 	unordered_map<int, TrieUM<T>> next;
 	int used_memory() const {
-		int res = (int)sizeof(TrieUM<T>);
+		int res = (int)(sizeof(TrieUM<T>) + sizeof(int));
 		for (auto& x : next)
 			res += x.second.used_memory();
 		//res += (next.capacity() - next.size()) * (int)sizeof(TrieUM<T>);
@@ -115,9 +115,10 @@ struct TrieUM {
 	T& operator[](const std::string& m){
 		return (*this)[m.c_str()];
 	}
-	/*const T* operator()(const char* m, int& pos)const {
+	
+	const T* operator()(const char* m, int& pos){
 		const T* res = 0;
-		const TrieUM<T>* curr = this;
+		TrieUM<T>* curr = this;
 		int p1 = pos;
 		for (; m[p1]; p1++) {
 			if (curr->next.empty())return res;
@@ -128,5 +129,5 @@ struct TrieUM {
 			}
 		}
 		return res;// curr->final ? &curr->val : 0;
-	}*/
+	}
 };
