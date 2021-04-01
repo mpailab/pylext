@@ -101,6 +101,12 @@ void flatten(ParseContext&, ParseNodePtr& n) {
     // n->flattened = true;
 }
 
+void flatten_p(ParseContext&, ParseNodePtr& n, int pos) {
+    n[pos].ch.insert(n[pos].ch.begin(), n->ch.begin(), n->ch.begin()+pos);
+    n[pos].ch.insert(n[pos].ch.end(), n->ch.begin() + pos + 1, n->ch.end());
+    n.reset(&n[pos]);
+}
+
 /// f(f(x1,...,xn),y1,..,ym) -> f(x1,...,xn,y1,...,ym)
 void flatten_check(ParseContext&, ParseNodePtr& n) {
     if(n[0].flattened && n[0].rule == n->rule) {

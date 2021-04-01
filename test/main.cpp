@@ -57,14 +57,14 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 int main(int argc, char*argv[]) {
     string res;
 
-    Timer tm("Creating context");
+    /*Timer tm("Creating context");
     tm.start();
     for(int i=0; i<100; i++){
         auto p = new_python_context(1);
         del_python_context(p);
     }
     tm.stop_pr();
-    return 0;
+    return 0;*/
     try {
         Timer tm("Parsing + printing");
         tm.start();

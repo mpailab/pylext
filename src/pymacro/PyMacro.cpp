@@ -26,6 +26,25 @@ ParseNode* replace_trees(ParseNode* n, const vector<ParseNode*>& nodes) {
 	return replace_trees_rec(n, pos, nodes.end(), len(nodes), QExpr, QStarExpr, nullptr);
 }
 
+int add_macro_rule(ParseContext& px, ParseNodePtr& n, int off) {
+    vector<string> rhs, expand;
+    for (int i = 0; i < (int)n[off+1].ch.size(); i++) {
+        ParseNode& ni = n[off+1][i];
+        if (ni.rule_id == MacroArg || ni.rule_id == MacroArgExpand) {
+            if (ni.rule_id == MacroArgExpand)
+                expand.push_back(ni[0].term);
+            rhs.push_back(ni[1].term);
+        } else if (ni.isTerminal()) {
+            rhs.push_back(ni.term);
+        } else if (ni.ch.size() != 1 || !ni.ch[0]->isTerminal()) {
+            throw GrammarError("Internal error: wrong macro argument syntax tree");
+        } else {
+            rhs.push_back(ni[0].term);
+        }
+    }
+    return px.grammar().addRule(n[off].term, rhs);
+}
+
 /** Раскрывает определение макроса, заданное в виде дерева разбора
  *  Определение макроса преобразуется в определение функции, раскрывающей этот макрос
  *  При этом в текущий контекст добавляется новое правило, реализуемое этим макросом
@@ -34,8 +53,7 @@ ParseNode* replace_trees(ParseNode* n, const vector<ParseNode*>& nodes) {
  *  @param off -- номер дочернего узла, соответствующего имени макроса
  *  @param fnm -- имя функции, на которую заменяется макроопределение
  * */
-int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm,
-               bool macro) {
+int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm, bool macro) {
 	vector<string> rhs, expand;
 	string arglist = "(";
 	for (int i = 0; i < (int)n[off+1].ch.size(); i++) {
@@ -78,6 +96,45 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm,
 	return rule_num;
 }
 
+void conv_macro0(ParseContext& px, ParseNodePtr& n, int off, const string &fnm, bool macro) {
+    vector<string> rhs, expand;
+    string arglist = "(";
+    for (int i = 0; i < (int)n[off+1].ch.size(); i++) {
+        ParseNode& ni = n[off+1][i];
+        if (ni.rule_id == MacroArg || ni.rule_id == MacroArgExpand) {
+            if (ni.rule_id == MacroArgExpand)
+                expand.push_back(ni[0].term);
+            rhs.push_back(ni[1].term);
+            arglist += ni[0].term;
+            arglist += ',';
+        } else if (ni.isTerminal()) {
+            rhs.push_back(ni.term);
+        } else if (ni.ch.size() != 1 || !ni.ch[0]->isTerminal()) {
+            throw GrammarError("Internal error: wrong macro argument syntax tree");
+        } else {
+            rhs.push_back(ni[0].term);
+        }
+    }
+    if (arglist.size() > 1)arglist.back() = ')';
+    else arglist += ')';
+    if (!expand.empty()) {
+        ParseNode* stmts = n[off+2].ch[0];
+        string qq = "\n$$INDENT\n";
+        for (auto& arg : expand) {
+            qq+="{}=syn_expand({})\n"_fmt(arg, arg);
+        }
+        qq+="${} $$DEDENT"_fmt(px.grammar().nts[stmts->nt]);
+        stmts = px.quasiquote("suite", qq, { stmts }, QExpr, QStarExpr);
+        n->ch[off+2] = stmts; //px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
+    }
+    string funcdef = R"(@{}_rule("{}",[)"_fmt(macro ? "macro" : "syntax", n[off].term);
+    for(int i = 0; i<len(rhs); i++){
+        if(i) funcdef+=',';
+        ((funcdef += '"') += rhs[i]) += '"';
+    }
+    funcdef += "])\ndef " + fnm + arglist + ": $func_body_suite";
+    n.reset(px.quasiquote("stmt", funcdef, { n->ch[off+2] }, QExpr, QStarExpr));
+}
 
 string& tostr(string &res, const string& str, char c) {
     res += c;
@@ -159,10 +216,12 @@ ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>
     //    throw move(e);
     //}
 }
+
 void check_quote(ParseContext& px, ParseNodePtr& n){
     if(!px.inQuote())
         throw GrammarError("$<ident> outside of quasiquote");
 }
+
 /**
 * Инициализируется начальное состояние системы макрорасширений питона:
 * Оно представляет собой объект класса PyMacroModule, который содержит следующую информацию:
@@ -252,7 +311,28 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
 
 	addRule(*pg, "syntax_elems -> ',' syntax_elem");
 	addRule(*pg, "syntax_elems -> syntax_elems ',' syntax_elem", flatten);
-	addRule(*pg, "root_stmt -> 'syntax' '(' ident syntax_elems ')' ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
+
+    /////////////////////////
+    addRule(*pg, "syntax_rule -> '(' ident syntax_elems ')'", [](ParseContext& pt, ParseNodePtr& n) {
+        auto &px = static_cast<PythonParseContext&>(pt);
+        add_macro_rule(px, n, 0);
+    });
+    addRule(*pg, "root_stmt -> 'syntax' syntax_rule ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
+        auto &px = static_cast<PythonParseContext&>(pt);
+        flatten(pt, n);
+        string fnm = px.pymodule.uniq_name("syntax_" + n[0].term);
+        int id = conv_macro(px, n, 0, fnm, false);
+        px.pymodule.syntax[id] = PySyntax{fnm, id};
+    });
+    addRule(*pg, "root_stmt -> 'defmacro' ident syntax_rule ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
+        auto &px = static_cast<PythonParseContext&>(pt);
+        flatten_p(pt, n, 1);
+        string fnm = px.pymodule.uniq_name("macro_" + n[0].term);
+        int id = conv_macro(px, n, 1, fnm, true);
+        px.pymodule.macros[id] = PyMacro{ fnm, id };
+    });
+    ///////////////////////////
+	/*addRule(*pg, "root_stmt -> 'syntax' '(' ident syntax_elems ')' ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
         auto &px = static_cast<PythonParseContext&>(pt);
 		string fnm = px.pymodule.uniq_name("syntax_" + n[0].term);
 		int id = conv_macro(px, n, 0, fnm, false);
@@ -263,7 +343,7 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt) {
 		string fnm = px.pymodule.uniq_name("macro_" + n[0].term);
 		int id = conv_macro(px, n, 1, fnm, true);
         px.pymodule.macros[id] = PyMacro{ fnm, id };
-	});
+	});*/
     px->setSpecialQQAction([](PEGLexer* lex, const char *s, int &pos) -> int {
         while (isspace(s[pos]) && s[pos] != '\n')
             pos++;

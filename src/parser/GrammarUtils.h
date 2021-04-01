@@ -67,4 +67,5 @@ void init_base_grammar(GrammarState& st, GrammarState* target);
 
 /// f(f(x1,...,xn),y1,..,ym) -> f(x1,...,xn,y1,...,ym)
 void flatten(ParseContext&, ParseNodePtr& n);
+void flatten_p(ParseContext&, ParseNodePtr& n, int pos);
 void flatten_check(ParseContext&, ParseNodePtr& n);

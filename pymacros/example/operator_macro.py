@@ -62,7 +62,7 @@ def decl_infix_operator(op, lpr, rpr):
 # Определим макрос для простого определения операций
 # Следующее определение слишком упрощённое и лишь показывает идею,
 # как примерно можно было бы писать такие макросы
-defmacro infxl(root_stmt, 'def', 'infxl', '(', priority: expr, ')', op: stringliteral, '(', x: *ident,',',y: *ident, ')',':', c:func_body_suite):
+defmacro infxl(root_stmt, 'infxl', '(', priority: expr, ')', op: stringliteral, '(', x: *ident,',',y: *ident, ')',':', c:func_body_suite):
     op_name = eval(op.str)
     pr = parse_context().eval(priority)
     lpr = pr*2
@@ -77,7 +77,7 @@ defmacro infxl(root_stmt, 'def', 'infxl', '(', priority: expr, ')', op: stringli
 
 
 #Упрощённое создание макросов для операторов. Здесь используется только что определённый макрос
-def infxl(0) '..' (b, e): return range(b, e+1)
+infxl(0) '..' (b, e): return range(b, e+1)
 
 # Тестируем макросы
 if __name__ == '__main__':
