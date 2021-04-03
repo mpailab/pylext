@@ -51,7 +51,7 @@ void init_python_grammar(GrammarState& g) {
 	addRule(g, "syntax_elems -> syntax_elems ',' syntax_elem", [](GrammarState*, ParseNode& n) {});
 	addRule(g, "'syntax' '(' ident syntax_elems ')' ':' suite", [](GrammarState* g, ParseNode& n) {
 		PyMacroModule* m = any_cast<PyMacroModule>(&g->data);
-		n.rule = 0; /// Извлечь правило 
+		n.rule = 0; /// РР·РІР»РµС‡СЊ РїСЂР°РІРёР»Рѕ 
 		vector<string> rhs;
 		for (int i = 0; i < (int)n[1].ch.size(); i++)
 			if (n[1][i].rule_id == MacroArg || n[1][i].rule_id == MacroArgExpand)
