@@ -21,7 +21,8 @@ with open('example/operator_macro.py') as f:
 # ps = new_parser_state(px, b'0', b'')  # text.encode('utf8'), b'')
 # del_parser_state(ps)
 # del_python_context(px)
-#pymacros.dbg_flag = 1
+pymacros.dbg_flag = 1
+#set_debug(CppDbgFlags.RULES)
 module_vars = {'__name__': '__main__'}
 exec('from pymacros import syntax_rule, macro_rule, syn_expand, quasiquote, set_cpp_debug, parse_context, new_token, new_lexer_rule', module_vars, module_vars)
 # exec('from ctypes import c_char_p', module_vars, module_vars)

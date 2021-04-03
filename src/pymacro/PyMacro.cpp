@@ -206,7 +206,7 @@ ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>
     string qq; // = parts[0];
     for(int i=0; i<len(subtrees); i++) {
         qq += parts[i];
-        ((qq += '$') += px.grammar().nts[subtrees[i]->nt])+=' ';
+        ((qq += '$') += px.grammar().nts[subtrees[i]->rule_nt()])+=' ';
     }
     qq += parts.back();
     //try {

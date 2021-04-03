@@ -1,5 +1,3 @@
-1*2+3
-
 sym_names = {
     '|': 'I',
     '&': 'amp',
@@ -101,4 +99,4 @@ infxl(0) b !! e: return range(b, e+1)
 
 # Тестируем макросы
 if __name__ == '__main__':
-    print(list(0+1..10))
+    print(list(0+1..10+1))

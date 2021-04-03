@@ -114,6 +114,8 @@ void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& p
 	}
 	auto& r = g->rules[n->rule];
 	int pos = 0;
+	//if(int(r.lpr)!=-1||int(r.rpr)!=-1)
+	//    os<<"(";
 	for (auto& x : r.rhs) {
 		if (x.save) {
 			tree2str_rec(os, n->ch[pos], g, pst);
@@ -132,6 +134,8 @@ void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& p
 			printTerminal(os, x.num, "", g, pst);
 		}
 	}
+    //if(int(r.lpr)!=-1||int(r.rpr)!=-1)
+    //    os<<")";
 }
 
 void print_tree(std::ostream& os, ParseTree &t, GrammarState* g) {

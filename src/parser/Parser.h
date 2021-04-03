@@ -61,6 +61,9 @@ public:
     [[nodiscard]] bool isTerminal()const {
         return rule < 0;
     }
+    int rule_nt() const {
+        return B>=0 ? B : nt;
+    }
     [[nodiscard]] bool haslpr()const { return (int)lpr != -1; }
     [[nodiscard]] bool hasrpr()const { return (int)rpr != -1; }
     ParseNode& operator[](size_t i) { return *ch[int(i)<0 ? i+ch.size() : i]; }
