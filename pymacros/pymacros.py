@@ -198,7 +198,7 @@ class ParseContext:
         rhs = b' '.join(str(x).encode('utf8') for x in rhs)
         lhs = lhs.encode('utf8')
         # print(f'add rule: {lhs} -> {rhs}:',end='')
-        rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs)).value)
+        rule_id = int(add_rule(self.px, c_char_p(lhs), c_char_p(rhs), c_int(lpriority), c_int(rpriority)).value)
         # print(f' id = {rule_id}, f = {apply}')
         # print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
@@ -232,6 +232,20 @@ class ParseContext:
         for d in self.exported_lexer_rules:
             res += f'''  px.add_lexer_rule({d['lhs']}, {repr(d['rhs'])})\n'''
         return res
+
+class CppDbgFlags:
+    SHIFT = 0x1
+    REDUCE = 0x2
+    STATE = 0x4
+    LOOKAHEAD = 0x8
+    TOKEN = 0x10
+    RULES = 0x20
+    QQ = 0x40
+    ALL = 0xFFFFFFF
+
+
+def set_debug(flags):
+    set_cpp_debug(c_int(flags))
 
 
 def parse_context() -> ParseContext:

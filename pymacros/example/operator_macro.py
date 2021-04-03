@@ -1,3 +1,4 @@
+1*2+3
 
 sym_names = {
     '|': 'I',
@@ -67,8 +68,8 @@ new_token('operation', '[<=>+\\-*/%~?@|!&^.:;]+')
 defmacro infxl(root_stmt, 'infxl', '(', priority: expr, ')', op: *stringliteral, '(', x: *ident,',',y: *ident, ')',':', c:func_body_suite):
     op_name = eval(op)
     pr = parse_context().eval(priority)
-    lpr = pr*2
-    rpr = pr*2+1
+    lpr = pr*2+1
+    rpr = pr*2
     if any(not c in infix_symbols for c in op_name):
         raise GrammarError(f'invalid operator name {op_name}')
     if op_name in builtin_bin:
@@ -81,8 +82,8 @@ defmacro infxl(root_stmt, 'infxl', '(', priority: expr, ')', op: *stringliteral,
 defmacro infxl(root_stmt, 'infxl', '(', priority: expr, ')', x: *ident, op: *operation, y: *ident, ':', c:func_body_suite):
     op_name = op
     pr = parse_context().eval(priority)
-    lpr = pr*2
-    rpr = pr*2+1
+    lpr = pr*2+1
+    rpr = pr*2
     if any(not c in infix_symbols for c in op_name):
         raise GrammarError(f'invalid operator name {op_name}')
     if op_name in builtin_bin:
@@ -100,4 +101,4 @@ infxl(0) b !! e: return range(b, e+1)
 
 # Тестируем макросы
 if __name__ == '__main__':
-    print(list(0..10))
+    print(list(0+1..10))

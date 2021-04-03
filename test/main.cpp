@@ -54,6 +54,7 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 	return 0;
 }
 
+
 int main(int argc, char*argv[]) {
     string res;
 
@@ -65,10 +66,11 @@ int main(int argc, char*argv[]) {
     }
     tm.stop_pr();
     return 0;*/
+
     try {
         Timer tm("Parsing + printing");
         tm.start();
-        string text = loadfile("../pymacros/example/match_macro_speed.py");
+        string text = loadfile("../pymacros/example/match_macro.py");
         auto p = new_python_context(1);
         ParserState* pst = (ParserState*)new_parser_state(p, text.c_str(), "");
 		//setDebug(DBG_SHIFT | DBG_REDUCE | DBG_RULES | DBG_TOKEN | DBG_LOOKAHEAD | DBG_QQ);

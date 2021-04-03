@@ -525,7 +525,8 @@ int get_pn_rule(void* pn) {
 
 int add_rule(void* px, char* lhs, char *rhs, int lpr, int rpr) {
     try {
-        return addRule(((ParseContext*)px)->grammar(), string(lhs) + " -> " + rhs, lpr, rpr);
+        //cout<<"python add rule: " << lhs << " -> " << rhs<<", pr = ("<<lpr<<","<<rpr<<")" << endl;
+        return addRule(((ParseContext*)px)->grammar(), string(lhs) + " -> " + rhs, -1, lpr, rpr);
     } catch (std::exception &e) {
         setError(e);
         return -1;

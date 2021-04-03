@@ -45,57 +45,63 @@ public:
         FinalUsed
     };
     Type type = Ordinary;
-	int used = 0, refs = 0;
-	int nt = -1;          // Номер терминала или нетерминала
-	int B = -1;           // Номер промежуточного нетерминала в случае свёртки nt <- B <- rule
-	int rule=-1;          // Номер правила (-1 => терминал)
-	int rule_id = -1;     // Внешний номер правила
-	string term;          // Строковое значение (если терминал)
-	//ParseNode* p = 0;     // Ссылка на родительский узел
-	int size = 1;
-	unsigned lpr = -1, rpr = -1; // Левый и правый приоритеты (если unsigned(-1), то приоритеты не заданы)
-	vector<ParseNode* /*,BinAlloc<ParseNode>*/> ch; // Дочерние узлы
-	Location loc;         // Размещение фрагмента в тексте
-	bool flattened = false;
+    int used = 0, refs = 0;
+    int nt = -1;          // Номер терминала или нетерминала
+    int B = -1;           // Номер промежуточного нетерминала в случае свёртки nt <- B <- rule
+    int rule=-1;          // Номер правила (-1 => терминал)
+    int rule_id = -1;     // Внешний номер правила
+    string term;          // Строковое значение (если терминал)
+    //ParseNode* p = 0;     // Ссылка на родительский узел
+    int size = 1;
+    unsigned lpr = -1, rpr = -1; // Левый и правый приоритеты (если unsigned(-1), то приоритеты не заданы)
+    vector<ParseNode* /*,BinAlloc<ParseNode>*/> ch; // Дочерние узлы
+    Location loc;         // Размещение фрагмента в тексте
+    bool flattened = false;
 
-	[[nodiscard]] bool isTerminal()const {
-		return rule < 0;
-	}
-	[[nodiscard]] bool haslpr()const { return (int)lpr != -1; }
-	[[nodiscard]] bool hasrpr()const { return (int)rpr != -1; }
-	ParseNode& operator[](size_t i) { return *ch[int(i)<0 ? i+ch.size() : i]; }
-	const ParseNode& operator[](size_t i)const { return *ch[int(i)<0 ? i + ch.size() : i]; }
-	ParseNode() = default;
-	ParseNode(const ParseNode&) = delete;
-	ParseNode& operator=(const ParseNode&) = delete;
+    [[nodiscard]] bool isTerminal()const {
+        return rule < 0;
+    }
+    [[nodiscard]] bool haslpr()const { return (int)lpr != -1; }
+    [[nodiscard]] bool hasrpr()const { return (int)rpr != -1; }
+    ParseNode& operator[](size_t i) { return *ch[int(i)<0 ? i+ch.size() : i]; }
+    const ParseNode& operator[](size_t i)const { return *ch[int(i)<0 ? i + ch.size() : i]; }
+    ParseNode() = default;
+    ParseNode(const ParseNode&) = delete;
+    ParseNode& operator=(const ParseNode&) = delete;
 
-	ParseNode(ParseNode&&) = default;
-	void updateSize() {
-		size = 1;
-		for (auto *n : ch)
-			size += n->size;
-	}
-	ParseNode* balancePr() {		// TODO: обавить проверку, что нет неоднозначности свёртки разных нетерминалов, которые не сравниваются по приоритетам 						                            
-		if (haslpr() && nt == ch[0]->nt)					  /*        this                           r        */
-			lpr = min(lpr, ch[0]->lpr);						  /*       / .. \ 			              / \ 		*/
-		if (hasrpr()) {										  /*      x...   r			             .   .  	*/
-			ParseNode *pn = ch.back(), *pp;					  /*            / \ 		            .     .		*/
-			if (pn->nt == nt && pn->lpr < rpr) {			  /*           .   .     ==>           .........	*/
-				do {										  /*          .     .		          /				*/
-					pn->lpr = min(pn->lpr, lpr);			  /*         .........		         pp 			*/
-					pp = pn; pn = pn->ch[0];				  /*        /				       / .. \ 			*/
-				} while (pn->nt == nt && pn->lpr < rpr);      /*      pp				   this   ...y			*/
-				ParseNode *l = pp->ch[0], *r = ch.back();     /*    / .. \ 				  / .. \ 				*/
-				pp->ch[0] = this;                             /*   pn  ...y				 x...  pn				*/
-				ch.back() = l;  
-				return r; // корнем становится r
-			}
-		}
-		return this; // корень остаётся прежним
-	}
-	ParseNode& operator=(ParseNode&&) = default;
-	~ParseNode() = default;
-	void serialize(vector<unsigned char>& res);
+    ParseNode(ParseNode&&) = default;
+    void updateSize() {
+        size = 1;
+        for (auto *n : ch)
+            size += n->size;
+    }
+    ParseNode* balancePr() {        // TODO: обавить проверку, что нет неоднозначности свёртки разных нетерминалов, которые не сравниваются по приоритетам                                                     
+        if (haslpr() && B == ch[0]->B)                        /*        this                           r            */
+            lpr = min(lpr, ch[0]->lpr);                       /*       / .. \                         / \           */
+        if (hasrpr()) {                                       /*      x...   r                       .   .          */
+            ParseNode *pn = ch.back(), *pp;                   /*            / \                     .     .         */
+            if (pn->B == B && pn->lpr < rpr) {                /*           .   .     ==>           .........        */
+                do {                                          /*          .     .                 /                 */
+                    pn->lpr = min(pn->lpr, lpr);              /*         .........                pp                */
+                    pp = pn; pn = pn->ch[0];                  /*        /                       / .. \              */
+                } while (pn->B == B && pn->lpr < rpr);        /*      pp                      this ...y             */
+                ParseNode *l = pp->ch[0], *r = ch.back();     /*    / .. \                   / .. \                 */
+                pp->ch[0] = this;                             /*   pn  ...y                 x...  pn                */
+                ch.back() = l;
+
+                int root_nt = nt; // переставляем типы нетерминалов
+                nt = l->nt;
+                l->nt = r->nt;
+                r->nt = root_nt;
+
+                return r; // корнем становится r
+            }
+        }
+        return this; // корень остаётся прежним
+    }
+    ParseNode& operator=(ParseNode&&) = default;
+    ~ParseNode() = default;
+    void serialize(vector<unsigned char>& res);
 };
 
 using ParseNodePtr = GCPtr<ParseNode>;
@@ -105,25 +111,25 @@ struct PStack;
 
 class ParseErrorHandler {
 public:
-	struct Hint {
-		enum Type {
-			Uncorrectable,
-			SkipT,
-			SkipNT,
-			InsertT,
-			InsertNT
-		} type = Uncorrectable;
-		int added = 0;
-	};
-	virtual Hint onRRConflict(GrammarState* state, const SStack& ss, const PStack& sp, int term, int nt1, int nt2, int depth, int place);
-	virtual Hint onNoShiftReduce(GrammarState* g, const SStack& s, const PStack& p, const Token& tok);
+    struct Hint {
+        enum Type {
+            Uncorrectable,
+            SkipT,
+            SkipNT,
+            InsertT,
+            InsertNT
+        } type = Uncorrectable;
+        int added = 0;
+    };
+    virtual Hint onRRConflict(GrammarState* state, const SStack& ss, const PStack& sp, int term, int nt1, int nt2, int depth, int place);
+    virtual Hint onNoShiftReduce(GrammarState* g, const SStack& s, const PStack& p, const Token& tok);
 };
 
 
 struct ParseTree {
-	ParseNodePtr root;
-	ParseTree() = default;
-	// ParseTree(ParseTree && t) noexcept = default;
+    ParseNodePtr root;
+    ParseTree() = default;
+    // ParseTree(ParseTree && t) noexcept = default;
     // ParseTree& operator = (ParseTree && t) = default;
     explicit ParseTree(ParseNode* pn): root(pn) {}
 };
@@ -143,98 +149,98 @@ struct Ref : unique_ptr<T> {
 };
 
 struct NTTreeNode {
-	unordered_map<int, Ref<NTTreeNode>> termEdges;    // Ветвление по неконстантным терминалам
-	unordered_map<int, Ref<NTTreeNode>> ntEdges;      // Ветвление по нетерминалам
-	NTSet phi;                                 // Нетерминалы, по которым можно пройти до текущей вершины
-	NTSet finalNT;                             // Нетерминалы, для которых текущая вершина -- финальная
-	NTSet next;                                // Множество нетерминалов, по которым можно пройти дальше по какому-либо ребру
-	NTSet nextnt;                              // Множество нетерминалов, по которым можно пройти дальше по нетерминальному ребру
-	unordered_map<int, int> rules;             // Правила по номерам нетерминалов
-	int pos = 0;                               // Расстояние до корня дерева
-	int _frule = -1;
+    unordered_map<int, Ref<NTTreeNode>> termEdges;    // Ветвление по неконстантным терминалам
+    unordered_map<int, Ref<NTTreeNode>> ntEdges;      // Ветвление по нетерминалам
+    NTSet phi;                                 // Нетерминалы, по которым можно пройти до текущей вершины
+    NTSet finalNT;                             // Нетерминалы, для которых текущая вершина -- финальная
+    NTSet next;                                // Множество нетерминалов, по которым можно пройти дальше по какому-либо ребру
+    NTSet nextnt;                              // Множество нетерминалов, по которым можно пройти дальше по нетерминальному ребру
+    unordered_map<int, int> rules;             // Правила по номерам нетерминалов
+    int pos = 0;                               // Расстояние до корня дерева
+    int _frule = -1;
 
-	///////////////// Для вычисления множества допустимых терминалов ////////////////////////////
-	unordered_map<int, NTSet> next_mt;           // Сопоставляет нетерминалу A множество терминалов, по которым можно пройти из данной вершины, читая правило для A
-	unordered_map<int, NTSet> next_mnt;          // Сопоставляет нетерминалу A множество нетерминалов, по которым можно пройти из данной вершины, читая правило для A
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	
-	[[nodiscard]] const NTTreeNode* nextN(int A)const {
-		auto it = ntEdges.find(A);
-		if (it == ntEdges.end())return nullptr;
-		return it->second.get();
-	}
-	[[nodiscard]] int rule(int A)const {
-		return rules.find(A)->second;
-	}
+    ///////////////// Для вычисления множества допустимых терминалов ////////////////////////////
+    unordered_map<int, NTSet> next_mt;           // Сопоставляет нетерминалу A множество терминалов, по которым можно пройти из данной вершины, читая правило для A
+    unordered_map<int, NTSet> next_mnt;          // Сопоставляет нетерминалу A множество нетерминалов, по которым можно пройти из данной вершины, читая правило для A
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    
+    [[nodiscard]] const NTTreeNode* nextN(int A)const {
+        auto it = ntEdges.find(A);
+        if (it == ntEdges.end())return nullptr;
+        return it->second.get();
+    }
+    [[nodiscard]] int rule(int A)const {
+        return rules.find(A)->second;
+    }
 };
 
 class TF {
 public:
-	vector<NTSet> T;      // По нетерминалу возвращает все нетерминалы, которые наследуются от данного нетерминала (A :-> {B | B => A})
-	vector<NTSet> inv;    // По нетерминалу возвращает все нетерминалы, от которых наследуется данный нетерминал   (A :-> {B | A => B})
-	vector<NTSet> fst;    // По нетерминалу возвращает все нетерминалы, с которых может начинаться данный нетерминал
-	vector<NTSet> ifst;   // По нетерминалу возвращает все нетерминалы, которые могут начинаться с данного нетерминала
+    vector<NTSet> T;      // По нетерминалу возвращает все нетерминалы, которые наследуются от данного нетерминала (A :-> {B | B => A})
+    vector<NTSet> inv;    // По нетерминалу возвращает все нетерминалы, от которых наследуется данный нетерминал   (A :-> {B | A => B})
+    vector<NTSet> fst;    // По нетерминалу возвращает все нетерминалы, с которых может начинаться данный нетерминал
+    vector<NTSet> ifst;   // По нетерминалу возвращает все нетерминалы, которые могут начинаться с данного нетерминала
 
-	vector<NTSet> fst_t;  // По нетерминалу возвращает все терминалы, с которых может начинаться данный нетерминал
-	vector<NTSet> ifst_t; // По терминалу возвращает все нетерминалы, которые могут начинаться с данного терминала
+    vector<NTSet> fst_t;  // По нетерминалу возвращает все терминалы, с которых может начинаться данный нетерминал
+    vector<NTSet> ifst_t; // По терминалу возвращает все нетерминалы, которые могут начинаться с данного терминала
 
-	void addRuleBeg(int /*pos*/, int A, int rhs0, int len) { // Добавляет в структуру правило A -> rhs0 ...; pos -- позиция в тексте; len -- длина правой части правила
-		int mx = max(A, rhs0);
-		checkSize(mx);
-		if (len == 1) {
-			//T[rhs0].add(A);
-			for(int x : inv[rhs0])
-				T[x] |= T[A]; // B -> A ..., A -> rhs0 ... ==> B -> rhs0 ...
+    void addRuleBeg(int /*pos*/, int A, int rhs0, int len) { // Добавляет в структуру правило A -> rhs0 ...; pos -- позиция в тексте; len -- длина правой части правила
+        int mx = max(A, rhs0);
+        checkSize(mx);
+        if (len == 1) {
+            //T[rhs0].add(A);
+            for(int x : inv[rhs0])
+                T[x] |= T[A]; // B -> A ..., A -> rhs0 ... ==> B -> rhs0 ...
 
-			//inv[A].add(rhs0);
-			for(int x : T[A])
-				inv[x] |= inv[rhs0]; // A -> rhs0 ..., rhs0 -> B ... ==> A -> B ...
-		}
-		for (int x : ifst[A]) {
-			fst[x] |= fst[rhs0];
-			fst_t[x] |= fst_t[rhs0];
-		}
-		for (int x : fst_t[rhs0])
-			ifst_t[x] |= ifst[A];
-		for(int x : fst[rhs0])
-			ifst[x] |= ifst[A];
-		// TODO: как-то запоминать позицию и изменения, чтобы можно было потом откатить назад.
-	}
-	void addRuleBeg_t(int /*pos*/, int A, int rhs0) { // Добавляет в структуру правило A -> rhs0 ..., только здесь rhs0 -- терминал; pos -- позиция в тексте;
-		//int mx = max(A, rhs0);
-		checkSize(A);
-		checkSize_t(rhs0);
-		for (int x : ifst[A])
-			fst_t[x].add(rhs0);
-		ifst_t[rhs0] |= ifst[A];
-		// TODO: как-то запоминать позицию и изменения, чтобы можно было потом откатить назад.
-	}
-	void checkSize(int A) {
-		int n0 = (int)T.size();
-		if (n0 <= A) {
-			T.resize(A + 1), inv.resize(A + 1), fst.resize(A + 1), ifst.resize(A + 1), fst_t.resize(A + 1);
-			for (int i = n0; i <= A; i++) {
-				T[i].add(i);
-				inv[i].add(i);
-				fst[i].add(i);
-				ifst[i].add(i);
-			}
-		}
-	}
-	void checkSize_t(int t) {
-		int n0 = (int)ifst_t.size();
-		if (n0 <= t) {
-			ifst_t.resize(t + 1);
-		}
-	}
+            //inv[A].add(rhs0);
+            for(int x : T[A])
+                inv[x] |= inv[rhs0]; // A -> rhs0 ..., rhs0 -> B ... ==> A -> B ...
+        }
+        for (int x : ifst[A]) {
+            fst[x] |= fst[rhs0];
+            fst_t[x] |= fst_t[rhs0];
+        }
+        for (int x : fst_t[rhs0])
+            ifst_t[x] |= ifst[A];
+        for(int x : fst[rhs0])
+            ifst[x] |= ifst[A];
+        // TODO: как-то запоминать позицию и изменения, чтобы можно было потом откатить назад.
+    }
+    void addRuleBeg_t(int /*pos*/, int A, int rhs0) { // Добавляет в структуру правило A -> rhs0 ..., только здесь rhs0 -- терминал; pos -- позиция в тексте;
+        //int mx = max(A, rhs0);
+        checkSize(A);
+        checkSize_t(rhs0);
+        for (int x : ifst[A])
+            fst_t[x].add(rhs0);
+        ifst_t[rhs0] |= ifst[A];
+        // TODO: как-то запоминать позицию и изменения, чтобы можно было потом откатить назад.
+    }
+    void checkSize(int A) {
+        int n0 = (int)T.size();
+        if (n0 <= A) {
+            T.resize(A + 1), inv.resize(A + 1), fst.resize(A + 1), ifst.resize(A + 1), fst_t.resize(A + 1);
+            for (int i = n0; i <= A; i++) {
+                T[i].add(i);
+                inv[i].add(i);
+                fst[i].add(i);
+                ifst[i].add(i);
+            }
+        }
+    }
+    void checkSize_t(int t) {
+        int n0 = (int)ifst_t.size();
+        if (n0 <= t) {
+            ifst_t.resize(t + 1);
+        }
+    }
 };
 
 // Элемент правой части правила (терминал или нетерминал)
 struct RuleElem {
-	int num; // Номер
-	bool cterm; // для терминала: является ли он константным
-	bool term;  // true => терминал, false => нетерминал
-	bool save;  // Следует ли данный элемент сохранять в дереве разбора; по умолчанию save = !cterm, поскольку только неконстантные элементы имеет смысл сохранять
+    int num; // Номер
+    bool cterm; // для терминала: является ли он константным
+    bool term;  // true => терминал, false => нетерминал
+    bool save;  // Следует ли данный элемент сохранять в дереве разбора; по умолчанию save = !cterm, поскольку только неконстантные элементы имеет смысл сохранять
 };
 
 class ParseContext;
@@ -243,32 +249,32 @@ using SemanticAction = function<void(ParseContext& g, ParseNodePtr&)>;
 
 class CFGRule {
 public:
-	int A=-1; // Нетерминал в левой части правила
-	vector<RuleElem> rhs; // Правая часть правила 
-	int used = 0;
-	SemanticAction action;
-	int ext_id = -1;
-	int lpr = -1, rpr = -1; // левый и правый приоритеты правила; у инфиксной операции задаются оба, у префиксной -- только правый, а у постфиксной -- только левый
+    int A=-1; // Нетерминал в левой части правила
+    vector<RuleElem> rhs; // Правая часть правила 
+    int used = 0;
+    SemanticAction action;
+    int ext_id = -1;
+    int lpr = -1, rpr = -1; // левый и правый приоритеты правила; у инфиксной операции задаются оба, у префиксной -- только правый, а у постфиксной -- только левый
 };
 
 template<class T>
 class dvector {
-	vector<T> v;
+    vector<T> v;
     int mx = -1;
 public:
-	const T& operator[](size_t i)const {
-		return v[i];
-	}
-	T& operator[](size_t i) {
-		mx = max(mx, (int)i);
-		if (i >= v.size())v.resize(i + 1);
-		return v[i];
-	}
-	[[nodiscard]] int size()const { return (int)v.size(); }
-	void clear() {
-		for (int i = 0; i <= mx; i++)v[i].clear();
-		mx = -1;
-	}
+    const T& operator[](size_t i)const {
+        return v[i];
+    }
+    T& operator[](size_t i) {
+        mx = max(mx, (int)i);
+        if (i >= v.size())v.resize(i + 1);
+        return v[i];
+    }
+    [[nodiscard]] int size()const { return (int)v.size(); }
+    void clear() {
+        for (int i = 0; i <= mx; i++)v[i].clear();
+        mx = -1;
+    }
 };
 
 void setDebug(int b);
@@ -285,166 +291,166 @@ public:
 
 class GrammarState {
 public:
-	// any data;
-	using NewNTAction = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления нового нетерминала
-	using NewTAction  = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления н6ового терминала
+    // any data;
+    using NewNTAction = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления нового нетерминала
+    using NewTAction  = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления н6ового терминала
 
-	unordered_map<int, NTSet> tFirstMap;   // По терминалу возвращает, какие нетерминалы могут начинаться с данного терминала
-	vector<vector<NTTreeNode*>> ntRules;   // Каждому нетерминалу сопоставляется список финальных вершин, соответствующих правилам для данного нетерминала
-	NTTreeNode root;        // Корневая вершина дерева правил
-	Enumerator<string, unordered_map> nts; // Нумерация нетерминалов
-	Enumerator<string, unordered_map> ts;  // Нумерация терминалов
-	unordered_map<string, int> _start_nt;
-	vector<CFGRule> rules;
-	std::map<pair<string, vector<vector<string>>>, int> rule_map;
+    unordered_map<int, NTSet> tFirstMap;   // По терминалу возвращает, какие нетерминалы могут начинаться с данного терминала
+    vector<vector<NTTreeNode*>> ntRules;   // Каждому нетерминалу сопоставляется список финальных вершин, соответствующих правилам для данного нетерминала
+    NTTreeNode root;        // Корневая вершина дерева правил
+    Enumerator<string, unordered_map> nts; // Нумерация нетерминалов
+    Enumerator<string, unordered_map> ts;  // Нумерация терминалов
+    unordered_map<string, int> _start_nt;
+    vector<CFGRule> rules;
+    std::map<pair<string, vector<vector<string>>>, int> rule_map;
 
-	vector<NewNTAction> on_new_nt_actions;
-	vector<NewTAction> on_new_t_actions;
+    vector<NewNTAction> on_new_nt_actions;
+    vector<NewTAction> on_new_t_actions;
 
-	struct Temp {
+    struct Temp {
 
-		bool used = false;
-		struct BElem {
-			int i;
-			const NTTreeNode* v;
-			NTSet M;
-		};
-		struct PV {
-			const NTTreeNode* v;
-			int A;
-			int B; // reduction: B -> A -> rule
-		};
-		dvector<vector<BElem>> B;
-		dvector<NTSet> F;
-		vector<PV> path;
-		void clear() { 
-			B.clear(); 
-			F.clear(); 
-			path.clear();
-		}
-	};
-	struct LockTemp {
-		GrammarState* g;
-		explicit LockTemp(GrammarState* gr) :g(gr) {
-			g->temp_used++;
-			if (len(g->tmp) < g->temp_used)
-				g->tmp.emplace_back(std::make_unique<Temp>());
-		}
-		Temp* operator->() const { return g->tmp[g->temp_used - 1].get(); }
-		~LockTemp() { g->tmp[--g->temp_used]->clear(); }
-		LockTemp() = delete;
-		LockTemp(const LockTemp& l) = delete;
-		LockTemp(LockTemp&& l) noexcept: g(l.g) { l.g = nullptr; }
-		LockTemp& operator=(const LockTemp&) = delete;
-		LockTemp& operator=(LockTemp&&) = delete;
-	};
-	int temp_used = 0;
-	CacheVec<Temp> tmp;
-	int start = -1;
-	bool finish = false;
-	TF tf;
-	PEGLexer lex;
-	//int syntaxDefNT=0;
-	//int tokenNT=0;
-	vector<pair<Pos, string>> _err;
-	void error(const string &err);
+        bool used = false;
+        struct BElem {
+            int i;
+            const NTTreeNode* v;
+            NTSet M;
+        };
+        struct PV {
+            const NTTreeNode* v;
+            int A;
+            int B; // reduction: B -> A -> rule
+        };
+        dvector<vector<BElem>> B;
+        dvector<NTSet> F;
+        vector<PV> path;
+        void clear() { 
+            B.clear(); 
+            F.clear(); 
+            path.clear();
+        }
+    };
+    struct LockTemp {
+        GrammarState* g;
+        explicit LockTemp(GrammarState* gr) :g(gr) {
+            g->temp_used++;
+            if (len(g->tmp) < g->temp_used)
+                g->tmp.emplace_back(std::make_unique<Temp>());
+        }
+        Temp* operator->() const { return g->tmp[g->temp_used - 1].get(); }
+        ~LockTemp() { g->tmp[--g->temp_used]->clear(); }
+        LockTemp() = delete;
+        LockTemp(const LockTemp& l) = delete;
+        LockTemp(LockTemp&& l) noexcept: g(l.g) { l.g = nullptr; }
+        LockTemp& operator=(const LockTemp&) = delete;
+        LockTemp& operator=(LockTemp&&) = delete;
+    };
+    int temp_used = 0;
+    CacheVec<Temp> tmp;
+    int start = -1;
+    bool finish = false;
+    TF tf;
+    PEGLexer lex;
+    //int syntaxDefNT=0;
+    //int tokenNT=0;
+    vector<pair<Pos, string>> _err;
+    void error(const string &err);
 
-	int addLexerRule(const string& term, const string& re, bool tok=false, bool to_begin = false);
-	int addToken(const string& term, const string& re) { return addLexerRule(term, re, true); }
-	int addRule(const string &lhs, const vector<vector<string>> &rhs, SemanticAction act = SemanticAction(), int id = -1, unsigned lpr = -1, unsigned rpr = -1);
-	int addRule(const string &lhs, const vector<vector<string>> &rhs, int id, unsigned lpr = -1, unsigned rpr = -1) {
-		return addRule(lhs, rhs, SemanticAction(), id, lpr, rpr);
-	}
-	bool addRuleAssoc(const string &lhs, const vector<vector<string>> &rhs, int id, unsigned pr, int assoc = 0) { // assoc>0 ==> left-to-right, assoc<0 ==> right-to-left, assoc=0 ==> not assotiative or unary
-		return addRule(lhs, rhs, SemanticAction(), id, pr * 2 + (assoc > 0), pr * 2 + (assoc < 0));
-	}
-	int addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction(), int id = -1, unsigned lpr = -1, unsigned rpr = -1) {
-		vector<vector<string>> vrhs(rhs.size());
-		for (int i = 0; i < (int)rhs.size(); i++)
-			vrhs[i] = { rhs[i] };
-		return addRule(lhs, vrhs, std::move(act), id, lpr, rpr);
-	}
-	int addRule(const string &lhs, const vector<string> &rhs, int id, unsigned lpr, unsigned rpr) {
-		return addRule(lhs, rhs, SemanticAction(), id, lpr, rpr);
-	}
-	int addRuleAssoc(const string &lhs, const vector<string> &rhs, int id, unsigned pr, int assoc = 0) { // assoc>0 ==> left-to-right, assoc<0 ==> right-to-left, assoc=0 ==> not assotiative or unary
-		return addRule(lhs, rhs, SemanticAction(), id, pr*2+(assoc>0), pr*2+(assoc<0));
-	}
-	int addRule(const string &lhs, const vector<string> &rhs, int id) {
-		return addRule(lhs, rhs, SemanticAction(), id);
-	}
-	bool addRule(const CFGRule &r);
+    int addLexerRule(const string& term, const string& re, bool tok=false, bool to_begin = false);
+    int addToken(const string& term, const string& re) { return addLexerRule(term, re, true); }
+    int addRule(const string &lhs, const vector<vector<string>> &rhs, SemanticAction act = SemanticAction(), int id = -1, unsigned lpr = -1, unsigned rpr = -1);
+    int addRule(const string &lhs, const vector<vector<string>> &rhs, int id, unsigned lpr = -1, unsigned rpr = -1) {
+        return addRule(lhs, rhs, SemanticAction(), id, lpr, rpr);
+    }
+    bool addRuleAssoc(const string &lhs, const vector<vector<string>> &rhs, unsigned pr, int assoc = 0) { // assoc>0 ==> left-to-right, assoc<0 ==> right-to-left, assoc=0 ==> not assotiative or unary
+        return addRule(lhs, rhs, SemanticAction(), -1, pr * 2 + (assoc > 0), pr * 2 + (assoc < 0));
+    }
+    int addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction(), int id = -1, unsigned lpr = -1, unsigned rpr = -1) {
+        vector<vector<string>> vrhs(rhs.size());
+        for (int i = 0; i < (int)rhs.size(); i++)
+            vrhs[i] = { rhs[i] };
+        return addRule(lhs, vrhs, std::move(act), id, lpr, rpr);
+    }
+    int addRule(const string &lhs, const vector<string> &rhs, int id, unsigned lpr, unsigned rpr) {
+        return addRule(lhs, rhs, SemanticAction(), id, lpr, rpr);
+    }
+    int addRuleAssoc(const string &lhs, const vector<string> &rhs, int id, unsigned pr, int assoc = 0) { // assoc>0 ==> left-to-right, assoc<0 ==> right-to-left, assoc=0 ==> not assotiative or unary
+        return addRule(lhs, rhs, SemanticAction(), id, pr*2+(assoc>0), pr*2+(assoc<0));
+    }
+    int addRule(const string &lhs, const vector<string> &rhs, int id) {
+        return addRule(lhs, rhs, SemanticAction(), id);
+    }
+    bool addRule(const CFGRule &r);
 
-	bool addLexerRule(const ParseNode *tokenDef, bool tok, bool to_begin=false);
-	//bool addRule(const ParseNode *ruleDef);
-	GrammarState() {
-		ts[""];  // Резервируем нулевой номер терминала, чтобы все терминалы имели ненулевой номер.
-		nts[""]; // Резервируем нулевой номер нетерминала, чтобы все нетерминалы имели ненулевой номер.
-	}
+    bool addLexerRule(const ParseNode *tokenDef, bool tok, bool to_begin=false);
+    //bool addRule(const ParseNode *ruleDef);
+    GrammarState() {
+        ts[""];  // Резервируем нулевой номер терминала, чтобы все терминалы имели ненулевой номер.
+        nts[""]; // Резервируем нулевой номер нетерминала, чтобы все нетерминалы имели ненулевой номер.
+    }
 
-	ParseNodePtr reduce(ParseNodePtr *pn, const NTTreeNode *v, int nt, int nt1, ParseContext &pt);
+    ParseNodePtr reduce(ParseNodePtr *pn, const NTTreeNode *v, int nt, int nt1, ParseContext &pt);
 
-	void setStart(const string& start_nt){ //, const string& token, const string &syntax) {
-		int S0 = nts[""];
-		this->start = nts[start_nt];
-		CFGRule r;
-		r.A = S0;
-		r.rhs.resize(2);
-		r.rhs[0].num = this->start;
-		r.rhs[0].save = true;
-		r.rhs[0].term = false;
-		r.rhs[1].term = true;
-		r.rhs[1].save = false;
-		r.rhs[1].num = 0;
-		addRule(r);
-		_start_nt[start_nt] = S0;
-		//if(!token.empty())
-		//	tokenNT = nts[token];
-		//if (!syntax.empty())
-		//	syntaxDefNT = nts[syntax];
-	}
-	int getStartNT(const string& nt);
-	void setWsToken(const string& ws) {
-		lex.setWsToken(ws);
-	}
-	void setIndentToken(const std::string &nm, int enforce = 0) {
-		lex.declareIndentToken(nm, ts[nm], enforce);
-	}
-	void setDedentToken(const std::string &nm, int enforce = 0) {
-		lex.declareDedentToken(nm, ts[nm], enforce);
-	}
-	void setCheckIndentToken(const std::string &nm, int enforce = 0) {
-		lex.declareCheckIndentToken(nm, ts[nm], enforce);
-	}
-	void setEOLToken(const std::string &nm, int enforce = 0) {
-		lex.declareEOLToken(nm, ts[nm], enforce);
-	}
+    void setStart(const string& start_nt){ //, const string& token, const string &syntax) {
+        int S0 = nts[""];
+        this->start = nts[start_nt];
+        CFGRule r;
+        r.A = S0;
+        r.rhs.resize(2);
+        r.rhs[0].num = this->start;
+        r.rhs[0].save = true;
+        r.rhs[0].term = false;
+        r.rhs[1].term = true;
+        r.rhs[1].save = false;
+        r.rhs[1].num = 0;
+        addRule(r);
+        _start_nt[start_nt] = S0;
+        //if(!token.empty())
+        //    tokenNT = nts[token];
+        //if (!syntax.empty())
+        //    syntaxDefNT = nts[syntax];
+    }
+    int getStartNT(const string& nt);
+    void setWsToken(const string& ws) {
+        lex.setWsToken(ws);
+    }
+    void setIndentToken(const std::string &nm, int enforce = 0) {
+        lex.declareIndentToken(nm, ts[nm], enforce);
+    }
+    void setDedentToken(const std::string &nm, int enforce = 0) {
+        lex.declareDedentToken(nm, ts[nm], enforce);
+    }
+    void setCheckIndentToken(const std::string &nm, int enforce = 0) {
+        lex.declareCheckIndentToken(nm, ts[nm], enforce);
+    }
+    void setEOLToken(const std::string &nm, int enforce = 0) {
+        lex.declareEOLToken(nm, ts[nm], enforce);
+    }
     void setSOFToken(const std::string &nm, int enforce = 0) {
         lex.declareSOFToken(nm, ts[nm], enforce);
     }
-	void setEOFToken(const std::string &nm, int enforce = 0) {
-		lex.declareEOFToken(nm, ts[nm], enforce);
-	}
-	ostream& print_rule(ostream& s, const CFGRule &r)const {
-		s << nts[r.A] << " -> ";
-		for (auto& rr : r.rhs) {
-			if (rr.term)s << ts[rr.num] << " ";
-			else s << nts[rr.num] << " ";
-		}
-		return s;
-	}
-	void print_rules(ostream &s) const{
-		for (auto &r : rules) {
-			print_rule(s, r);
-			s << "\n";
-		}
-	}
-	void addNewNTAction(const NewNTAction& action) {
-		on_new_nt_actions.push_back(action);
-	}
-	void addNewTAction(const NewTAction& action) {
-		on_new_t_actions.push_back(action);
-	}
+    void setEOFToken(const std::string &nm, int enforce = 0) {
+        lex.declareEOFToken(nm, ts[nm], enforce);
+    }
+    ostream& print_rule(ostream& s, const CFGRule &r)const {
+        s << nts[r.A] << " -> ";
+        for (auto& rr : r.rhs) {
+            if (rr.term)s << ts[rr.num] << " ";
+            else s << nts[rr.num] << " ";
+        }
+        return s;
+    }
+    void print_rules(ostream &s) const{
+        for (auto &r : rules) {
+            print_rule(s, r);
+            s << "\n";
+        }
+    }
+    void addNewNTAction(const NewNTAction& action) {
+        on_new_nt_actions.push_back(action);
+    }
+    void addNewTAction(const NewTAction& action) {
+        on_new_t_actions.push_back(action);
+    }
 };
 
 class ParseContext {
@@ -512,32 +518,32 @@ public:
 };
 
 struct LAInfo {
-	NTSet t, nt;
-	LAInfo& operator |=(const LAInfo &i) { 
-		t |= i.t;   nt |= i.nt;
-		return *this;
-	}
+    NTSet t, nt;
+    LAInfo& operator |=(const LAInfo &i) { 
+        t |= i.t;   nt |= i.nt;
+        return *this;
+    }
 };
 using LAMap = PosHash<int, LAInfo>;
 
 struct RulePos {
-	mutable const NTTreeNode* sh = nullptr;
-	const NTTreeNode *v = nullptr; // Текущая вершина в дереве правил
-	NTSet M;                 // Множество нетерминалов в корне дерева
+    mutable const NTTreeNode* sh = nullptr;
+    const NTTreeNode *v = nullptr; // Текущая вершина в дереве правил
+    NTSet M;                 // Множество нетерминалов в корне дерева
 };
 
 struct LR0State {
-	VectorF<RulePos,4> v;
-	LAMap la; // Информация о предпросмотре для свёртки по нетерминалам до данного фрейма: по нетерминалу A возвращает, какие символы могут идти после свёртки по A
+    VectorF<RulePos,4> v;
+    LAMap la; // Информация о предпросмотре для свёртки по нетерминалам до данного фрейма: по нетерминалу A возвращает, какие символы могут идти после свёртки по A
 };
 
 
 struct SStack {
-	vector<LR0State> s;
+    vector<LR0State> s;
 };
 
 struct PStack {
-	vector<ParseNodePtr> s;
+    vector<ParseNodePtr> s;
 };
 
 
@@ -563,10 +569,10 @@ public:
 ParseTree parse(ParseContext &pt, const std::string &text, const string &start = "", const SpecialLexerAction& la = {});
 
 struct ParserError : public Exception {
-	Location loc;
-	string err;
-	ParserError(Location l, string e): Exception(), loc(l), err(move(e)) {}
-	[[nodiscard]] const char *what()const noexcept override { return err.c_str(); }
+    Location loc;
+    string err;
+    ParserError(Location l, string e): Exception(), loc(l), err(move(e)) {}
+    [[nodiscard]] const char *what()const noexcept override { return err.c_str(); }
 };
 
 void print_tree(std::ostream& os, ParseTree& t, GrammarState* g);
@@ -580,33 +586,33 @@ void tree2file(const string& fn, ParseTree& t, GrammarState* g);
 /** Рекурсивно заменяет листья в поддереве n с rule_id=QExpr, на соответствующие поддеревья */
 template<class It>
 ParseNode* replace_trees_rec(ParseNode* n, It& pos, const It& end, int nargs, int rnum, int qmanyid, bool *many) {
-	if (n->rule_id == rnum || n->rule_id == qmanyid) {
-		if (pos == end)
-			throw ParserError{ n->loc, "not enough arguments for quasiquote, {} given"_fmt(nargs) };
-		ParseNode* res = &**pos;
-		if(n->rule_id == qmanyid && many) {
-		    n->rule_id = qmanyid;
+    if (n->rule_id == rnum || n->rule_id == qmanyid) {
+        if (pos == end)
+            throw ParserError{ n->loc, "not enough arguments for quasiquote, {} given"_fmt(nargs) };
+        ParseNode* res = &**pos;
+        if(n->rule_id == qmanyid && many) {
+            n->rule_id = qmanyid;
             *many = true;
         }
-		++pos;
-		return res;
-	}
-	bool m = false;
-	size_t nch = 0;
-	for (auto& ch : n->ch) {
+        ++pos;
+        return res;
+    }
+    bool m = false;
+    size_t nch = 0;
+    for (auto& ch : n->ch) {
         ch = replace_trees_rec(ch, pos, end, nargs, rnum, qmanyid, &m);
         nch += ch->rule_id==qmanyid ? ch->ch.size() : 1;
     }
-	if(m) {
-	    vector<ParseNode*> v(nch, nullptr);
-	    size_t p = 0;
-	    for(auto* ch : n->ch) {
-	        if(ch->rule_id==qmanyid) {
+    if(m) {
+        vector<ParseNode*> v(nch, nullptr);
+        size_t p = 0;
+        for(auto* ch : n->ch) {
+            if(ch->rule_id==qmanyid) {
                 for (auto *cc : ch->ch)
                     v[p++] = cc;
             } else v[p++] = ch;
-	    }
-	    n->ch = std::move(v);
-	}
-	return n;
+        }
+        n->ch = std::move(v);
+    }
+    return n;
 }
