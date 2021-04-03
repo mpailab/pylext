@@ -33,7 +33,7 @@ struct PEGExpr {
 	int num = 0;
 	mutable int id=-1;
 	int _cmplx = -1;
-	void _updatecmplx(const vector<PEGExpr> *v = 0, bool rec = false) {
+	void _updatecmplx(const vector<unique_ptr<PEGExpr>> *v = 0, bool rec = false) {
 		if (type != Terminal) {
 			t_mask.reset();
 			t_mask.flip();
@@ -54,8 +54,8 @@ struct PEGExpr {
 		case NonTerminal:
 			if (v) {
 				if (num < (int)v->size()) {
-					_cmplx = (*v)[num]._cmplx;
-					t_mask = (*v)[num].t_mask;
+					_cmplx = (*v)[num]->_cmplx;
+					t_mask = (*v)[num]->t_mask;
 				} else t_mask.reset(), _cmplx = 1;
 			}
 			else _cmplx = -1;
@@ -87,7 +87,12 @@ struct PEGExpr {
 			_cmplx = ((_cmplx < 0 || c._cmplx < 0) ? -1 : _cmplx + c._cmplx);
 	}
 	PEGExpr() = default;
-	explicit PEGExpr(const string &ss):type(String),s(ss),_cmplx((int)ss.size()) {}
+    void invalidate_id() {
+        id = -1;
+        for(auto &e: subexprs)
+            e.invalidate_id();
+    }
+    explicit PEGExpr(const string &ss):type(String),s(ss),_cmplx((int)ss.size()) {}
 	explicit PEGExpr(const bitset<256> & bs, string text = "") :type(Terminal), t_mask(bs), s(std::move(text)),_cmplx(1) {}
 	PEGExpr(Type t, vector<PEGExpr> && l, string text = "") :type(t),subexprs(move(l)),s(std::move(text)) {
 		_updatecmplx();
@@ -262,11 +267,32 @@ struct PEGGrammar {
     }
     Enumerator<string,unordered_map> _en;
     Enumerator<const PEGExpr*, unordered_map, HashExpr,EqExpr> _een;
-    vector<PEGExpr> rules;
+    vector<unique_ptr<PEGExpr>> rules;
 
     PEGGrammar(): _een(1024, HashExpr()) {}
     void update_props();
     void add_rule(const string &nt, const PEGExpr &e, bool to_begin = false);
+
+    void copy_grammar(const PEGGrammar& g){
+        _en = g._en;
+        _een = {};
+        _updated = g._updated;
+        _ops = g._ops;
+        rules.resize(g.rules.size());
+        for(size_t i=0; i<g.rules.size(); i++) {
+            rules[i] = make_unique<PEGExpr>(*g.rules[i]);
+            rules[i]->invalidate_id();
+            _updateHash(*rules[i]);
+        }
+    }
+
+    PEGGrammar(const PEGGrammar&g){
+        copy_grammar(g);
+    }
+    PEGGrammar& operator=(const PEGGrammar&g){
+        copy_grammar(g);
+        return *this;
+    }
 };
 
 

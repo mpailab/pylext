@@ -114,6 +114,8 @@ void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& p
 	}
 	auto& r = g->rules[n->rule];
 	int pos = 0;
+	//if(int(r.lpr)!=-1||int(r.rpr)!=-1)
+	//    os<<"(";
 	for (auto& x : r.rhs) {
 		if (x.save) {
 			tree2str_rec(os, n->ch[pos], g, pst);
@@ -132,6 +134,8 @@ void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& p
 			printTerminal(os, x.num, "", g, pst);
 		}
 	}
+    //if(int(r.lpr)!=-1||int(r.rpr)!=-1)
+    //    os<<")";
 }
 
 void print_tree(std::ostream& os, ParseTree &t, GrammarState* g) {
@@ -713,15 +717,17 @@ void GrammarState::error(const string & err) {
 	_err.emplace_back(lex.cpos(), err);
 }
 
-void GrammarState::addLexerRule(const string & term, const string & rhs, bool tok, bool to_begin) {
+int GrammarState::addLexerRule(const string & term, const string & rhs, bool tok, bool to_begin) {
 	if (debug_pr)
 		std::cout << "!!! Add lexer rule : " << term << " <- " << rhs << "\n";
 	int nterms = ts.size();
 	int n = tok ? ts[term] : 0;
 	lex.addPEGRule(term, rhs, n, to_begin);
-	if (n >= nterms) // Если добавился новый терминал
-		for (auto& action : on_new_t_actions)
-			action(this, term, n);
+	if (n >= nterms) { // Если добавился новый терминал
+        for (auto &action : on_new_t_actions)
+            action(this, term, n);
+    }
+    return n;
 }
 
 int GrammarState::addRule(const string & lhs, const vector<vector<string>>& rhs, SemanticAction act, int id, unsigned lpr, unsigned rpr) {

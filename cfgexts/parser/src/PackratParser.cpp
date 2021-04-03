@@ -4,19 +4,27 @@
 #include "format.h"
 
 void PEGGrammar::update_props() {
-	for(int i=0; i<10; i++)
-		for (auto& r : rules)
-			r._updatecmplx(&rules, true);
+	//for(int i=0; i<10; i++)
+    for (auto& r : rules)
+        r->_updatecmplx(&rules, true);
 	_updated = true;
 	_ops = 0;
 }
 
 void PEGGrammar::add_rule(const string & nt, const PEGExpr & e, bool to_begin) {
 	int a = _en[nt];
-	if (a >= len(rules))rules.resize(a + 1);
-	if (to_begin)rules[a] = e / rules[a];
-	else rules[a] /= e;
-	_updateHash(rules[a]);
+	while (a >= len(rules)){
+	    //bool upd_all = a >= rules.capacity();
+	    rules.resize(a + 1);
+	    //if(upd_all) {
+        //    for(auto &e : rules)
+        //        e.id = _een[&e];
+        //}
+	}
+	if(!rules[a])rules[a] = make_unique<PEGExpr>();
+	if (to_begin)*rules[a] = e / *rules[a];
+	else *rules[a] /= e;
+	_updateHash(*rules[a]);
 	//rules[a].id = _een[&rules[a]];
 	//e.id = _een[&e];
 	_updated = false;
@@ -142,10 +150,10 @@ int PackratParser::parse(int nt, int pos) {
 	if (!peg->_updated) {
 		if (peg->_ops > peg->rules.size() * 100)
 			peg->update_props();
-	} else if (!peg->rules[nt].t_mask[(unsigned char)text[pos - 1]])
+	} else if (!peg->rules[nt]->t_mask[(unsigned char)text[pos - 1]])
 		return -1;
-	if (peg->rules[nt]._cmplx <= (int)cmplxThresh) {
-		int r = parse(peg->rules[nt], pos);
+	if (peg->rules[nt]->_cmplx <= (int)cmplxThresh) {
+		int r = parse(*peg->rules[nt], pos);
 		return r ? r : -1;
 	}
 	int &a = accepted(pos, nt);
@@ -157,7 +165,7 @@ int PackratParser::parse(int nt, int pos) {
 	//else if(pos >= (int)accepted[nt].size())
 	//	accepted[nt].resize(nt + 1,-1);
 	//if (int a = accepted[pos][nt]) return a;
-	int r = parse(peg->rules[nt], pos);
+	int r = parse(*peg->rules[nt], pos);
 	return accepted(pos,nt) = (r ? r : -1);
 }
 

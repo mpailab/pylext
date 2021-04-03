@@ -51,12 +51,15 @@ defmacro match(stmt, 'match', x:expr, ':', EOL, INDENT, mc:*matchcases, DEDENT):
     # print(f'expanded: {ast_to_text(parse_context(), head)}')
     return head
 
+def f(x):
+    match x:
+        # _: print(f'{x} -> 0')
+        1: return 'a'
+        2: return 'b'
+        _ if x<5 or x>8: return 'c'
+        _: return 'd'
+
 # Тестируем макрос
 if __name__ == '__main__':
     for x in range(10):
-        match x:
-            # _: print(f'{x} -> 0')
-            1: print(f'{x} -> a')
-            2: print(f'{x} -> b')
-            _ if x<5 or x>8: print(f'{x} -> c')
-            _: print(f'{x} -> d')
+        print(f'{x} -> {f(x)}')
