@@ -1,5 +1,3 @@
-add_library(parser STATIC
-  Exception.cpp
-  PackratParser.cpp
-  Parser.cpp
-)
+add_subdirectory(format)
+add_subdirectory(parser)
+add_subdirectory(pymacro)

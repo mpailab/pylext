@@ -1,2 +1,2 @@
-add_executable(ptest main.cpp base.cpp pymacro.cpp)
-target_link_libraries(ptest parser)
+add_executable(ptest main.cpp)  #  ParserThread.cpp)
+target_link_libraries(ptest pymacro parser format)

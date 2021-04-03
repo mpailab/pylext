@@ -14,7 +14,7 @@ syntax(matchcases, xs:matchcases, x:matchcase):
 	
 #Максимально упрощённый pattern-matching (просто сравнение на равенство)
 def match2cmp(x,pat):
-	if tmatch($pat, expr(`_`)): # должна быть встроенная функция, сравнивающая деревья разбора
+	if tmatch(pat, expr(`_`)): # должна быть встроенная функция, сравнивающая деревья разбора
 		return expr(`true`)
 	return expr(`$x == $pat`)
 		

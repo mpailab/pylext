@@ -1,9 +1,10 @@
 #include <iostream>
 #include <filesystem>
-#include <fstream>
 #include <iomanip>
+#include <memory>
 #include "Parser.h"
-#include "base.h"
+#include "GrammarUtils.h"
+#include "PyMacro.h"
 using namespace std;
 
 
@@ -19,15 +20,16 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 		if (!e.is_regular_file())continue;
 		try {
 			string text = read_whole_file(e.path().string());
-			bool unicode = false;
+			/*bool unicode = false;
 			for (char c : text)if (c <= 0)unicode = true;
 			if (0&&unicode) {
 				skip++;
 				continue;
-			} else total++;
+			} else*/ total++;
 			Timer tm;
 			tm.start();
-			auto N = parse(g, text);
+			ParseContext pt(&g);
+			auto N = parse(pt, text);
 			double t = tm.stop();
 			cout << setprecision(3);
 			log << e.path().filename() << ":\t Success :\t " << N.root->size << " nodes\t time = " << t << "\t(" << text.size() / t * 1e-6 << " MB/s)\n";
@@ -52,15 +54,46 @@ int testDir(GrammarState &g, const string& dir, const string &logfile, const str
 	return 0;
 }
 
+
 int main(int argc, char*argv[]) {
+    string res;
+
+    /*Timer tm("Creating context");
+    tm.start();
+    for(int i=0; i<100; i++){
+        auto p = new_python_context(1);
+        del_python_context(p);
+    }
+    tm.stop_pr();
+    return 0;*/
+
+    try {
+        Timer tm("Parsing + printing");
+        tm.start();
+        string text = loadfile("../pymacros/example/match_macro.py");
+        auto p = new_python_context(1);
+        ParserState* pst = (ParserState*)new_parser_state(p, text.c_str(), "");
+		//setDebug(DBG_SHIFT | DBG_REDUCE | DBG_RULES | DBG_TOKEN | DBG_LOOKAHEAD | DBG_QQ);
+        while(auto n = pst->parse_next().root.get()){
+            res += ast_to_text(p, n);
+        }
+        del_parser_state(pst);
+        del_python_context(p);
+        tm.stop_pr();
+    } catch (SyntaxError &ex) {
+        cout << "Error: " << ex.what() << "\n" << ex.stack_info << "\n";
+    } catch (Exception & e) {
+        cout << "Exception: " << e.what() << "\n";
+    }
+    //cout<<"=================== RESULT ============================\n";
+    cout<<res.size()<<endl;
+    //cout<<"=======================================================\n";
+    //
+    //cout << sizeof(string) << endl;
+    return 0;
 #ifndef _DEBUG
 	try {
 #endif
-		GrammarState st;
-		init_base_grammar(st);
-		cout << "Const rules:\n";
-		st.print_rules(cout);
-		cout << "\n";
 		string text, dir;
 		//setDebug(true);
 		if (argc>1 && (argv[1] == "-d"s || argv[1] == "--dir"s)) {
@@ -72,13 +105,21 @@ int main(int argc, char*argv[]) {
 		for (int i = 1; i < argc; i++) {
 			text += loadfile(argv[i]);
 		}
+		shared_ptr<GrammarState> tg;
 		if (!dir.empty()) {
+			tg = std::make_shared<GrammarState>();
 			//addRule(st, "text -> new_syntax");
 		}
+		GrammarState st;
+		init_base_grammar(st, tg.get());
+		cout << "Const rules:\n";
+		st.print_rules(cout);
+		cout << "\n";
 		if (!text.empty()) {
 			Timer tm("Parsing");
 			tm.start();
-			ParseTree res = parse(st, text);
+			ParseContext pt(&st);
+			ParseTree res = parse(pt, text);
 			tm.stop_pr();
 			cout << "Parser finished successfully\n";
 			Timer tm1("Printing");
@@ -87,7 +128,7 @@ int main(int argc, char*argv[]) {
 			tm1.stop_pr();
 		}
 		if (!dir.empty()) {
-			return testDir(st, dir, "log.txt");
+			return testDir(*tg, dir, "log.txt");
 		}
 		//st.print_rules(cout);
 #ifndef _DEBUG

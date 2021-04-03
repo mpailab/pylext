@@ -5,13 +5,10 @@
 #include <vector>
 #include "Exception.h"
 
-template <class T, int bsz = 4, class Alloc = std::allocator<T>>
+template <class T, unsigned bsz = 4, class Alloc = std::allocator<T>>
 class VectorF {
-	//union {
-	alignas(T) char _sdata[bsz * sizeof(T)];
-	//	T* _ldata;
-	//};
-	int _size = 0, _cap = bsz;
+	alignas(T) char _sdata[bsz * sizeof(T)]{};
+	unsigned _size = 0, _cap = bsz;
 	T* _ptr = (T*)_sdata;
 	Alloc _alloc;
 	static_assert((bsz&(bsz - 1)) == 0, "bsz must be power of 2");
@@ -20,7 +17,7 @@ public:
 	class _iterator {
 		Y* _ptr;
 		friend class VectorF<T,bsz,Alloc>;
-		_iterator(Y*p) :_ptr(p){}
+		explicit _iterator(Y*p) :_ptr(p){}
 	public:
 		using iterator_category = std::random_access_iterator_tag;
 		using value_type = Y;
@@ -45,9 +42,9 @@ public:
 	using iterator = _iterator<T>;
 	using const_iterator = _iterator<const T>;
 
-	int size() const { return _size; }
-	VectorF<T, bsz, Alloc>& reserve(int cap) {
-		cap = 1 << (32 - _lzcnt_u32(cap - 1));
+	[[nodiscard]] int size() const { return _size; }
+	VectorF<T, bsz, Alloc>& reserve(unsigned cap) {
+		cap = 1u << (32u - _lzcnt_u32(cap - 1));
 		if (cap <= _cap) return *this;
 		T* ptr = _alloc.allocate(cap);
 		std::uninitialized_move_n(_ptr, _size, ptr);
@@ -72,14 +69,14 @@ public:
 	}
 	T& operator[](size_t i) { return _ptr[i]; }
 	const T& operator[](size_t i)const { return _ptr[i]; }
-	VectorF<T, bsz, Alloc>& resize(int sz) {
+	VectorF<T, bsz, Alloc>& resize(unsigned sz) {
 		if (sz < _size) {
 			std::destroy_n(_ptr + sz, _size - sz);
 		} else if (sz > _size) {
 			if (sz > _cap)reserve(sz);
 			std::uninitialized_default_construct_n(_ptr + _size, sz-_size);
 		}
-		_size = sz;
+		_size = (unsigned)sz;
 		return *this;
 	}
 	VectorF<T, bsz, Alloc>& pop_back() {
@@ -95,7 +92,7 @@ public:
 	iterator end() { return iterator(_ptr + _size); }
 
 	VectorF() = default;
-	VectorF(VectorF<T, bsz, Alloc>&& v): _ptr(v._cap <= bsz ? (T*)_sdata : v._ptr),_cap(v._cap),_size(v._size) {
+	VectorF(VectorF<T, bsz, Alloc>&& v) noexcept : _ptr(v._cap <= bsz ? (T*)_sdata : v._ptr),_cap(v._cap),_size(v._size) {
 		if (_cap <= bsz) {
 			std::uninitialized_move_n(v._ptr, _size, _ptr);
 		} else {
@@ -104,7 +101,7 @@ public:
 			v._size = 0;
 		}
 	}
-	VectorF<T, bsz, Alloc>& operator=(VectorF<T, bsz, Alloc>&& v) {
+	VectorF<T, bsz, Alloc>& operator=(VectorF<T, bsz, Alloc>&& v)  noexcept {
 		if (v._cap > bsz) {
 			if (_cap > bsz) {
 				std::swap(_ptr, v._ptr);
@@ -137,9 +134,9 @@ public:
 		}
 		return *this;
 	}
-	VectorF(size_t sz) {
+	explicit VectorF(size_t sz) {
 		if (sz > bsz) {
-			_cap = 1 << (32 - _lzcnt_u32(sz - 1));
+			_cap = 1u << (32 - _lzcnt_u32(sz - 1));
 			_ptr = _alloc.allocate(_cap);
 		}
 		std::uninitialized_default_construct_n(_ptr, sz);
@@ -150,7 +147,7 @@ public:
 	VectorF(It fst, It lst): VectorF(lst-fst) {
 		int sz = int(lst - fst);
 		if (sz > bsz) {
-			_cap = 1 << (32 - _lzcnt_u32(sz - 1));
+			_cap = 1u << (32 - _lzcnt_u32(sz - 1));
 			_ptr = _alloc.allocate(_cap);
 		}
 		_size = sz;

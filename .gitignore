@@ -44,6 +44,7 @@ x64
 *.vspx
 *.psess
 *.user
+*.cbp
 
 #CMake files
 lib
@@ -54,3 +55,11 @@ CMakeFiles
 CMakeCache.txt
 *.cmake
 
+#
+a.out
+log.txt
+failed.txt
+parse_out.txt
+.idea/
+
+/Testing/

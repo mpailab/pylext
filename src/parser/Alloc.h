@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib.h>
+#include <cstdlib>
 #include <memory>
 //#include <iostream>
 template<class T> class AllocRef;
@@ -14,7 +14,7 @@ class Alloc{
 		size_t sz;
 		AllocTp* p;
 		ListAllocNode *next;
-		ListAllocNode(size_t n, ListAllocNode *nxt=0){
+		explicit ListAllocNode(size_t n, ListAllocNode *nxt=0){
 			//std::cout << "Allocate " << n << " nodes\n";
 			p = (AllocTp*)malloc(n*sizeof(AllocTp));
 			for(size_t i=1; i<n; i++)
@@ -61,7 +61,7 @@ public:
 		std::swap(exp_coef, a.exp_coef);
 		return *this;
 	}
-	Alloc(size_t start_sz=10, double k=1.5){
+	explicit Alloc(size_t start_sz=10, double k=1.5){
 		start_size = start_sz;
 		exp_coef = k;
 		head = 0;

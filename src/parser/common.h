@@ -9,7 +9,7 @@ struct Enumerator {
 	std::vector<T> _i;
 	Enumerator() = default;
 	template<class T1, class ... Ts>
-	Enumerator(const T1 &x1, const Ts& ... x) :_m(x1,x...) {}
+	explicit Enumerator(const T1 &x1, const Ts& ... x) :_m(x1,x...) {}
 	const T& operator[](int i)const { return _i[i]; }
 	int operator[](const T& x) {
 		auto p = _m.insert(std::make_pair(x, (int)_i.size()));
@@ -24,7 +24,7 @@ struct Enumerator {
 	bool has(const T& x) const {
 		return _m.count(x) > 0;
 	}
-	int size()const {
+	[[nodiscard]] int size()const {
 		return (int)_i.size();
 	}
 };

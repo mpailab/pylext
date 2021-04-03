@@ -6,7 +6,7 @@ struct hash64 {
 	inline size_t operator()(uint64_t v) const noexcept {
 		size_t x = 14695981039346656037ULL;
 		for (size_t i = 0; i < 64; i += 8) {
-			x ^= static_cast<size_t>((v >> i) & 255);
+			x ^= static_cast<size_t>((v >> i) & 255u);
 			x *= 1099511628211ULL;
 		}
 		return x;
@@ -14,7 +14,7 @@ struct hash64 {
 	inline size_t operator()(uint32_t v) const noexcept {
 		size_t x = 14695981039346656037ULL;
 		for (size_t i = 0; i < 32; i += 8) {
-			x ^= static_cast<size_t>((v >> i) & 255);
+			x ^= static_cast<size_t>((v >> i) & 255u);
 			x *= 1099511628211ULL;
 		}
 		return x;
@@ -38,10 +38,10 @@ struct PosHash {
 	H h;
 	vector<Elem> _elems;
 	V _def = V();
-	int _size = 0, _nbin = 0, _mask = 0, _free = 0;
+	unsigned _size = 0, _nbin = 0, _mask = 0, _free = 0;
 	int _coef = 2;
 	//unordered_map<K, V, H> _check;
-	PosHash(PosHash &&x) :_elems(move(x._elems)),h (x.h), _def(x._def), _size(x._size),_nbin(x._nbin),_mask(x._mask),_free(x._free),_coef(x._coef) {
+	PosHash(PosHash &&x) noexcept :_elems(move(x._elems)),h (x.h), _def(x._def), _size(x._size),_nbin(x._nbin),_mask(x._mask),_free(x._free),_coef(x._coef) {
 		x._nbin = 0;
 		x._mask = 0;
 		x._free = 0;
@@ -50,25 +50,25 @@ struct PosHash {
 	PosHash() = default;
 	void clear() {
 		//_check.clear();
-		for (int i = 0; i < _nbin; i++)
+		for (unsigned i = 0; i < _nbin; i++)
 			_elems[i].next = -1;
-		for (int i = _nbin; i < 2 * _nbin - 1; i++)
-			_elems[i].next = i + 1;
+		for (unsigned i = _nbin+1; i < 2 * _nbin; i++)
+			_elems[i-1].next = i;
 		_mask = _nbin - 1;
 		_free = _nbin;
 		_size = 0;
 	}
 	void rehash() {
-		int sz = 1;
-		while (sz < (_size + 1) * _coef)sz <<= 1;
+		unsigned sz = 1;
+		while (sz < (_size + 1) * _coef)sz <<= 1u;
 		if (sz == _nbin)return;
 		vector<Elem> old = move(_elems);
 		_elems.clear();
 		_nbin = sz;
 		_elems.resize(2 * sz);
-		for (int i = 0; i < sz; i++)
+		for (unsigned i = 0; i < sz; i++)
 			_elems[i].next = -1;
-		for (int i = sz; i < 2 * sz - 1; i++)
+		for (unsigned i = sz; i < 2 * sz - 1; i++)
 			_elems[i].next = i + 1;
 		_elems[2 * sz - 1].next = -1;
 		_mask = _nbin - 1;
@@ -81,13 +81,13 @@ struct PosHash {
 		}
 	}
 	Elem& _insert(K k, V v) {
-		struct Counter {
+		/*struct Counter {
 			int cnt = 0;
 			~Counter() {
 				cout << "Count = " << cnt << endl;
 			}
 			void operator++() { cnt++; }
-		};
+		};*/
 		//static Counter c;
 		//++c;
 		if (_size*_coef >= _nbin)rehash();
@@ -128,7 +128,7 @@ struct PosHash {
 		//Assert(_check.insert(make_pair(k, _def)).first->second == e.val);
 		return e.val;
 	}
-	const V& find(K k)const {
+	[[nodiscard]] const V& find(K k)const {
 		int hh = h(k) & _mask;
 		if (!_elems.size() || _elems[hh].next < 0) {
 			//Assert(!_check.count(k));
@@ -144,7 +144,7 @@ struct PosHash {
 		//Assert(!_check.count(k));
 		return _def;
 	}
-	const V* findp(K k)const {
+	[[nodiscard]] const V* findp(K k)const {
 		int hh = h(k) & _mask;
 		if (!_elems.size() || _elems[hh].next < 0) return 0;
 		for (;; hh = _elems[hh].next) {
@@ -153,5 +153,5 @@ struct PosHash {
 		}
 		return 0;
 	}
-	int size()const { return _size; }
+	[[nodiscard]] int size()const { return _size; }
 };

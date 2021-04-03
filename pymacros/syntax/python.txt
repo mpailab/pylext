@@ -4,13 +4,13 @@
 
 %indent: INDENT;
 %dedent: DEDENT;
-%check_indent: INDENTED;
+# %check_indent: INDENTED;
 %eol: EOL;
 
-# %syntax: new_syntax -> INDENTED new_syntax_expr ';';
+# %syntax: new_syntax -> new_syntax_expr ';';
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#%syntax: if_stmt         -> if_stmt_noelse [INDENTED+'else' ':' suite];
+#%syntax: if_stmt         -> if_stmt_noelse ['else' ':' suite];
 
 %token: ident = `[_a-zA-Z][_a-zA-Z0-9]*`;
 
@@ -22,7 +22,7 @@
 # %token: sstring         = `shortstring`;
 # %syntax: text -> stringliteral | bytesliteral;
 
-%token: integer      =  `decinteger / bininteger / octinteger / hexinteger`;
+%token: integer      =  `bininteger / octinteger / hexinteger / decinteger`;
 %pexpr: decinteger   =  `[1-9] ('_'?[0-9])* / '0'+ ('_' '0')*`;
 %pexpr: bininteger   =  `'0'[bB] ('_'?[01])+`;
 %pexpr: octinteger   =  `'0'[oO] ('_'?[0-7])+`;
@@ -30,17 +30,17 @@
 
 %token: floatnumber   =  `pointfloat / exponentfloat`;
 %pexpr: digitpart     =  `[0-9] ('_'?[0-9])*`;
-%pexpr: pointfloat    =  `digitpart? '.' digitpart / digitpart '.'`;
+%pexpr: pointfloat    =  `digitpart? '.' digitpart / digitpart '.'!('.')`;
 %pexpr: exponentfloat =  `(digitpart / pointfloat) [Ee][+\-]? digitpart`;
 
 
 %token: imagnumber = `(floatnumber / digitpart)[jJ]`;
 
 # %syntax: text -> root_stmts;
-# %syntax: root_stmts -> [root_stmts] INDENTED root_stmt;
+# %syntax: root_stmts -> [root_stmts] root_stmt;
 %syntax: root_stmt -> stmt;
 
-%syntax: decorator -> '@' dotted_ident ['(' [arglist] ')'] EOL INDENTED;
+%syntax: decorator -> '@' dotted_ident ['(' [arglist] ')'] EOL;
 # %syntax: decorators -> decorator [decorators];
 %syntax: decorated -> {decorator} classdef;
 %syntax: decorated -> {decorator} funcdef;
@@ -120,11 +120,11 @@
 # For normal and annotated assignments, additional restrictions enforced by the interpreter
 %syntax: del_stmt      -> 'del' exprlist;
 %syntax: pass_stmt     -> 'pass';
-%syntax: flow_stmt     -> 'break' | 'continue' 
+%syntax: flow_stmt     -> 'break' | 'continue'
                         | 'return' [testlist_star_expr]
                         | 'raise' [test ['from' test]]
                         | yield_expr;
-  
+
  # note below: the ('.' | '...') is necessary because '...' is tokenized as ELLIPSIS
 %syntax: import_as_ident  -> ident ['as' ident];
 %syntax: dotted_as_ident  -> dotted_ident ['as' ident];
@@ -137,25 +137,25 @@
 
 %syntax: compound_stmt   -> if_stmt | while_stmt | for_stmt | try_stmt | with_stmt | funcdef | classdef | decorated | async_stmt;
 %syntax: async_stmt      -> 'async' (funcdef | with_stmt | for_stmt);
-%syntax: if_stmt_noelse  -> 'if' identdexpr_test ':' suite | if_stmt_noelse INDENTED+'elif' identdexpr_test ':' suite;
+%syntax: if_stmt_noelse  -> 'if' identdexpr_test ':' suite | if_stmt_noelse 'elif' identdexpr_test ':' suite;
 ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-%syntax: if_stmt         -> if_stmt_noelse [INDENTED+'else' ':' suite];
+%syntax: if_stmt         -> if_stmt_noelse ['else' ':' suite];
 
-%syntax: while_stmt      -> 'while' identdexpr_test ':' suite [INDENTED+'else' ':' suite];
-%syntax: for_stmt        -> 'for' exprlist 'in' testlist ':' [longstring] suite [INDENTED+'else' ':' suite];
-%syntax: try_stmt        -> 'try' ':' suite INDENTED+'finally' ':' suite
-				          | 'try' ':' suite excepts [INDENTED+'else' ':' suite] [INDENTED+'finally' ':' suite];
+%syntax: while_stmt      -> 'while' identdexpr_test ':' suite ['else' ':' suite];
+%syntax: for_stmt        -> 'for' exprlist 'in' testlist ':' [longstring] suite ['else' ':' suite];
+%syntax: try_stmt        -> 'try' ':' suite 'finally' ':' suite
+				          | 'try' ':' suite excepts ['else' ':' suite] ['finally' ':' suite];
 %syntax: excepts         -> except_clause ':' suite | excepts except_clause ':' suite;
 %syntax: with_items      -> [with_items ','] with_item;
 %syntax: with_stmt       -> 'with' with_items ':' [longstring] suite;
 %syntax: with_item       -> test ['as' expr];
 
-%syntax: except_clause   -> INDENTED + 'except' [test ['as' ident]];
-  
-%syntax: indented_stmt   -> INDENTED stmt; # | stmts1 INDENTED stmt;
-  
-# %syntax: suite           -> INDENT INDENTED simple_stmt DEDENT | INDENT {indented_stmt} DEDENT;
-%syntax: suite           -> INDENT {indented_stmt} DEDENT;
+%syntax: except_clause   -> 'except' [test ['as' ident]];
+
+# %syntax: indented_stmt   -> stmt; # | stmts1 stmt;
+
+%syntax: suite           -> simple_stmt | EOL INDENT {stmt} DEDENT;
+# %syntax: suite         -> INDENT {indented_stmt} DEDENT;
 
 %syntax: identdexpr_test -> test [':=' test];
 %syntax: test            -> or_test | or_test 'if' or_test 'else' test | lambdef;
@@ -165,6 +165,7 @@
 %syntax: or_test         -> and_test | or_test 'or' and_test;
 %syntax: and_test        -> not_test | and_test 'and' not_test;
 %syntax: not_test        -> 'not' not_test | comparison;
+
 %syntax: comparison      -> expr | comparison comp_op expr;
 
 # <> isn't actually a valid comparison operator in Python. It's here for the
@@ -184,8 +185,8 @@
 %syntax: expr            -> atom_expr; # | expr ('*' | '@' | '/' | '%' | '//' | '+' | '-' | '**' | '<<' | '>>' | '&' | '|' | '^') expr | ('+' | '-' | '~') expr;
 %syntax: atom_expr       -> ['await'] atom | atom_expr trailer;
 %syntax: atom            -> '(' [yield_expr | testlist_comp] ')'
-                          | '[' [testlist_comp] ']' 
-				          | '{' [dictorsetmaker] '}' 
+                          | '[' [testlist_comp] ']'
+				          | '{' [dictorsetmaker] '}'
 				          | ident | NUMBER | stringliteral | bytesliteral | '...' | 'None' | 'True' | 'False';
 %syntax: identd_or_star  -> identdexpr_test | star_expr;
 %syntax: identd_or_star_list -> [identd_or_star_list ','] identd_or_star;
@@ -209,11 +210,11 @@
 
 %syntax: arglist -> argument2 [',' [arglist]];
 
-%syntax: argument2 -> test 
-                    | test comp_for 
-                    | test ':=' test 
-			        | test '=' test 
-			        | '**' test 
+%syntax: argument2 -> test
+                    | test comp_for
+                    | test ':=' test
+			        | test '=' test
+			        | '**' test
 			        | '*' test;
 
 %syntax: comp_iter      -> comp_for | comp_if;
@@ -225,11 +226,11 @@
 
 # the longstring in suites is only parsed for funcdefs,
 # but can't go elsewhere due to ambiguity
-%syntax: func_body_suite -> simple_stmt 
-                          | EOL INDENT {indented_stmt} DEDENT
-				          | EOL longstring INDENT {indented_stmt} DEDENT;
+%syntax: func_body_suite -> simple_stmt
+                          | EOL INDENT {stmt} DEDENT
+				          | EOL longstring INDENT {stmt} DEDENT;
 
 %syntax: NUMBER  -> floatnumber | integer | imagnumber;
 #%print;
-%stats;
+#%stats;
 #%debug on;

@@ -1,4 +1,5 @@
 #pragma once
+#include <utility>
 #include <vector>
 #include <memory>
 #include <bitset>
@@ -32,7 +33,7 @@ struct PEGExpr {
 	int num = 0;
 	mutable int id=-1;
 	int _cmplx = -1;
-	void _updatecmplx(const vector<PEGExpr> *v = 0, bool rec = false) {
+	void _updatecmplx(const vector<unique_ptr<PEGExpr>> *v = 0, bool rec = false) {
 		if (type != Terminal) {
 			t_mask.reset();
 			t_mask.flip();
@@ -53,8 +54,8 @@ struct PEGExpr {
 		case NonTerminal:
 			if (v) {
 				if (num < (int)v->size()) {
-					_cmplx = (*v)[num]._cmplx;
-					t_mask = (*v)[num].t_mask;
+					_cmplx = (*v)[num]->_cmplx;
+					t_mask = (*v)[num]->t_mask;
 				} else t_mask.reset(), _cmplx = 1;
 			}
 			else _cmplx = -1;
@@ -86,9 +87,14 @@ struct PEGExpr {
 			_cmplx = ((_cmplx < 0 || c._cmplx < 0) ? -1 : _cmplx + c._cmplx);
 	}
 	PEGExpr() = default;
-	PEGExpr(const string &ss):type(String),s(ss),_cmplx((int)ss.size()) {}
-	PEGExpr(const bitset<256> & bs, const string&text = "") :type(Terminal), t_mask(bs), s(text),_cmplx(1) {}
-	PEGExpr(Type t, vector<PEGExpr> && l, const string&text = ""):type(t),subexprs(move(l)),s(text) {
+    void invalidate_id() {
+        id = -1;
+        for(auto &e: subexprs)
+            e.invalidate_id();
+    }
+    explicit PEGExpr(const string &ss):type(String),s(ss),_cmplx((int)ss.size()) {}
+	explicit PEGExpr(const bitset<256> & bs, string text = "") :type(Terminal), t_mask(bs), s(std::move(text)),_cmplx(1) {}
+	PEGExpr(Type t, vector<PEGExpr> && l, string text = "") :type(t),subexprs(move(l)),s(std::move(text)) {
 		_updatecmplx();
 	}
 	PEGExpr& operator /=(PEGExpr &&e) {
@@ -187,9 +193,10 @@ struct PEGExpr {
 			return s += ')';
 		default: return s;
 		}
-		return s;
+		// return s;
 	}
 };
+
 inline PEGExpr operator!(PEGExpr &&e) {
 	return PEGExpr(PEGExpr::NegLookahead, { move(e) });
 }
@@ -224,6 +231,71 @@ inline size_t get_hash(const T& x) {
 	return hash<T>()(x);
 }
 
+struct PEGGrammar {
+    bool _updated=true;
+    int _ops = 0;
+    struct HashExpr {
+        //mutable PackratParser *p = 0;
+        HashExpr() = default;
+        //explicit HashExpr(PackratParser *ps) :p(ps) {}
+        size_t operator()(const PEGExpr *e)const {
+            size_t h = std::hash<int>()(e->type);
+            switch (e->type) {
+                case PEGExpr::Terminal:
+                    return h ^ get_hash(e->t_mask);
+                case PEGExpr::String:
+                    return h^std::hash<string>()(e->s);
+                case PEGExpr::NonTerminal:
+                    return h ^ std::hash<int>()(e->num);
+                default:
+                    for (auto &x : e->subexprs) {
+                        //Assert(x.id>=0);
+                        //if (x.id < 0)x.id = p->_een[&x];
+                        h ^= std::hash<int>()(x.id);
+                    }
+            }
+            return h;
+        }
+    };
+    struct EqExpr {
+        bool operator()(const PEGExpr *e1, const PEGExpr *e2)const { return *e1 == *e2; }
+    };
+    void _updateHash(PEGExpr& e) {
+        for (auto& x : e.subexprs)
+            if (x.id < 0)_updateHash(x);
+        e.id = _een[&e];
+    }
+    Enumerator<string,unordered_map> _en;
+    Enumerator<const PEGExpr*, unordered_map, HashExpr,EqExpr> _een;
+    vector<unique_ptr<PEGExpr>> rules;
+
+    PEGGrammar(): _een(1024, HashExpr()) {}
+    void update_props();
+    void add_rule(const string &nt, const PEGExpr &e, bool to_begin = false);
+
+    void copy_grammar(const PEGGrammar& g){
+        _en = g._en;
+        _een = {};
+        _updated = g._updated;
+        _ops = g._ops;
+        rules.resize(g.rules.size());
+        for(size_t i=0; i<g.rules.size(); i++) {
+            rules[i] = make_unique<PEGExpr>(*g.rules[i]);
+            rules[i]->invalidate_id();
+            _updateHash(*rules[i]);
+        }
+    }
+
+    PEGGrammar(const PEGGrammar&g){
+        copy_grammar(g);
+    }
+    PEGGrammar& operator=(const PEGGrammar&g){
+        copy_grammar(g);
+        return *this;
+    }
+};
+
+
 struct PackratParser {
 	int errpos = 0;
 	int lastpos=0;
@@ -242,58 +314,27 @@ struct PackratParser {
 			res += (res.empty() ? "" : ", ") + e->str();
 		return res;
 	}
-	bool _updated=true;
-	int _ops = 0;
+
 	vector<int> _manypos;
-	struct HashExpr {
-		mutable PackratParser *p = 0;
-		HashExpr(PackratParser *ps) :p(ps) {}
-		size_t operator()(const PEGExpr *e)const {
-			size_t h = std::hash<int>()(e->type);
-			switch (e->type) {
-			case PEGExpr::Terminal:
-				return h ^ get_hash(e->t_mask);
-			case PEGExpr::String:
-				return h^std::hash<string>()(e->s);
-			case PEGExpr::NonTerminal:
-				return h ^ std::hash<int>()(e->num);
-			default:
-				for (auto &x : e->subexprs) {
-					//Assert(x.id>=0);
-					//if (x.id < 0)x.id = p->_een[&x];
-					h ^= std::hash<int>()(x.id);
-				}
-			}
-			return h;
-		}
-	};
-	struct EqExpr {
-		bool operator()(const PEGExpr *e1, const PEGExpr *e2)const { return *e1 == *e2; }
-	};
-	void _updateHash(PEGExpr& e) {
-		for (auto& x : e.subexprs)
-			if (x.id < 0)_updateHash(x);
-		e.id = _een[&e];
-	}
-	Enumerator<string,unordered_map> _en;
-	Enumerator<const PEGExpr*, unordered_map, HashExpr,EqExpr> _een;
-	vector<PEGExpr> rules;
+    PEGGrammar *peg = 0;
+
 	//vector<vector<int>> accepted;
 	PosHash<uint64_t, int> acceptedh;
 	PosHash<uint64_t, int> manyh;
 	//unordered_map<uint64_t, int> acceptedh;
 	//unordered_map<uint64_t, int> manyh;
 	int &hmany(uint32_t pos, uint32_t id) {
-		return manyh[(uint64_t(pos) << 32) | id];
+		return manyh[(uint64_t(pos) << 32u) | id];
 	}
 	int &accepted(uint32_t pos, uint32_t id) {
-		return acceptedh[(uint64_t(pos) << 32) | id];
+		return acceptedh[(uint64_t(pos) << 32u) | id];
 	}
 	string text;
 	//int pos;
-	void update_props();
-	void add_rule(const string &nt, const PEGExpr &e, bool to_begin = false);
-	PackratParser() :_een(1024,HashExpr(this)) {}
+
+    explicit PackratParser(PEGGrammar *p, string t=""): peg(p), text(std::move(t)) {
+        lastpos = (int)text.size();
+    }
 	void setText(const string &t);
 	int parse(const PEGExpr&e, int pos);
 	int parse0(const PEGExpr&e, int pos);
@@ -301,4 +342,4 @@ struct PackratParser {
 	bool parse(int nt, int pos, int &end, string *res);
 };
 
-PEGExpr readParsingExpr(PackratParser*p, const string & s, int *errpos, string * err);
+PEGExpr readParsingExpr(PEGGrammar*p, const string & s, int *errpos, string * err);
