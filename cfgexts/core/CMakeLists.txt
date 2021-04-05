@@ -32,7 +32,7 @@ if(BUILD_CFGEXTS)
 
     add_library(wrap MODULE
         ${wrap}
-            parser/apply.cpp
+            # parser/apply.cpp
     )
     target_link_libraries(wrap parser format pymacro)
 

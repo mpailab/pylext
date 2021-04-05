@@ -48,16 +48,16 @@ public:
     PyMacroModule pymodule;
 };
 
-void init_python_grammar(PythonParseContext*px, bool read_by_stmt=true, const string& syntax_def);
+void init_python_grammar(PythonParseContext*px, bool read_by_stmt=true, const string& syntax_def="");
 ParseNode* quasiquote(ParseContext* px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /// Обёртки для простого экспорта из dll
 extern "C" DLL_EXPORT char* get_last_error();
 
-extern "C" DLL_EXPORT void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn);
+//extern "C" DLL_EXPORT void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn);
 
-PythonParseContext* new_python_context(int by_stmt);
+//PythonParseContext* new_python_context(int by_stmt);
 void del_python_context(PythonParseContext*);
 PythonParseContext* create_python_context(bool read_by_stmt, const string & syntax_def);
 
@@ -66,6 +66,7 @@ extern "C" DLL_EXPORT void inc_pn_num_refs(void *pn);
 extern "C" DLL_EXPORT void dec_pn_num_refs(void *pn);
 
 std::string ast_to_text(ParseContext* pcontext, ParseNode *pn);
+bool equal_subtrees(ParseNode* x, ParseNode* y);
 
 extern "C" DLL_EXPORT int get_pn_num_children(void* pn);
 extern "C" DLL_EXPORT void* get_pn_child(void* pn, int i);
@@ -76,14 +77,18 @@ extern "C" DLL_EXPORT int get_pn_rule(void* pn);
 extern "C" DLL_EXPORT const char* get_terminal_str(void* pn);
 extern "C" DLL_EXPORT int pn_equal(void* pn1, void* pn2);
 
-extern "C" DLL_EXPORT int add_token(void* pxv, const char* nm, const char* tokdef);
-extern "C" DLL_EXPORT int add_lexer_rule(void* pxv, const char* nm, const char* rhs);
+
+int add_lexer_rule(PythonParseContext *px, const string&nm, const string&rhs);
+int add_token(PythonParseContext *px, const string& nm, const string& tokdef);
+//extern "C" DLL_EXPORT int add_token(void* pxv, const char* nm, const char* tokdef);
+//extern "C" DLL_EXPORT int add_lexer_rule(void* pxv, const char* nm, const char* rhs);
 
 extern "C" DLL_EXPORT int add_rule(void* px, char* lhs, char *rhs, int lpr, int rpr);
 
-extern "C" DLL_EXPORT void* new_parser_state(void* px, const char* text, const char *start);
-extern "C" DLL_EXPORT void* continue_parse(void* state);
-extern "C" DLL_EXPORT int at_end(void *state);
-extern "C" DLL_EXPORT void del_parser_state(void* state);
+ParserState* new_parser_state(ParseContext* px, const string& text, const string& start);
+ParseNode* continue_parse(ParserState* state);
+bool at_end(ParserState *state);
+
+extern "C" DLL_EXPORT void del_parser_state(ParserState* state);
 
 extern "C" DLL_EXPORT int set_cpp_debug(int dbg);

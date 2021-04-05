@@ -8,10 +8,6 @@ from cpython.long cimport PyLong_FromVoidPtr as from_cptr
 from cpython.long cimport PyLong_AsVoidPtr as to_cptr
 
 from wrap cimport *
-from wrap cimport quasiquote as c_quasiquote
-from wrap cimport ParseNode as CParseNode
-from wrap cimport ParseContext as CParseContext
-from wrap cimport ast_to_text as c_ast_to_text
 from cython.operator cimport dereference as deref
 
 from core.python_grammar import python_grammar_str
@@ -23,18 +19,18 @@ cdef inline to_bytes (text):
 cdef inline to_str (text):
     return text.decode('utf-8')
 
-def apply (text):
-    return to_str(c_apply(to_bytes(text)))
+# def apply (text):
+#     return to_str(c_apply(to_bytes(text)))
+#
+# def load_file(filename):
+#     return c_loadFile(filename)
 
-def load_file(filename):
-    return c_loadFile(filename)
+# def pn_equal (pn1, pn2):
+#     return equal_subtrees(<CParseNode*> to_cptr(pn1), <CParseNode*> to_cptr(pn2))
 
-def pn_equal (pn1, pn2):
-    return equal_subtrees(<CParseNode*> to_cptr(pn1), <ParseNode*> to_cptr(pn2))
-
-def add_rule (px, lhs, rhs):
-    cdef ParseContext* c_px = <ParseContext*> to_cptr(px)
-    return addRule(c_px.grammar(), to_bytes(lhs + " -> " + rhs))
+# def add_rule (px, lhs, rhs):
+#     cdef ParseContext* c_px = <ParseContext*> to_cptr(px)
+#     return addRule(c_px.grammar(), to_bytes(lhs + " -> " + rhs))
 
 
 
@@ -49,62 +45,74 @@ def parse_context():
 cdef class ParseNode:
     cdef CParseNode* p
 
-    def __init__(self, cnode):
-        self.p = cnode
+    def __init__(self):
+        self.p = NULL
         if self.p:
             self.p.refs += 1
+
+    cdef ParseNode init(self, CParseNode* n):
+        self.p = n
+        return self
 
     def __del__(self):
         if self.p:
             self.p.refs -= 1
 
-    cpdef num_children(self) -> int:
+    cdef CParseNode* get(self):
+        return self.p
+
+    cpdef int num_children(self):
         return self.p.ch.size()
 
-    cpdef __getitem__(self, int i):
+    cpdef ParseNode getitem(self, int i):
         if i < 0 or i >= self.p.ch.size():
             raise ValueError(f"Parse node child index {i} out of range ({self.p.ch.size()})")
-        return ParseNode(self.p.ch[i])
+        return ParseNode().init(self.p.ch[i])
 
-    cpdef void __setitem__(self, int i, ParseNode value):
+    cpdef void setitem(self, int i, ParseNode value):
         if i < 0 or i >= self.p.ch.size():
             raise ValueError(f"Parse node child index {i} out of range ({self.p.ch.size()})")
         self.p.ch[i] = value.p
 
-    @property
-    cpdef vector[CParseNode*] children(self):
-        return self.p.ch
+    def __getitem__(self, i):
+        return self.getitem(i)
 
-    @property
+    def __setitem__(self, i, val):
+        self.setitem(i, val)
+
+    def children(self):
+        return [ParseNode().init(x) for x in self.p.ch]
+
     cpdef int rule(self):
         return self.p.rule
 
-    @property
-    cpdef const string& str(self):
+    cpdef string str(self):
         assert self.p.isTerminal()
         return self.p.term
 
-    @property
     cpdef bool is_terminal(self):
         return self.p.isTerminal()
 
-    @property
     cpdef int ntnum(self):
         return self.p.nt
 
+    cdef bool equal(self, ParseNode other):
+        return equal_subtrees(self.p, other.p) != 0
+
     def __eq__(self, other):
-        assert type(other) is ParseNode
-        return pn_equal(self.p, other.p) != 0
+        return self.equal(other)
+        #assert type(other) is ParseNode
+        #return equal_subtrees(self.p, other.p) != 0
 
     def __repr__(self):
         return 'ParseNode:\n'+parse_context().ast_to_text(self)
 
 
 cdef class ParseContext:
-    cdef CParseContext* px
-    cdef cpp_map[int, object] syntax_rules
-    cdef cpp_map[int, object] macro_rules
-    cdef cpp_map[int, object] token_rules
+    cdef PythonParseContext* px
+    cdef dict syntax_rules
+    cdef dict macro_rules
+    cdef dict token_rules
     # cdef dict lexer_rules
     cdef list exported_syntax
     cdef list exported_macro
@@ -127,24 +135,26 @@ cdef class ParseContext:
     #         expr = ast_to_text(self, expr)
     #     return eval(expr, self.globals)
 
-    cpdef syntax_function(self, int rule):
-        it = self.syntax_rules.find(rule)
-        if it == self.syntax_rules.end():
-            return None
-        return deref(it).second
-        #return self.syntax_rules.get(rule, None)
+    def syntax_function(self, int rule):
+        # it = self.syntax_rules.find(rule)
+        # if it == self.syntax_rules.end():
+        #     return None
+        # return deref(it).second
+        return self.syntax_rules.get(rule, None)
 
-    cpdef macro_function(self, int rule):
-        it = self.macro_rules.find(rule)
-        if it == self.macro_rules.end():
-            return None
-        return deref(it).second
+    def macro_function(self, int rule):
+        # it = self.macro_rules.find(rule)
+        # if it == self.macro_rules.end():
+        #     return None
+        # return deref(it).second
+        return self.macro_rules.get(rule, None)
 
-    cpdef token_function(self, int rule):
-        it = self.token_rules.find(rule)
-        if it == self.token_rules.end():
-            return None
-        return deref(it).second
+    def token_function(self, int rule):
+        # it = self.token_rules.find(rule)
+        # if it == self.token_rules.end():
+        #     return None
+        # return deref(it).second
+        return self.token_rules.get(rule, None)
 
     def __enter__(self):
         global __parse_context__
@@ -160,18 +170,18 @@ cdef class ParseContext:
     def __del__(self):
         del_python_context(self.px)
 
-    cpdef add_token(self, const string& name, const string& rhs, object apply=None, bool export=False):
+    cpdef add_token(self, string name, string rhs, object apply=None, bool for_export=False):
         cdef int rule_id = add_token(self.px, name, rhs)
         self.token_rules[rule_id] = apply
-        if export:
+        if for_export:
             self.exported_tokens.append((name, rhs, apply))
 
-    cpdef add_lexer_rule(self, const string& lhs, const string& rhs, export=False):
+    cpdef add_lexer_rule(self, string lhs, string rhs, bool for_export=False):
         cdef int rule_id = add_lexer_rule(self.px, lhs, rhs)
-        if export:
+        if for_export:
             self.exported_lexer_rules.append((lhs, rhs))
 
-    def add_macro_rule(self, lhs: str, rhs: list, apply, export=False,
+    def add_macro_rule(self, lhs: str, rhs: list, apply, for_export=False,
                          int lpriority=-1, int rpriority=-1):
         rhs = ' '.join(str(x) for x in rhs)
         # print(f'add rule: {lhs} -> {rhs}:',end='')
@@ -179,14 +189,14 @@ cdef class ParseContext:
         # print(f' id = {rule_id}, f = {apply}')
         # print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
-        if export:
+        if for_export:
             self.exported_macro.append((lhs, rhs, apply, lpriority, rpriority))
 
-    def add_syntax_rule(self, lhs: str, rhs, apply, export=False, lpriority=-1, rpriority=-1):
+    def add_syntax_rule(self, lhs: str, rhs, apply, for_export=False, lpriority=-1, rpriority=-1):
         rhs = ' '.join(str(x) for x in rhs)
-        cdef int rule_id = add_rule(self.px, lhs, rhs, lpriority, rpriority)
+        cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
         self.syntax_rules[rule_id] = apply
-        if export:
+        if for_export:
             self.exported_syntax.append((lhs, rhs, apply, lpriority, rpriority))
 
     def gen_syntax_import(self):
@@ -216,9 +226,14 @@ cdef class ParseContext:
 cdef class Parser:
     cdef PythonParseContext* px
     cdef ParserState* state
+
     def __init__(self, px: ParseContext, text: str):
         self.px = px.px
-        self.state = new ParserState(px, text, "")
+        #self.init(text)
+        self.state = new ParserState(self.px, text, b"")
+
+    # cdef void init(self, const string& text):
+    #     self.state = new ParserState(self.px, text, "")
 
     def __del__(self):
         if self.state:
@@ -231,7 +246,7 @@ cdef class Parser:
         cdef CParseNode* root = self.state.parse_next().root.get()
         if not root:
             raise StopIteration
-        return ParseNode(root)
+        return ParseNode().init(root)
 
 
 def parse_gen(px, text):
@@ -240,42 +255,48 @@ def parse_gen(px, text):
 
 def syn_expand(node: ParseNode):
     px = parse_context()
-    if node.is_terminal:
-        apply = px.token_function(node.ntnum)
+    if node.is_terminal():
+        apply = px.token_function(node.ntnum())
         if apply is not None:
-            return apply(node.str)
-        return node.str
+            return apply(node.str())
+        return node.str()
 
     # print(f'in syn_expand, rule = {node.rule}')
-    f = px.syntax_function(node.rule)
+    f = px.syntax_function(node.rule())
     if not f:
         raise Exception(f'syn_expand: cannot find syntax expand function for rule {node.rule}')
-    return f(*node.children)
+    return f(*node.children())
 
 cpdef macro_expand(ParseContext px, ParseNode node):
     """ Раскрывает макросы в синтаксическом дереве """
     while True:
-        f = px.macro_function(node.rule)
+        f = px.macro_function(node.rule())
         if f is None:
             break
-        node = f(*node.children)
+        node = f(*node.children())
 
     cdef int i
     for i in range(node.num_children()):
         node[i] = macro_expand(px, node[i])
     return node
 
+cdef ParseContext c_parse_context():
+    assert __parse_context__ is not None
+    return __parse_context__
+
 #ParseNode* quasiquote(ParseContext* px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
-def quasiquote(ntname, str_list, tree_list):
-    assert len(str_list) == len(tree_list)+1
-    cdef CParseContext* px = parse_context().px
+cpdef quasiquote(ntname, vector[string] str_list, tree_list):
+    assert str_list.size() == tree_list.size()+1
+    cdef PythonParseContext* px = c_parse_context().px
     cdef vector[CParseNode*] subtrees
     cdef int i, n = len(tree_list)
+    cdef ParseNode pn
     subtrees.resize(n)
     for i in range(n):
-        subtrees[i] = tree_list[i].p
+        pn = tree_list[i]
+        subtrees[i] = pn.get()
     cdef CParseNode* nn = c_quasiquote(px, ntname, str_list, subtrees)
-    return ParseNode(nn)
+    return ParseNode().init(nn)
 
 def ast_to_text(px, pn):
     px.ast_to_text(pn)

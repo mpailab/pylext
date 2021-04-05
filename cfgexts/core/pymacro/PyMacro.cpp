@@ -267,7 +267,7 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt, const string
     });
 
 	g0.addLexerRule("comment", "'#' [^\\n]*");
-	string text = syntax_def.epmty() ? loadfile("../pymacros/syntax/python.txt") : syntax_def;
+	string text = syntax_def.empty() ? loadfile("../pymacros/syntax/python.txt") : syntax_def;
 	parse(px0, text);
 
     pg->setStart("text");
@@ -425,7 +425,7 @@ int add_token(PythonParseContext *px, const string& nm, const string& tokdef)
         throw Exception("Token {} already exists"_fmt(nm));
     return px->grammar().addToken(nm, tokdef);
 }
-
+/*
 PythonParseContext* new_python_context(int by_stmt) {
     try {
         //auto *g = new GrammarState;
@@ -437,12 +437,12 @@ PythonParseContext* new_python_context(int by_stmt) {
         setError(e);
         return 0;
     }
-}
+}*/
 
 void del_python_context(PythonParseContext *px) {
     delete px;
 }
-
+/*
 void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn){
     try {
         //setDebug(0x7FFFFFFF);
@@ -455,7 +455,7 @@ void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn){
         setError(e);
         return 0;
     }
-}
+}*/
 
 void inc_pn_num_refs(void *pn) {
     if(pn) ((ParseNode*)pn)->refs++;
@@ -543,7 +543,7 @@ int set_cpp_debug(int dbg) {
 
 PythonParseContext *create_python_context(bool read_by_stmt, const string &syntax_def) {
     auto px = make_unique<PythonParseContext>();
-    init_python_grammar_cached(px, by_stmt != 0, syntax_def);
+    init_python_grammar_cached(px.get(), read_by_stmt != 0, syntax_def);
     // cout << "create px = " << px << endl;
     return px.release();
 }

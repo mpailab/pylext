@@ -71,7 +71,7 @@ int main(int argc, char*argv[]) {
         Timer tm("Parsing + printing");
         tm.start();
         string text = loadfile("../pymacros/example/match_macro.py");
-        auto p = new_python_context(1);
+        auto p = create_python_context(1, "");
         ParserState* pst = (ParserState*)new_parser_state(p, text.c_str(), "");
 		//setDebug(DBG_SHIFT | DBG_REDUCE | DBG_RULES | DBG_TOKEN | DBG_LOOKAHEAD | DBG_QQ);
         while(auto n = pst->parse_next().root.get()){

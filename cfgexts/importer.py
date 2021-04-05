@@ -14,12 +14,12 @@ from .core.wrap import ast_to_text as _ast_to_text
 
 def new_token(lhs: str, rhs: str, expand_func=None):
     if parse_context() is not None:
-        parse_context().add_token(lhs, rhs, expand_func, export=True)
+        parse_context().add_token(lhs, rhs, expand_func, for_export=True)
 
 
 def new_lexer_rule(lhs: str, rhs: str):
     if parse_context() is not None:
-        parse_context().add_lexer_rule(lhs, rhs, export=True)
+        parse_context().add_lexer_rule(lhs, rhs, for_export=True)
 
 
 def new_token_decorator(lhs: str, rhs: str):
@@ -32,7 +32,7 @@ def new_token_decorator(lhs: str, rhs: str):
 def macro_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     def set_func(expand_func):
         if parse_context() is not None:
-            parse_context().add_macro_rule(lhs, rhs, expand_func, export=True, lpriority=lpriority, rpriority=rpriority)
+            parse_context().add_macro_rule(lhs, rhs, expand_func, for_export=True, lpriority=lpriority, rpriority=rpriority)
         return expand_func
     return set_func
 
@@ -40,7 +40,7 @@ def macro_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
 def syntax_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     def set_func(expand_func):
         if parse_context() is not None:
-            parse_context().add_syntax_rule(lhs, rhs, expand_func, export=True, lpriority=lpriority, rpriority=rpriority)
+            parse_context().add_syntax_rule(lhs, rhs, expand_func, for_export=True, lpriority=lpriority, rpriority=rpriority)
         return expand_func
     return set_func
 
