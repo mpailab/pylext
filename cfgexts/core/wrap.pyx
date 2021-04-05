@@ -7,10 +7,10 @@ from libc.stdlib cimport malloc, free
 from cpython.long cimport PyLong_FromVoidPtr as from_cptr
 from cpython.long cimport PyLong_AsVoidPtr as to_cptr
 
-from wrap cimport *
+from .wrap cimport *
 from cython.operator cimport dereference as deref
 
-from core.python_grammar import python_grammar_str
+from .python_grammar import python_grammar_str
 cdef string python_grammar = python_grammar_str
 
 cdef inline to_bytes (text):
@@ -121,9 +121,9 @@ cdef class ParseContext:
 
     def __init__(self):
         self.px = create_python_context(True, python_grammar)
-        # self.syntax_rules = {}
-        # self.macro_rules = {}
-        # self.token_rules = {}
+        self.syntax_rules = {}
+        self.macro_rules = {}
+        self.token_rules = {}
         # self.lexer_rules = {}
         self.exported_syntax = []
         self.exported_macro = []
@@ -183,21 +183,21 @@ cdef class ParseContext:
 
     def add_macro_rule(self, lhs: str, rhs: list, apply, for_export=False,
                          int lpriority=-1, int rpriority=-1):
-        rhs = ' '.join(str(x) for x in rhs)
+        cdef string rhss = ' '.join(str(x) for x in rhs)
         # print(f'add rule: {lhs} -> {rhs}:',end='')
-        cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
+        cdef int rule_id = self._add_rule(lhs, rhss, lpriority, rpriority)
         # print(f' id = {rule_id}, f = {apply}')
         # print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
         if for_export:
-            self.exported_macro.append((lhs, rhs, apply, lpriority, rpriority))
+            self.exported_macro.append((lhs, rhss, apply, lpriority, rpriority))
 
     def add_syntax_rule(self, lhs: str, rhs, apply, for_export=False, lpriority=-1, rpriority=-1):
-        rhs = ' '.join(str(x) for x in rhs)
-        cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
+        cdef string rhss = ' '.join(str(x) for x in rhs)
+        cdef int rule_id = self._add_rule(lhs, rhss, lpriority, rpriority)
         self.syntax_rules[rule_id] = apply
         if for_export:
-            self.exported_syntax.append((lhs, rhs, apply, lpriority, rpriority))
+            self.exported_syntax.append((lhs, rhss, apply, lpriority, rpriority))
 
     def gen_syntax_import(self):
         res = "def _import_grammar(px: ParseContext):\n" \
@@ -286,7 +286,7 @@ cdef ParseContext c_parse_context():
 
 #ParseNode* quasiquote(ParseContext* px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
 cpdef quasiquote(ntname, vector[string] str_list, tree_list):
-    assert str_list.size() == tree_list.size()+1
+    assert str_list.size() == len(tree_list)+1
     cdef PythonParseContext* px = c_parse_context().px
     cdef vector[CParseNode*] subtrees
     cdef int i, n = len(tree_list)
@@ -299,7 +299,7 @@ cpdef quasiquote(ntname, vector[string] str_list, tree_list):
     return ParseNode().init(nn)
 
 def ast_to_text(px, pn):
-    px.ast_to_text(pn)
+    return px.ast_to_text(pn)
 
 
 class CppDbgFlags:

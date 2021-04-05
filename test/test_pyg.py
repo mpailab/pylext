@@ -1,9 +1,6 @@
 import sys
 import cfgexts 
 
-# Инициализируем пакет для работы с расширениями
-cfgexts.init("../pymacros/syntax/python.txt")
-
 # Добавляем директорию для поиска модулей с расширениями
 sys.path.append("../pymacros")
 

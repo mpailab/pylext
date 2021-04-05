@@ -32,7 +32,9 @@ def new_token_decorator(lhs: str, rhs: str):
 def macro_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     def set_func(expand_func):
         if parse_context() is not None:
-            parse_context().add_macro_rule(lhs, rhs, expand_func, for_export=True, lpriority=lpriority, rpriority=rpriority)
+            parse_context().add_macro_rule(lhs, rhs, expand_func, for_export=True,
+                                           lpriority=lpriority if lpriority is not None else -1,
+                                           rpriority=rpriority if lpriority is not None else -1)
         return expand_func
     return set_func
 
@@ -40,7 +42,9 @@ def macro_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
 def syntax_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     def set_func(expand_func):
         if parse_context() is not None:
-            parse_context().add_syntax_rule(lhs, rhs, expand_func, for_export=True, lpriority=lpriority, rpriority=rpriority)
+            parse_context().add_syntax_rule(lhs, rhs, expand_func, for_export=True,
+                                           lpriority=lpriority if lpriority is not None else -1,
+                                           rpriority=rpriority if lpriority is not None else -1)
         return expand_func
     return set_func
 
