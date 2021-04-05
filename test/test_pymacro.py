@@ -1,7 +1,7 @@
 import sys, time
 from typing import List
-from cfgexts.parser.wrap import *
-from cfgexts.parser.wrap import ast_to_text as _ast_to_text
+from cfgexts.core.wrap import *
+from cfgexts.core.wrap import ast_to_text as _ast_to_text
 
 __parse_context__ = None
 

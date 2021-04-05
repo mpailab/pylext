@@ -1,5 +1,5 @@
 import time
-import cfgexts.parser.wrap as parser 
+import cfgexts.core.wrap as parser
 
 def py_pass_arg(x):
     return x

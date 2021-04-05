@@ -15,22 +15,22 @@ import encodings
 import io
 
 # Internal imports
-import parser
+import src
 
 def decode(input, errors='strict'):
     text, errors = encodings.utf_8.decode(input, errors)
-    return parser.wrap.apply(text), errors
+    return src.wrap.apply(text), errors
 
 
 class IncrementalDecoder(encodings.utf_8.IncrementalDecoder):
     def decode(self, input, final=False):
-        return parser.wrap.apply(super().decode(input, final))
+        return src.wrap.apply(super().decode(input, final))
 
 
 class StreamReader(encodings.utf_8.StreamReader):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.stream = io.StringIO(parser.wrap.apply(self.stream.getvalue()))
+        self.stream = io.StringIO(src.wrap.apply(self.stream.getvalue()))
 
 def search_function(encoding):
     

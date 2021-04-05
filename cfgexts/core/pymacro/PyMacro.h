@@ -48,8 +48,8 @@ public:
     PyMacroModule pymodule;
 };
 
-void init_python_grammar(PythonParseContext*px, bool read_by_stmt=true);
-ParseNodePtr quasiquote(ParseContext& px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
+void init_python_grammar(PythonParseContext*px, bool read_by_stmt=true, const string& syntax_def);
+ParseNode* quasiquote(ParseContext* px, const string& nt, const vector<string>& parts, const vector<ParseNode*>& subtrees);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /// Обёртки для простого экспорта из dll
@@ -57,14 +57,15 @@ extern "C" DLL_EXPORT char* get_last_error();
 
 extern "C" DLL_EXPORT void* c_quasiquote(void* px, char* nt, int n, char** data, void** pn);
 
-extern "C" DLL_EXPORT void* new_python_context(int by_stmt);
-extern "C" DLL_EXPORT void del_python_context(void*);
+PythonParseContext* new_python_context(int by_stmt);
+void del_python_context(PythonParseContext*);
+PythonParseContext* create_python_context(bool read_by_stmt, const string & syntax_def);
 
 
 extern "C" DLL_EXPORT void inc_pn_num_refs(void *pn);
 extern "C" DLL_EXPORT void dec_pn_num_refs(void *pn);
 
-extern "C" DLL_EXPORT char* ast_to_text(void *px, void *pn);
+std::string ast_to_text(ParseContext* pcontext, ParseNode *pn);
 
 extern "C" DLL_EXPORT int get_pn_num_children(void* pn);
 extern "C" DLL_EXPORT void* get_pn_child(void* pn, int i);

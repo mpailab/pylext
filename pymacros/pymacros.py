@@ -155,13 +155,9 @@ class ParseContext:
 
     def syntax_function(self, rule):
         return self.syntax_rules.get(rule, None)
-        # res = c_char_p(parser.get_syntax_function(self.px, c_int64(rule)))
-        # return self.globals.get(str(res.value), None) if res.value else None
 
     def macro_function(self, rule):
         return self.macro_rules.get(rule, None)
-        # res = c_char_p(parser.get_macro_function(self.px, c_int64(rule)))
-        # return self.globals.get(str(res.value), None) if res.value else None
 
     def __enter__(self):
         global __parse_context__

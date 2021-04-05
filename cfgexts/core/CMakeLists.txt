@@ -13,8 +13,13 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(src)
-add_subdirectory(src)
+include_directories(format)
+include_directories(parser)
+include_directories(pymacro)
+
+add_subdirectory(format)
+add_subdirectory(parser)
+add_subdirectory(pymacro)
 
 if(BUILD_CFGEXTS)
 
@@ -27,13 +32,13 @@ if(BUILD_CFGEXTS)
 
     add_library(wrap MODULE
         ${wrap}
-        src/apply.cpp
+            parser/apply.cpp
     )
-    target_link_libraries(wrap parser)
+    target_link_libraries(wrap parser format pymacro)
 
     python_extension_module(wrap)
 
-    install(TARGETS wrap LIBRARY DESTINATION cfgexts/parser)
+    install(TARGETS wrap LIBRARY DESTINATION cfgexts/core)
 
 else()
 

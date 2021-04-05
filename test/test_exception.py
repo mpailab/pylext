@@ -1,4 +1,4 @@
-import cfgexts.parser.wrap as parser 
+import cfgexts.core.wrap as parser
 
 if __name__ == "__main__":
 
