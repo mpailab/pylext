@@ -7,4 +7,5 @@ int main() {
     test_trie<TrieM<int>>("TrieM", kwfile, textfile);
     test_trie<TrieUM<int>>("TrieUM", kwfile, textfile);
     test_trie<TrieL<int>>("TrieL", kwfile, textfile);
+    test_trie<TrieV<int>>("TrieV", kwfile, textfile);
 }
