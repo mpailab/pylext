@@ -172,7 +172,7 @@ struct TrieV {
 	const T* operator()(const char* m)const {
 		const TrieV<T>* curr = this;
 		for (; *m; m++) {
-			if (curr->next.hash((unsigned char)m[0] == -1)) return 0;
+			if (curr->next.hash((unsigned char)m[0]) == -1) return 0;
 			curr = &curr->next.get((unsigned char)m[0]);
 		}
 		return curr->final ? &curr->val : 0;
@@ -181,7 +181,7 @@ struct TrieV {
 		TrieV<T>* curr = this;
 		TrieV<T> buf;
 		for (; *m; m++) {
-			if (curr->next.hash((unsigned char)m[0] == -1)) curr->next.add((unsigned char)m[0], buf);
+			if (curr->next.hash((unsigned char)m[0]) == -1) curr->next.add((unsigned char)m[0], buf);
 			curr = &curr->next.get((unsigned char)m[0]);
 		}
 		_size += !curr->final;
@@ -196,7 +196,7 @@ struct TrieV {
 		TrieV<T>* curr = this;
 		int p1 = pos;
 		for (; m[p1]; p1++) {
-			if (curr->next.hash((unsigned char)m[p1] == -1))return res;
+			if (curr->next.hash((unsigned char)m[p1]) == -1)return res;
 			curr = &curr->next.get((unsigned char)m[p1]);
 			if (curr->final) {
 				res = &curr->val;
