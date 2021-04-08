@@ -346,6 +346,11 @@ struct TrieL {
 		TrieL<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.empty())curr->next.resize(256);
+			int i = 0;
+			for (list<pair<int, TrieL<T>>>::iterator it = curr->next.begin(); it != curr->next.end(); ++it, i++)
+			{
+				(*it).first = i;
+			}
 			for (list<pair<int, TrieL<T>>>::iterator it = curr->next.begin(); it != curr->next.end(); ++it)
 			{
 				if ((*it).first == (unsigned char)m[0])
