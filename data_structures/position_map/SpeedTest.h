@@ -82,6 +82,9 @@ void correct_test(std::string name1, std::string name2, int nmb, int calls_per_s
             int y = g1() % 1024;
             //int y = rand_vals[i][j][1];
             int& r1 = umap1(i + x, y);
+            int& r2 = umap2(i + x, y);
+            if (r1 != r2)
+                check = false;
             if (r1 == -1) {
                 r1 = val;
                 //r = rand_vals[i][j][2];
@@ -89,7 +92,6 @@ void correct_test(std::string name1, std::string name2, int nmb, int calls_per_s
             else {
                 k++;
             }
-            int& r2 = umap2(i + x, y);
             if (r2 == -1) {
                 r2 = val;
                 //r = rand_vals[i][j][2];

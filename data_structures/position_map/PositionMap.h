@@ -106,11 +106,11 @@ public:
 };
 
 
-template<class V>
+template<class V,int SIZE_OF_VERTIX>
 class PositionMapDVC {
     int erased = 0;
     V _default;
-    std::deque<Vertix_Const<V>> _data;
+    std::deque<Vertix_Const<V, SIZE_OF_VERTIX>> _data;
 public:
     explicit PositionMapDVC(V default_val = {}) : _default(default_val) {}
     // Ищет в структуре данных ключ (pos, nt) и возвращает 0, если не найдено и указатель на значение, если надено
@@ -131,7 +131,7 @@ public:
         //ASSERT(pos >= erased);
         int len = int(_data.size() - 1);
         if ((pos - erased) > len) {
-            Vertix_Const<V> buf(_default);
+            Vertix_Const<V, SIZE_OF_VERTIX> buf(_default);
             _data.resize(pos - erased + 1, buf);
         }
         if (_data[(pos - erased)].hash(nt) == -1) {

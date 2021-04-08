@@ -59,10 +59,9 @@ int popcnt(uint64_t x) {
     return (int)_mm_popcnt_u64(x);
 }
 
-constexpr int SIZE_OF_VERTIX = 16, BIT_SIZE = 64;
+//constexpr int BIT_SIZE = 64;
 
-
-template<class V>
+template<class V,int SIZE_OF_VERTIX>
 class Vertix_Const
 {
 private:
@@ -70,6 +69,7 @@ private:
     std::array<int, SIZE_OF_VERTIX> counts;
     std::vector<V> values;
     V _default;
+    int BIT_SIZE = sizeof(uint64_t)*8;
 public:
     Vertix_Const(V def) { _default = def; mask.fill(uint64_t(0)); }
     Vertix_Const(vector<pair<int, V>> dict,V def) {
