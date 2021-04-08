@@ -6,4 +6,5 @@ int main() {
     const std::string textfile = "tests/text.txt";
     test_trie<TrieM<int>>("TrieM", kwfile, textfile);
     test_trie<TrieUM<int>>("TrieUM", kwfile, textfile);
+    test_trie<TrieL<int>>("TrieL", kwfile, textfile);
 }

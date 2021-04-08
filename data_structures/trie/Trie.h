@@ -2,6 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
+#include <list>
 
 using namespace std;
 /// Префиксное дерево, как множество
@@ -87,9 +88,9 @@ struct TrieUM {
 	T val{};
 	unordered_map<int, TrieUM<T>> next;
 	int used_memory() const {
-		int res = (int)(sizeof(TrieUM<T>) + sizeof(int));
+		int res = (int)(sizeof(TrieUM<T>));
 		for (auto& x : next)
-			res += x.second.used_memory();
+			res += x.second.used_memory() + sizeof(int) + sizeof(void*);
 		//res += (next.capacity() - next.size()) * (int)sizeof(TrieUM<T>);
 		return res;
 	}
@@ -123,6 +124,76 @@ struct TrieUM {
 		for (; m[p1]; p1++) {
 			if (curr->next.empty())return res;
 			curr = &curr->next[(unsigned char)m[p1]];
+			if (curr->final) {
+				res = &curr->val;
+				pos = p1 + 1;
+			}
+		}
+		return res;// curr->final ? &curr->val : 0;
+	}
+};
+
+template<class T>
+struct TrieL {
+	bool final = false;
+	int _size = 0;
+	T val{};
+	list<pair<int,TrieL<T>>> next;
+	int used_memory() const {
+		int res = (int)sizeof(TrieL<T>);
+		for (auto& x : next)
+			res += x.second.used_memory();
+		res += (next.max_size() - next.size()) * (int)sizeof(TrieL<T>);
+		return res;
+	}
+	int size()const { return _size; }
+	const T* operator()(const char* m)const {
+		TrieL<T>* curr = this;
+		for (; *m; m++) {
+			if (curr->next.empty())return 0;
+			list<pair<int, TrieL<T>>>::iterator it = curr->next.begin();
+			for (list<pair<int, TrieL<T>>>::iterator it = curr->next.begin(); it != curr->next.end(); ++it)
+			{
+				if ((*it).first == (unsigned char)m[0])
+				{
+					curr = &(*it).second;
+				}
+			}
+		}
+		return curr->final ? &curr->val : 0;
+	}
+	T& operator[](const char* m) {
+		TrieL<T>* curr = this;
+		for (; *m; m++) {
+			if (curr->next.empty())curr->next.resize(256);
+			for (list<pair<int, TrieL<T>>>::iterator it = curr->next.begin(); it != curr->next.end(); ++it)
+			{
+				if ((*it).first == (unsigned char)m[0])
+				{
+					curr = &(*it).second;
+				}
+			}
+		}
+		_size += !curr->final;
+		curr->final = true;
+		return curr->val;
+	}
+	T& operator[](const std::string& m) {
+		return (*this)[m.c_str()];
+	}
+	const T* operator()(const char* m, int& pos){
+		const T* res = 0;
+		TrieL<T>* curr = this;
+		int p1 = pos;
+		for (; m[p1]; p1++) {
+			if (curr->next.empty())return res;
+			for (list<pair<int, TrieL<T>>>::iterator it = curr->next.begin(); it != curr->next.end(); ++it)
+				{
+					if ((*it).first == (unsigned char)m[p1])
+					{
+						curr = &(*it).second;
+					}
+				}
 			if (curr->final) {
 				res = &curr->val;
 				pos = p1 + 1;
