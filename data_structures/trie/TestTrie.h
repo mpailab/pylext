@@ -62,23 +62,23 @@ double test_trie_memory(const std::vector<std::string>& words) {
 }
 
 template<class Trie>
-double test_trie_correct(const std::vector<std::string>& kwords, int num_tries, const char* text, double timeout) {
-    std::vector<Trie> tr(num_tries);
-    for (auto& t : tr)
-        fill_trie(t, kwords);
-
-    uint64_t ncalls = 0;
-    Timer tm;
-    while (tm.time() < timeout) {
-        for (int pos = 0, n = 0; text[pos]; ncalls++, n++) {
-            if (n >= num_tries) n = 0;
-            if (!tr[n](text, pos)) {
-                next_tok(text, pos);
-            }
+int test_trie_correct(const std::vector<std::string>& kwords, const char* text) {
+    Trie tr1;
+    TrieM<int> tr2;
+    fill_trie(tr1, kwords);
+    fill_trie(tr2, kwords);
+    int flag = 1;
+    for (auto& w : kwords)
+    {
+        if (tr1[w] != tr2[w])
+        {
+            flag = 0;
+            cout << "tr1 value = " << tr1[w] << " tr2 value =" << tr2[w] << endl;
+            break;
         }
-    }
-    return double(ncalls) / tm.time(); // Возвращаем число вызовов в секунду
-}
+    }      
+    return flag;
+};
 
 template<class Trie>
 void test_trie(const std::string& name, const std::vector<std::string>& kwords, const std::string& text, int num_tries = 100, double timeout = 1) {
@@ -90,6 +90,10 @@ void test_trie(const std::string& name, const std::vector<std::string>& kwords, 
 
     double copy_speed = test_trie_copy_speed<Trie>(kwords, num_tries, timeout);
     std::cout << name << " copy  : " << int(copy_speed) << " calls/s" << std::endl;
+
+    int corr = test_trie_correct<Trie>(kwords, text.c_str());
+        if (corr == 1) { std::cout << name << " correct " << std::endl;}
+        else { std::cout << name << " incorrect " << std::endl; }
 }
 
 
