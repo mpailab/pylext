@@ -142,8 +142,7 @@ struct TrieL {
 	int used_memory() const {
 		int res = (int)sizeof(TrieL<T>);
 		for (auto& x : next)
-			res += x.second.used_memory();
-		res += (next.max_size() - next.size()) * (int)sizeof(TrieL<T>);
+			res += x.second.used_memory() + sizeof(int) + 2*sizeof(void*);
 		return res;
 	}
 	int size()const { return _size; }
@@ -157,6 +156,7 @@ struct TrieL {
 				if ((*it).first == (unsigned char)m[0])
 				{
 					curr = &(*it).second;
+					break;
 				}
 			}
 		}
@@ -171,6 +171,7 @@ struct TrieL {
 				if ((*it).first == (unsigned char)m[0])
 				{
 					curr = &(*it).second;
+					break;
 				}
 			}
 		}
@@ -192,6 +193,7 @@ struct TrieL {
 					if ((*it).first == (unsigned char)m[p1])
 					{
 						curr = &(*it).second;
+						break;
 					}
 				}
 			if (curr->final) {

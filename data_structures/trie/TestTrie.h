@@ -62,6 +62,25 @@ double test_trie_memory(const std::vector<std::string>& words) {
 }
 
 template<class Trie>
+double test_trie_correct(const std::vector<std::string>& kwords, int num_tries, const char* text, double timeout) {
+    std::vector<Trie> tr(num_tries);
+    for (auto& t : tr)
+        fill_trie(t, kwords);
+
+    uint64_t ncalls = 0;
+    Timer tm;
+    while (tm.time() < timeout) {
+        for (int pos = 0, n = 0; text[pos]; ncalls++, n++) {
+            if (n >= num_tries) n = 0;
+            if (!tr[n](text, pos)) {
+                next_tok(text, pos);
+            }
+        }
+    }
+    return double(ncalls) / tm.time(); // Возвращаем число вызовов в секунду
+}
+
+template<class Trie>
 void test_trie(const std::string& name, const std::vector<std::string>& kwords, const std::string& text, int num_tries = 100, double timeout = 1) {
     double bytes_per_symbol = test_trie_memory<Trie>(kwords);
     std::cout << name << " memory: " << bytes_per_symbol << " bytes/symbol" << std::endl;
@@ -80,3 +99,5 @@ void test_trie(const std::string& name, const std::string& kwfile, const std::st
     auto text = read_file(file);
     test_trie<Trie>(name, kw, text, num_tries, timeout);
 }
+
+
