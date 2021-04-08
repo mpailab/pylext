@@ -196,7 +196,7 @@ struct TrieV {
 		TrieV<T>* curr = this;
 		int p1 = pos;
 		for (; m[p1]; p1++) {
-			if (curr->next.hash((unsigned char)m[0] == -1))return res;
+			if (curr->next.hash((unsigned char)m[p1] == -1))return res;
 			curr = &curr->next.get((unsigned char)m[p1]);
 			if (curr->final) {
 				res = &curr->val;
