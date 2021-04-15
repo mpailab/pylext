@@ -162,7 +162,7 @@ struct TrieV {
 	//TrieV<T> buf;
 	Vertix_Const<TrieV<T>, 4> next{};
 	int used_memory() const {
-		int res = (int)sizeof(TrieM<T>);
+		int res = (int)sizeof(TrieV<T>);
 		for (auto& x : next.values)
 			res += x.used_memory();
 		//res += (next.capacity() - next.size()) * (int)sizeof(TrieM<T>);
