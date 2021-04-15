@@ -1,17 +1,28 @@
 import sys
-import cfgexts 
+import pymacros
 
-# Добавляем директорию для поиска модулей с расширениями
-sys.path.append("../pymacros")
 
-# Импортируем модуль с расширениями
-import match_macro
-from match_macro import validation as vld
+def test1():
+    # Импортируем модуль с расширениями
+    import macros.match as m
 
-# Запускаем тест
-res = [match_macro.test(x) for x in range(10)]
+    # Запускаем тест
+    res = [m.test(x) for x in range(len(m.validation))]
 
-# Печатаем результат
-print(res)
-print(vld)
-print("ok" if all ( res[i] == vld[i] for i in range(10) ) else "failed")
+    # Печатаем результат
+    print(f'result  = {res}')
+    print(f'correct = {m.validation}')
+    print("ok" if res == m.validation else "failed")
+
+
+def test2():
+    from macros.operator import test, validation
+    res = test(0, 1)
+    vld = validation(0, 1)
+    print(f'result = {res}')
+    print(f'result = {vld}')
+    print("ok" if res == vld else "failed")
+
+
+test1()
+test2()

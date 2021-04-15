@@ -1,8 +1,10 @@
-import cfgexts.core.wrap as parser
+from pymacros import exec_macros
 
 if __name__ == "__main__":
-
     try:
-        parser.loadFile("myfilename")
+        exec_macros("""
+        def f(x)):
+            return
+        """, {})
     except RuntimeError as err:
-        print("RuntimeError: " + str(err))
+        print(f"RuntimeError: {err}")

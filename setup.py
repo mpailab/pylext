@@ -2,12 +2,12 @@ import platform
 from setuptools import find_packages
 from skbuild import setup
 
-cmake_args=['-DBUILD_CFGEXTS=ON']
+cmake_args=['-DBUILD_PYMACROS=ON']
 if platform.system() == "Windows":
     cmake_args.append('-GVisual Studio 16 2019')
 
 setup(
-    name="cfgexts",
+    name="pymacros",
     version="0.0.1",
     author="Example Author",
     author_email='author@example.com',

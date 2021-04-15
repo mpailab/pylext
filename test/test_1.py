@@ -1,5 +1,5 @@
 import sys
-import cfgexts.core.wrap as parser
+import pymacros.core.wrap as parser
 
 if __name__ == "__main__":
 
