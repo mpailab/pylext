@@ -169,8 +169,8 @@ struct TrieV {
 		return res;
 	}
 	int size()const { return _size; }
-	const T* operator()(const char* m)const {
-		const TrieV<T>* curr = this;
+	const T* operator()(const char* m){
+		TrieV<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.hash((unsigned char)m[0]) == -1) return 0;
 			curr = &curr->next.get((unsigned char)m[0]);
@@ -275,8 +275,8 @@ struct TrieUM {
 		return res;
 	}
 	int size()const { return _size; }
-	const T* operator()(const char* m)const {
-		const TrieUM<T>* curr = this;
+	const T* operator()(const char* m){
+		TrieUM<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.empty())return 0;
 			curr = &curr->next[(unsigned char)m[0]];
@@ -326,7 +326,7 @@ struct TrieL {
 		return res;
 	}
 	int size()const { return _size; }
-	const T* operator()(const char* m)const {
+	const T* operator()(const char* m){
 		TrieL<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.empty())return 0;
@@ -390,4 +390,68 @@ struct TrieL {
 	}
 };
 
-
+template<class T>
+struct TrieVP {
+	bool final = false;
+	int _size = 0;
+	T val{};
+	vector<pair<int, TrieVP<T>>> next;
+	int used_memory() const {
+		int res = (int)sizeof(TrieM<T>);
+		for (auto& x : next)
+			res += x.second.used_memory() + sizeof(int) + sizeof(void*);
+		res += (next.capacity() - next.size()) * (int)sizeof(TrieM<T>);
+		return res;
+	}
+	int size()const { return _size; }
+	const T* operator()(const char* m)const {
+		const TrieVP<T>* curr = this;
+		for (; *m; m++) {
+			if (curr->next.empty())return 0;
+			/*for (auto& x : curr->next) {
+				if (x.first == (unsigned char)m[0]){
+					curr = &x.second;
+				}
+			}*/
+			curr = &curr->next[(unsigned char)m[0]].second;
+		}
+		return curr->final ? &curr->val : 0;
+	}
+	T& operator[](const char* m) {
+		TrieVP<T>* curr = this;
+		for (; *m; m++) {
+			if (curr->next.empty())curr->next.resize(256);
+			/*for (auto& x : curr->next) {
+				if (x.first == (unsigned char)m[0]){
+					curr = &x.second;
+				}
+			}*/
+			curr = &curr->next[(unsigned char)m[0]].second;
+		}
+		_size += !curr->final;
+		curr->final = true;
+		return curr->val;
+	}
+	T& operator[](const std::string& m) {
+		return (*this)[m.c_str()];
+	}
+	const T* operator()(const char* m, int& pos)const {
+		const T* res = 0;
+		const TrieVP<T>* curr = this;
+		int p1 = pos;
+		for (; m[p1]; p1++) {
+			if (curr->next.empty())return res;
+			/*for (auto& x : curr->next) {
+				if (x.first == (unsigned char)m[p1]){
+					curr = &x.second;
+				}
+			}*/
+			curr = &curr->next[(unsigned char)m[p1]].second;
+			if (curr->final) {
+				res = &curr->val;
+				pos = p1 + 1;
+			}
+		}
+		return res;// curr->final ? &curr->val : 0;
+	}
+};

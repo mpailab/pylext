@@ -68,15 +68,41 @@ int test_trie_correct(const std::vector<std::string>& kwords, const char* text) 
     fill_trie(tr1, kwords);
     fill_trie(tr2, kwords);
     int flag = 1;
-    for (auto& w : kwords)
-    {
-        if (tr1[w] != tr2[w])
-        {
+    for (auto& w : kwords) {
+        if (tr1[w] != tr2[w]){
             flag = 0;
-            cout << "tr1 value = " << tr1[w] << " tr2 value =" << tr2[w] << endl;
+            cout << "tr1[w] = " << tr1[w] << " tr2[w] = " << tr2[w] << endl;
             break;
         }
-    }      
+    } 
+
+    for (int pos = 0, n = 0; text[pos]; n++) {
+        int pos1 = pos;
+        int pos2 = pos;
+        int pos3 = pos;
+        int pos4 = pos;
+        if ((tr1(text, pos1) != nullptr) && (tr2(text, pos2) != nullptr)) {
+            if (*tr1(text, pos3) != *tr2(text, pos4)) {
+                flag = 0;
+                pos1 = pos;
+                pos2 = pos;
+                cout << "tr1(text, pos1) = " << *tr1(text, pos1) << " tr2(text, pos2) = " << *tr2(text, pos2) << endl;
+                cout << "pos1 = " << pos1 << " pos2 = " << pos2 << " pos = " << pos << endl;
+                break;
+            }
+        }
+        if (!tr1(text, pos)) {
+            next_tok(text, pos);
+        }
+    }
+    for (auto& w : kwords) {
+        if (*tr1(w.c_str()) != *tr2(w.c_str())) {
+            flag = 0;
+            cout << "tr1(w) = " << tr1(w.c_str()) << " tr2(w) = " << tr2(w.c_str()) << endl;
+            break;
+        }
+    }
+
     return flag;
 };
 
