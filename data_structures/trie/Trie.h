@@ -408,12 +408,12 @@ struct TrieVP {
 		const TrieVP<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.empty())return 0;
-			/*for (auto& x : curr->next) {
+			for (auto& x : curr->next) {
 				if (x.first == (unsigned char)m[0]){
 					curr = &x.second;
 				}
-			}*/
-			curr = &curr->next[(unsigned char)m[0]].second;
+			}
+			//curr = &curr->next[(unsigned char)m[0]].second;
 		}
 		return curr->final ? &curr->val : 0;
 	}
@@ -421,12 +421,17 @@ struct TrieVP {
 		TrieVP<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.empty())curr->next.resize(256);
-			/*for (auto& x : curr->next) {
+			int i = 0;
+			for (auto& x : curr->next) {
+				x.first = i;
+				i++;
+			}
+			for (auto& x : curr->next) {
 				if (x.first == (unsigned char)m[0]){
 					curr = &x.second;
 				}
-			}*/
-			curr = &curr->next[(unsigned char)m[0]].second;
+			}
+			//curr = &curr->next[(unsigned char)m[0]].second;
 		}
 		_size += !curr->final;
 		curr->final = true;
@@ -441,12 +446,12 @@ struct TrieVP {
 		int p1 = pos;
 		for (; m[p1]; p1++) {
 			if (curr->next.empty())return res;
-			/*for (auto& x : curr->next) {
+			for (auto& x : curr->next) {
 				if (x.first == (unsigned char)m[p1]){
 					curr = &x.second;
 				}
-			}*/
-			curr = &curr->next[(unsigned char)m[p1]].second;
+			}
+			//curr = &curr->next[(unsigned char)m[p1]].second;
 			if (curr->final) {
 				res = &curr->val;
 				pos = p1 + 1;
