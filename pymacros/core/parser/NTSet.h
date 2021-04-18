@@ -79,11 +79,11 @@ struct NTSetV {
     static constexpr int max_value = ~(1 << (sizeof(int)*8-1));
     vector<uint64_t> mask;
 	struct iterator  {
-		typedef std::forward_iterator_tag iterator_category;
-		typedef int value_type;
-		typedef int difference_type;
-		typedef int reference;
-		typedef int* pointer;
+		using iterator_category = std::forward_iterator_tag;
+		using value_type = int;
+		using difference_type = int;
+		using reference = int;
+		using pointer = int *;
 		uint64_t curr;
 		int pos = 0;
 		const uint64_t* ptr, * end;
@@ -106,9 +106,6 @@ struct NTSetV {
 		}
 		int operator*() const {
 			return pos + (int)_tzcnt_u64(curr);
-		}
-		int* operator->() const {
-			return 0;
 		}
 		bool operator==(const iterator& i)const {
 			return ptr == i.ptr && curr == i.curr;
@@ -1009,6 +1006,6 @@ struct NTSetCmp {
 
 //typedef NTSetCmp<NTSetV1,NTSetV> NTSet;
 //typedef NTSetV8 NTSet;
-using NTSet = NTSetV4;
+using NTSet = NTSetV;
 //typedef NTSetV2 NTSet;
 //typedef NTSetV1 NTSet;

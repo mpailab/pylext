@@ -18,26 +18,26 @@ syntax(matchcases, xs:*matchcases, x:*matchcase):
 def match2cmp(x, pat):
     if pat == `_`:
         return None
-    return comparison`${x} == ${pat}`
+    return `($x == $pat)`
 
 def make_and(c1, c2):
     if c1 is None: return c2
     if c2 is None: return c1
-    return test`($c1) and ($c2)`
+    return `(($c1) and ($c2))`
 
 defmacro match(stmt, 'match', x:expr, ':', EOL, INDENT, mc:*matchcases, DEDENT):
     conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mc]
     condexpr = make_and(conds[0][0],conds[0][1])
     if condexpr is None:
         return conds[0][2]
-    head = if_stmt_noelse`if $condexpr: ${conds[0][2]}`
+    head = stmt`if $condexpr: ${conds[0][2]}`
     for (c, cond, s) in conds[1:]:
         condexpr = make_and(c, cond)
         if condexpr is None:
-            head = if_stmt`${head} else: ${s}`
+            head = stmt`$head else: $s`
             break
         else:
-            head = if_stmt_noelse`${head} elif $condexpr: ${s}`
+            head = stmt`$head elif $condexpr: $s`
     return head
 
 def test (x):
