@@ -62,14 +62,21 @@ module_vars = {
     'eval_in_context': eval_in_context
 }
 
+_dbg_statements = False
 
 def exec_expand_macros(text, vars, by_stmt=False):
     vars.update(module_vars)
     res = [] if by_stmt else ''
     with ParseContext(vars) as px:
         for stmt_ast in parse_gen(px, text):
+            if _dbg_statements:
+                print(f'\nProcess statement:\n\n{px.ast_to_text(stmt_ast)}\n')
             stmt_ast = macro_expand(px, stmt_ast)
+            if _dbg_statements:
+                print('Expanded :\n')
             stmt = px.ast_to_text(stmt_ast)
+            if _dbg_statements:
+                print(f'{stmt}\n===========================================\n')
             res.append(stmt)
             exec(stmt, vars)
         stmt = px.gen_syntax_import()
@@ -84,8 +91,14 @@ def exec_macros(text, vars, filename=None):
     vars.update(module_vars)
     with ParseContext(vars) as px:
         for stmt_ast in parse_gen(px, text):
+            if _dbg_statements:
+                print(f'\nProcess statement:\n\n{px.ast_to_text(stmt_ast)}\n')
             stmt_ast = macro_expand(px, stmt_ast)
+            if _dbg_statements:
+                print('Expanded:\n')
             stmt = px.ast_to_text(stmt_ast)
+            if _dbg_statements:
+                print(f'{stmt}\n===========================================\n')
             exec(stmt, vars)
         stmt = px.gen_syntax_import()
         exec(stmt, vars)
