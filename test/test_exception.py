@@ -1,4 +1,4 @@
-from pymacros import exec_macros
+from pylext import exec_macros
 
 if __name__ == "__main__":
     try:

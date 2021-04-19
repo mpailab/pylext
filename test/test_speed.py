@@ -1,8 +1,8 @@
 from time import time
 import os
-import pymacros.core.wrap as parser
-from pymacros import exec_macros, exec_expand_macros
-from pymacros.importer import module_vars
+import pylext.core.wrap as parser
+from pylext import exec_macros, exec_expand_macros
+from pylext.importer import module_vars
 
 
 print('\n Create python context:')

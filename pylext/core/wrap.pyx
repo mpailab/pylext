@@ -33,7 +33,11 @@ cdef class ParseNode:
             self.p.refs += 1
 
     cdef ParseNode init(self, CParseNode* n):
+        if self.p:
+            self.p.refs -= 1
         self.p = n
+        if n:
+            n.refs += 1
         return self
 
     def __del__(self):

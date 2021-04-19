@@ -68,9 +68,11 @@ void ParseNode::serialize(vector<unsigned char>& res) {
 void printSpecial(ostream& os, int tn, GrammarState* g, PrintState& pst) {
 	if (tn == g->lex.indent_num() || tn == g->lex.preindent_num()) {
 		pst.indent++;
-        if(tn == g->lex.preindent_num())
+        if(tn == g->lex.preindent_num()) {
             pst.endl(os);
-        else os<<string(pst.tab, ' ');
+        } else {
+            os<<string(pst.tab, ' ');
+        }
 	} else if (tn == g->lex.dedent_num()) {
 		pst.indent--;
 		pst.endl(os);
@@ -92,6 +94,10 @@ void printTerminal(std::ostream& os, int t, const string &tok, GrammarState* g, 
 }
 
 void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& pst) {
+    if(!n){
+        os<<"<null node> ";
+        return;
+    }
 	if (n->isTerminal()) {
 		return printTerminal(os, n->nt, n->term, g, pst);
 	}
@@ -100,10 +106,18 @@ void tree2str_rec(std::ostream& os, ParseNode* n, GrammarState* g, PrintState& p
 	        tree2str_rec(os, x, g, pst);
 	    return;
 	}
+	if(n->rule>=g->rules.size())
+	    throw Exception("invalid rule {}"_fmt(n->rule));
 	auto& r = g->rules[n->rule];
 	int pos = 0;
 	for (auto& x : r.rhs) {
 		if (x.save) {
+		    if(pos>=n->ch.size()) {
+		        stringstream ss;
+		        g->print_rule(ss, r);
+                throw Exception(
+                        "Error in node with rule ({}): pos = {} >= n->ch.size() = {}"_fmt(ss.str(), pos, n->ch.size()));
+            }
 			tree2str_rec(os, n->ch[pos], g, pst);
 			pos++;
 		} else {
@@ -928,7 +942,9 @@ ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std
 	int dbg_old = debug_pr;
 	try {
 		if (!(debug_pr & DBG_QQ))debug_pr = 0;
+		if(debug_pr) cout<<"Parsing QQ({}, `{}`)\n"_fmt(nt, q);
         ParseTree t = parse(*this, q, nt, specialQQAction);
+        if(debug_pr) cout<<"============= End parse QQ =============\n";
         _qq = qprev;
 		debug_pr = dbg_old;
         auto pos = args.begin();

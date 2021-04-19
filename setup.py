@@ -2,16 +2,16 @@ import platform
 from setuptools import find_packages
 from skbuild import setup
 
-cmake_args=['-DBUILD_PYMACROS=ON']
+cmake_args = ['-DBUILD_PYLEXT=ON']
 if platform.system() == "Windows":
     cmake_args.append('-GVisual Studio 16 2019')
 
 setup(
-    name="pymacros",
-    version="0.0.1",
-    author="Example Author",
+    name="pylext",
+    version="0.1.0",
+    author="Bokov G.V., Kalachev G.V.",
     author_email='author@example.com',
-    description="Context-free grammars in python",
+    description="Domain specific language extensions for python",
     long_description='long_description',
     long_description_content_type='text/markdown',
     url='https://github.com/mpailab/CFG-parser',

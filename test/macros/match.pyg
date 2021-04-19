@@ -1,4 +1,5 @@
 # Example of pymacros usage
+import struct
 
 syntax(matchcase, pattern: expr, ':', action: suite):
     return (pattern, None, action)
@@ -26,6 +27,8 @@ def make_and(c1, c2):
     return `(($c1) and ($c2))`
 
 defmacro match(stmt, 'match', x:expr, ':', EOL, INDENT, mc:*matchcases, DEDENT):
+    if type(mc) is not list:
+        mc=[mc]
     conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mc]
     condexpr = make_and(conds[0][0],conds[0][1])
     if condexpr is None:
@@ -40,11 +43,57 @@ defmacro match(stmt, 'match', x:expr, ':', EOL, INDENT, mc:*matchcases, DEDENT):
             head = stmt`$head elif $condexpr: $s`
     return head
 
-def test (x):
+def test1 (x):
     match x:
         1: return 'a'
         2: return 'b'
+        5-(x-3)**2 if x>=4: return 'e'
         _ if x<5 or x>8: return 'c'
         _: return 'd'
 
-validation = ['c', 'a', 'b', 'c', 'c', 'd', 'd', 'd', 'd', 'c']
+validation = ['c', 'a', 'b', 'c', 'e', 'd', 'd', 'd', 'd', 'c']
+
+
+def serialize(x):
+    if type(x) == int:
+        return b'i' + struct.pack('<q', x)
+    elif type(x) == bool:
+        return b'b' + struct.pack('<q', int(x))
+    elif type(x) == float:
+        return b'f' + struct.pack('<d', float(x))
+    elif type(x) == complex:
+        return b'c' + struct.pack('<d', x.real) + struct.pack('<d', x.imag)
+    elif type(x) == bytes:
+        return b'b' + struct.pack('<q', len(x)) + x
+    elif type(x) == bytearray:
+        return b'b' + struct.pack('<q', len(x)) + x
+    elif type(x) == str:
+        return b's' + serialize(x.encode('utf8'))
+    elif type(x) == list:
+        data = b'l' + struct.pack('<q', len(x))
+        for elem in x:
+            data += serialize(elem)
+        return data
+    else:
+        raise Exception(f'Unsupported type {type(x)}')
+
+
+def serialize_match(x):
+    match type(x):
+        int:       return b'i' + struct.pack('<q', x)
+        bool:      return b'b' + struct.pack('<q', int(x))
+        float:     return b'f' + struct.pack('<d', float(x))
+        complex:   return b'c' + struct.pack('<d', x.real) + struct.pack('<d', x.imag)
+        bytes:     return b'b' + struct.pack('<q', len(x)) + x
+        bytearray: return b'b' + struct.pack('<q', len(x)) + x
+        str:       return b's' + serialize_match(x.encode('utf8'))
+        list:
+            data = b'l' + struct.pack('<q', len(x))
+            for elem in x:
+                data += serialize_match(elem)
+            return data
+        _:         raise Exception(f'Unsupported type {type(x)}')
+
+
+def test2(x):
+    return serialize(x) == serialize_match(x)

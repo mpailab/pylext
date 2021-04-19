@@ -1,4 +1,4 @@
-option(BUILD_PYMACROS "Build package pymacros" OFF)
+option(BUILD_PYLEXT "Build package pylext" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -21,7 +21,7 @@ add_subdirectory(format)
 add_subdirectory(parser)
 add_subdirectory(pymacro)
 
-if(BUILD_PYMACROS)
+if(BUILD_PYLEXT)
 
     find_package(PythonExtensions REQUIRED)
     find_package(Cython REQUIRED)
@@ -35,7 +35,7 @@ if(BUILD_PYMACROS)
 
     python_extension_module(wrap)
 
-    install(TARGETS wrap LIBRARY DESTINATION pymacros/core)
+    install(TARGETS wrap LIBRARY DESTINATION pylext/core)
 
 else()
 
