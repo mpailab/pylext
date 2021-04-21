@@ -53,6 +53,7 @@ def make_op_expand(f):
 def decl_infix_operator(op, lpr, rpr):
     def set_func(f):
         parse_context().add_macro_rule('expr', ['expr', f"'{op}'", 'expr'], make_op_expand(f), for_export=True, lpriority=lpr, rpriority=rpr)
+        parse_context().export_function(f)
         return f
     return set_func
 
@@ -89,7 +90,6 @@ defmacro infxl(root_stmt, 'infxl', '(', priority: expr, ')', x: *ident, op: *ope
 
     fnm = 'infix_'+'_'.join(sym_names[c] for c in op_name) # Каким-то способом генерируется уникальное имя
     return stmt`@decl_infix_operator({repr(op)}, {lpr}, {rpr})\ndef {fnm}({x}, {y}): $c`
-
 
 
 #Упрощённое создание макросов для операторов. Здесь используется только что определённый макрос

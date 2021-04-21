@@ -1,11 +1,24 @@
-# coding=pymacro
-gimport match_macro
-gimport operator
+gimport macros.match as m
+gimport macros.operator
 
-# Тестируем импортированные макросы
-for x in 0 .. 10:
-	match x:
-		1: print(f'{x} -> a')
-		2: print(f'{x} -> b')
-		_ if x<5 || x>8: print(f'{x} -> c')
-		_: print(f'{x} -> d')
+def run_test(n):
+	# Тестируем импортированные макросы
+	result = []
+	for x in 0 .. n:
+		match x:
+			1: result.append('a')
+			2: result.append('b')
+			_ if x<5 or x>8: result.append('c')
+			_: result.append('d')
+	return result
+
+validation = ['c', 'a', 'b', 'c', 'c', 'd', 'd', 'd', 'd', 'c']
+
+def test_from_match():
+    # Запускаем тест
+	res = [m.test1(x) for x in range(len(m.validation))]
+
+	# Печатаем результат
+	print(f'result  = {res}')
+	print(f'correct = {m.validation}')
+	print("Test from match_macro.pyg: "+("ok" if res == m.validation else "failed"))

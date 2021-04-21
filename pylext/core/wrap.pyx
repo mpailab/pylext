@@ -100,11 +100,13 @@ cdef class ParseContext:
     cdef dict macro_rules
     cdef dict token_rules
     # cdef dict lexer_rules
+    cdef list exported_funcs
     cdef list exported_syntax
     cdef list exported_macro
     cdef list exported_tokens
     cdef list exported_lexer_rules
     cdef dict global_vars
+    cdef object old_context
 
     def __init__(self, global_vars):
         self.px = create_python_context(True, python_grammar)
@@ -116,8 +118,13 @@ cdef class ParseContext:
         self.exported_macro = []
         self.exported_tokens = []
         self.exported_lexer_rules = []
+        self.exported_funcs = []
+        self.old_context = None
 
         self.global_vars=global_vars or {}
+
+    def globals(self):
+        return self.global_vars
 
     def eval(self, expr):
         if type(expr) is ParseNode:
@@ -135,14 +142,16 @@ cdef class ParseContext:
 
     def __enter__(self):
         global __parse_context__
-        if __parse_context__ is not None:
+        if __parse_context__ is not None and self.old_context is not None:
             raise Exception('Enter parse context when previous context not deleted')
+        self.old_context = __parse_context__
         __parse_context__ = self
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         global __parse_context__
-        __parse_context__ = None
+        __parse_context__ = self.old_context
+        self.old_context = None
 
     def __del__(self):
         del_python_context(self.px)
@@ -158,6 +167,9 @@ cdef class ParseContext:
         if for_export:
             self.exported_lexer_rules.append((lhs, rhs))
 
+    def export_function(self, func):
+        self.exported_funcs.append(func.__name__ if callable(func) else func)
+
     def add_macro_rule(self, lhs: str, rhs: list, apply, for_export=False,
                          int lpriority=-1, int rpriority=-1):
         cdef string rhss = ' '.join(str(x) for x in rhs)
@@ -167,30 +179,34 @@ cdef class ParseContext:
         # print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
         if for_export:
-            self.exported_macro.append((lhs, rhss, apply, lpriority, rpriority))
+            self.exported_macro.append((lhs, rhs, apply, lpriority, rpriority))
 
     def add_syntax_rule(self, lhs: str, rhs, apply, for_export=False, lpriority=-1, rpriority=-1):
         cdef string rhss = ' '.join(str(x) for x in rhs)
         cdef int rule_id = self._add_rule(lhs, rhss, lpriority, rpriority)
         self.syntax_rules[rule_id] = apply
         if for_export:
-            self.exported_syntax.append((lhs, rhss, apply, lpriority, rpriority))
+            self.exported_syntax.append((lhs, rhs, apply, lpriority, rpriority))
 
     def gen_syntax_import(self):
-        res = "def _import_grammar(px: ParseContext):\n" \
+        res = "def _import_grammar(module_name=None):\n" \
+              "  px = parse_context()\n" \
               "  # во-первых, импортируем грамматику из всех подмодулей, если такие были\n" \
               "  if '_imported_syntax_modules' in globals():\n" \
               "    for sm in _imported_syntax_modules:\n" \
               "      if hasattr(sm, '_import_grammar'):\n" \
               "        sm._import_grammar(px)\n\n"
         for lhs, rhs, apply, lpr, rpr in self.exported_syntax:
-            res += f'''  px.add_syntax_rule({lhs}, {repr(rhs)}, apply={apply.__name__}, lpriority={lpr}, rpriority={rpr})\n'''
+            res += f'''  px.add_syntax_rule({repr(lhs)}, {repr(rhs)}, apply={apply.__name__}, lpriority={lpr}, rpriority={rpr})\n'''
         for lhs, rhs, apply, lpr, rpr in self.exported_macro:
-            res += f'''  px.add_macro_rule({lhs}, {repr(rhs)}, apply={apply.__name__}, lpriority={lpr}, rpriority={rpr})\n'''
+            res += f'''  px.add_macro_rule({repr(lhs)}, {repr(rhs)}, apply={apply.__name__}, lpriority={lpr}, rpriority={rpr})\n'''
         for lhs, rhs, apply in self.exported_tokens:
-            res += f'''  px.add_token({lhs}, {repr(rhs)}, apply={apply.__name__ if apply else 'None'})\n'''
+            res += f'''  px.add_token({repr(lhs)}, {repr(rhs)}, apply={apply.__name__ if apply else 'None'})\n'''
         for lhs, rhs in self.exported_lexer_rules:
-            res += f'''  px.add_lexer_rule({lhs}, {repr(rhs)})\n'''
+            res += f'''  px.add_lexer_rule({repr(lhs)}, {repr(rhs)})\n'''
+        res += '''  module_vars = px.globals()\n'''
+        for f in self.exported_funcs:
+            res += f'''  module_vars[{repr(f)}] = {f}\n'''
         return res
 
     cpdef ast_to_text(self, ParseNode pn):

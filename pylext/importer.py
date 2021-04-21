@@ -49,6 +49,18 @@ def syntax_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     return set_func
 
 
+def _gimport___(module, as_name, global_vars):
+    mname = as_name if as_name else module
+    if as_name:
+        exec(f'import {module} as {as_name}', global_vars)
+    else:
+        exec(f'import {module}', global_vars)
+    loc = {}
+    exec(f'import {module} as m', loc)
+    if hasattr(loc['m'], '_import_grammar'):
+        loc['m']._import_grammar(mname)
+
+
 module_vars = {
     'ParseContext': ParseContext,
     'parse_context': parse_context,
@@ -59,10 +71,12 @@ module_vars = {
     'new_token'   : new_token,
     'new_lexer_rule': new_lexer_rule,
     'new_token_decorator': new_token_decorator,
-    'eval_in_context': eval_in_context
+    'eval_in_context': eval_in_context,
+    '_gimport___'     : _gimport___
 }
 
 _dbg_statements = False
+
 
 def exec_expand_macros(text, vars, by_stmt=False):
     vars.update(module_vars)
@@ -101,6 +115,8 @@ def exec_macros(text, vars, filename=None):
                 print(f'{stmt}\n===========================================\n')
             exec(stmt, vars)
         stmt = px.gen_syntax_import()
+        if _dbg_statements:
+            print(f'{stmt}\n===========================================\n')
         exec(stmt, vars)
 
 

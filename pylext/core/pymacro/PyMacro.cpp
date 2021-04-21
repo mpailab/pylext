@@ -255,7 +255,7 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt, const string
 	addRule(*pg, "syntax_elems -> ',' syntax_elem");
 	addRule(*pg, "syntax_elems -> syntax_elems ',' syntax_elem", flatten);
 
-    /////////////////////////
+    ///////////////////////// new syntax definition rules //////////////////
     addRule(*pg, "syntax_rule -> '(' ident syntax_elems ')'", [](ParseContext& pt, ParseNodePtr& n) {
         auto &px = static_cast<PythonParseContext&>(pt);
         add_macro_rule(px, n, 0);
@@ -274,8 +274,24 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt, const string
         int id = conv_macro(px, n, 1, fnm, true);
         px.pymodule.macros[id] = PyMacro{ fnm, id };
     });
-    ///////////////////////////
 
+    /////////////////////////// gimport rules //////////////////////////////
+    addRule(*pg, "root_stmt -> 'gimport' dotted_name EOL", [](ParseContext& pt, ParseNodePtr& n){
+        auto &px = static_cast<PythonParseContext&>(pt);
+        auto s = ast_to_text(&pt, &n[0]);
+        s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
+        n.reset(px.quasiquote("root_stmt", "_gimport___('{}', None, globals())"_fmt(s), {}, QExpr, QStarExpr));
+    });
+    addRule(*pg, "root_stmt -> 'gimport' dotted_name 'as' ident EOL", [](ParseContext& pt, ParseNodePtr& n){
+        auto &px = static_cast<PythonParseContext&>(pt);
+        auto s = ast_to_text(&pt, &n[0]);
+        s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
+        n.reset(px.quasiquote("root_stmt", "_gimport___('{}', '{}', globals())"_fmt(s, n[1].term), {}, QExpr, QStarExpr));
+    });
+
+    ////////////////////////////////////////////////////////////////////////
+
+    // Добавление поддержки специальных токенов в квазицитатах, начинающихся с $$
     px->setSpecialQQAction([](PEGLexer* lex, const char *s, int &pos) -> int {
         while (isspace(s[pos]) && s[pos] != '\n')
             pos++;

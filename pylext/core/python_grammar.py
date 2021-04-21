@@ -11,7 +11,7 @@ python_grammar_str = '''
 # %syntax: new_syntax -> new_syntax_expr ';';
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#%syntax: if_stmt         -> if_stmt_noelse ['else' ':' suite];
+#%syntax: if_stmt     -> if_stmt_noelse ['else' ':' suite];
 
 %token: ident = `[_a-zA-Z][_a-zA-Z0-9]*`;
 
@@ -20,7 +20,7 @@ python_grammar_str = '''
 %token: longstring      =  `'\\'\\'\\'' ('\\\\'[^] / !('\\'\\'\\'')[^\\\\])* '\\'\\'\\'' / '"""' ('\\\\'[^] / !('"""')[^\\\\])* '"""'`;
 
 %token: bytesliteral    =  `([bB][rR]? / [rR][bB]) (longstring / shortstring)`;
-# %token: sstring         = `shortstring`;
+# %token: sstring       = `shortstring`;
 # %syntax: text -> stringliteral | bytesliteral;
 
 %token: integer      =  `bininteger / octinteger / hexinteger / decinteger`;
@@ -107,7 +107,7 @@ python_grammar_str = '''
                       | 'import' dotted_as_names;
 %token: dots = `'.'+`;
 %syntax: import_as_name -> ident ['as' ident];
-%syntax: dotted_name -> ident ['.' dotted_as_name];
+%syntax: dotted_name -> ident ['.' dotted_name];
 %syntax: dotted_as_name -> dotted_name ['as' ident];
 %syntax: import_as_names -> import_as_name [',' import_as_names] | import_as_name ',';
 %syntax: dotted_as_names -> dotted_as_name [',' dotted_as_names];
@@ -145,7 +145,7 @@ python_grammar_str = '''
 %syntax: while_stmt      -> 'while' identdexpr_test ':' suite ['else' ':' suite];
 %syntax: for_stmt        -> 'for' exprlist 'in' testlist ':' [longstring] suite ['else' ':' suite];
 %syntax: try_stmt        -> 'try' ':' suite 'finally' ':' suite
-				          | 'try' ':' suite excepts ['else' ':' suite] ['finally' ':' suite];
+                          | 'try' ':' suite excepts ['else' ':' suite] ['finally' ':' suite];
 %syntax: excepts         -> except_clause ':' suite | excepts except_clause ':' suite;
 %syntax: with_items      -> [with_items ','] with_item;
 %syntax: with_stmt       -> 'with' with_items ':' [longstring] suite;
@@ -187,8 +187,8 @@ python_grammar_str = '''
 %syntax: atom_expr       -> ['await'] atom | atom_expr trailer;
 %syntax: atom            -> '(' [yield_expr | testlist_comp] ')'
                           | '[' [testlist_comp] ']'
-				          | '{' [dictorsetmaker] '}'
-				          | ident | NUMBER | stringliteral | bytesliteral | '...' | 'None' | 'True' | 'False';
+                          | '{' [dictorsetmaker] '}'
+                          | ident | NUMBER | stringliteral | bytesliteral | '...' | 'None' | 'True' | 'False';
 %syntax: identd_or_star  -> identdexpr_test | star_expr;
 %syntax: identd_or_star_list -> [identd_or_star_list ','] identd_or_star;
 %syntax: testlist_comp   -> identd_or_star comp_for |  identd_or_star_list [','];
@@ -214,9 +214,9 @@ python_grammar_str = '''
 %syntax: argument2 -> test
                     | test comp_for
                     | test ':=' test
-			        | test '=' test
-			        | '**' test
-			        | '*' test;
+                    | test '=' test
+                    | '**' test
+                    | '*' test;
 
 %syntax: comp_iter      -> comp_for | comp_if;
 %syntax: sync_comp_for  -> 'for' exprlist 'in' or_test [comp_iter];
@@ -229,7 +229,7 @@ python_grammar_str = '''
 # but can't go elsewhere due to ambiguity
 %syntax: func_body_suite -> simple_stmt
                           | EOL INDENT {stmt} DEDENT
-				          | EOL longstring INDENT {stmt} DEDENT;
+                          | EOL longstring INDENT {stmt} DEDENT;
 
 %syntax: NUMBER  -> floatnumber | integer | imagnumber;
 '''
