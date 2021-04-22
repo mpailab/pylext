@@ -4,7 +4,10 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 
 cdef extern from "Parser.h":
-    cdef cppclass GrammarState
+    cdef cppclass GrammarState:
+        int ruleId(const string& lhs, const vector[string]& rhs) const
+        int addRule(const string &lhs, const vector[string] &rhs, int id, int lpr, int rpr)
+        int addRule(const string &lhs, const vector[string] &rhs, int id)
     cdef cppclass CParseContext "ParseContext":
         GrammarState& grammar()
     cdef cppclass CParseNode "ParseNode":

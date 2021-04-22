@@ -353,9 +353,10 @@ public:
     int addLexerRule(const string& term, const string& re, bool tok=false, bool to_begin = false);
     int addToken(const string& term, const string& re) { return addLexerRule(term, re, true); }
     int addRule(const string &lhs, const vector<string> &rhs, SemanticAction act = SemanticAction(), int id = -1, unsigned lpr = -1, unsigned rpr = -1);
-    int addRule(const string &lhs, const vector<string> &rhs, int id, unsigned lpr = -1, unsigned rpr = -1) {
+    int addRule(const string &lhs, const vector<string> &rhs, int id, int lpr, int rpr) {
         return addRule(lhs, rhs, SemanticAction(), id, lpr, rpr);
     }
+    int ruleId(const string &lhs, const vector<string> &rhs) const;
     bool addRuleAssoc(const string &lhs, const vector<string> &rhs, unsigned pr, int assoc = 0) {
         // assoc>0 ==> left-to-right, assoc<0 ==> right-to-left, assoc=0 ==> not assotiative or unary
         return addRule(lhs, rhs, SemanticAction(), -1, pr * 2 + (assoc > 0), pr * 2 + (assoc < 0));

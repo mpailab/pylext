@@ -1,11 +1,11 @@
 # include to sdist
 include CMakeLists.txt
-include cfgexts/core/CMakeLists.txt
-include cfgexts/core/format/CMakeLists.txt
-include cfgexts/core/parser/CMakeLists.txt
-include cfgexts/core/pymacro/CMakeLists.txt
-recursive-include cfgexts/core *.pyx *.pxd
-recursive-include cfgexts/core/format *.cpp *.h
-recursive-include cfgexts/core/parser *.cpp *.h
-recursive-include cfgexts/core/pymacro *.cpp *.h
+include pylext/core/CMakeLists.txt
+include pylext/core/format/CMakeLists.txt
+include pylext/core/parser/CMakeLists.txt
+include pylext/core/pymacro/CMakeLists.txt
+recursive-include pylext/core *.pyx *.pxd
+recursive-include pylext/core/format *.cpp *.h
+recursive-include pylext/core/parser *.cpp *.h
+recursive-include pylext/core/pymacro *.cpp *.h
 include README.md

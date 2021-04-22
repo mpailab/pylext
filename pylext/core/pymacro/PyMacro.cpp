@@ -110,7 +110,7 @@ string& tostr(string &res, const string& str, char c) {
  * Преобразуется в вызов функции quasiquote("nt", [f"s0",f"s1",...,f"sN"],[arg1,...,argN])
  * Таким образом, в квазицитате можно будет использовать выражения, как в f string
  */
-void make_qqir(ParseContext& px, ParseNodePtr& root, ParseNode* n, const std::string& nt)
+void make_qqir(ParseContext& px, ParseNodePtr& root, ParseNode* n, const std::string& nt, const char*pref=0, const char* suf=0)
 {
     int qqp = len(n->ch) / 2;
     vector<ParseNode *> qargs(qqp);
@@ -125,7 +125,12 @@ void make_qqir(ParseContext& px, ParseNodePtr& root, ParseNode* n, const std::st
         if (n->ch[i]->term.find('{') != string::npos)
             qq += 'f';
         qq += R"(""")";
+        if(!i && pref)
+            qq += pref;
+
         qq += n->ch[i]->term;
+        if(i==len(n->ch)-1 && suf)
+            qq+=suf;
         qq += R"(""")";
         // tostr(qq, n->ch[i]->term, '"');
     }

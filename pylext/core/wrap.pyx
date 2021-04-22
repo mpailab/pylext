@@ -172,9 +172,9 @@ cdef class ParseContext:
 
     def add_macro_rule(self, lhs: str, rhs: list, apply, for_export=False,
                          int lpriority=-1, int rpriority=-1):
-        cdef string rhss = ' '.join(str(x) for x in rhs)
+        # cdef string rhss = ' '.join(str(x) for x in rhs)
         # print(f'add rule: {lhs} -> {rhs}:',end='')
-        cdef int rule_id = self._add_rule(lhs, rhss, lpriority, rpriority)
+        cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
         # print(f' id = {rule_id}, f = {apply}')
         # print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
@@ -182,8 +182,8 @@ cdef class ParseContext:
             self.exported_macro.append((lhs, rhs, apply, lpriority, rpriority))
 
     def add_syntax_rule(self, lhs: str, rhs, apply, for_export=False, lpriority=-1, rpriority=-1):
-        cdef string rhss = ' '.join(str(x) for x in rhs)
-        cdef int rule_id = self._add_rule(lhs, rhss, lpriority, rpriority)
+        # cdef string rhss = ' '.join(str(x) for x in rhs)
+        cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
         self.syntax_rules[rule_id] = apply
         if for_export:
             self.exported_syntax.append((lhs, rhs, apply, lpriority, rpriority))
@@ -212,8 +212,8 @@ cdef class ParseContext:
     cpdef ast_to_text(self, ParseNode pn):
         return c_ast_to_text(self.px, pn.p)
 
-    cdef int _add_rule(self, lhs, rhs, lpr, rpr):
-        return addRule(self.px.grammar(), lhs + " -> " + rhs, -1, lpr, rpr)
+    cdef int _add_rule(self, string lhs, vector[string] rhs, int lpr, int rpr):
+        return self.px.grammar().addRule(lhs, rhs, -1, lpr, rpr)
 
 
 cdef class Parser:
@@ -222,11 +222,7 @@ cdef class Parser:
 
     def __init__(self, px: ParseContext, text: str):
         self.px = px.px
-        #self.init(text)
         self.state = new ParserState(self.px, text, b"")
-
-    # cdef void init(self, const string& text):
-    #     self.state = new ParserState(self.px, text, "")
 
     def __del__(self):
         if self.state:

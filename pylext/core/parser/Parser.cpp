@@ -885,6 +885,11 @@ void GrammarState::setStart(const string &start_nt)
     _start_nt[start_nt] = S0;
 }
 
+int GrammarState::ruleId(const string &lhs, const vector<string> &rhs) const {
+    auto it = rule_map.find(make_pair(lhs, rhs));
+    return it == rule_map.end() ? -1 : it->second;
+}
+
 ParseErrorHandler::Hint ParseErrorHandler::onRRConflict(GrammarState* g, const SStack& ss, const PStack& sp, int term, int nt1, int nt2, int depth, int place) {
 	throw RRConflict("at {} RR-conflict({}) : 2 different ways to reduce by {}: NT = {} or {}"_fmt(g->lex.cpos(), place, g->ts[term], g->nts[nt1], g->nts[nt2]), prstack(*g, ss, sp, depth));
 	return Hint();
