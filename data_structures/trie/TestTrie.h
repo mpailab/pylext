@@ -81,7 +81,15 @@ int test_trie_correct(const std::vector<std::string>& kwords, const char* text) 
         int pos2 = pos;
         int pos3 = pos;
         int pos4 = pos;
-        if ((tr1(text, pos1) != nullptr) && (tr2(text, pos2) != nullptr)) {
+        if ((((tr1(text, pos1) != nullptr) && (tr2(text, pos2)) == nullptr)) || ((tr1(text, pos3) == nullptr) && (tr2(text, pos4) != nullptr))) {
+            flag = 0;
+            break;
+        }
+        pos1 = pos;
+        pos2 = pos;
+        pos3 = pos;
+        pos4 = pos;
+            if ((tr1(text, pos1) != nullptr) && (tr2(text, pos2) != nullptr)) {
             if (*tr1(text, pos3) != *tr2(text, pos4)) {
                 flag = 0;
                 pos1 = pos;
@@ -108,18 +116,18 @@ int test_trie_correct(const std::vector<std::string>& kwords, const char* text) 
 
 template<class Trie>
 void test_trie(const std::string& name, const std::vector<std::string>& kwords, const std::string& text, int num_tries = 100, double timeout = 1) {
-    double bytes_per_symbol = test_trie_memory<Trie>(kwords);
-    std::cout << name << " memory: " << bytes_per_symbol << " bytes/symbol" << std::endl;
+    //double bytes_per_symbol = test_trie_memory<Trie>(kwords);
+    //std::cout << name << " memory: " << bytes_per_symbol << " bytes/symbol" << std::endl;
 
-    double find_speed = test_trie_find_speed<Trie>(kwords, num_tries, text.c_str(), timeout);
-    std::cout << name << " find  : " << int(find_speed) << " calls/s" << std::endl;
+    //double find_speed = test_trie_find_speed<Trie>(kwords, num_tries, text.c_str(), timeout);
+    //std::cout << name << " find  : " << int(find_speed) << " calls/s" << std::endl;
 
     double copy_speed = test_trie_copy_speed<Trie>(kwords, num_tries, timeout);
     std::cout << name << " copy  : " << int(copy_speed) << " calls/s" << std::endl;
 
-    int corr = test_trie_correct<Trie>(kwords, text.c_str());
-        if (corr == 1) { std::cout << name << " correct " << std::endl;}
-        else { std::cout << name << " incorrect " << std::endl; }
+    //int corr = test_trie_correct<Trie>(kwords, text.c_str());
+        //if (corr == 1) { std::cout << name << " correct " << std::endl;}
+        //else { std::cout << name << " incorrect " << std::endl; }
 }
 
 

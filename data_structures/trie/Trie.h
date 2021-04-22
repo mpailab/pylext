@@ -130,6 +130,15 @@ public:
 
 };
 
+char* substr(char* arr, int begin, int end)
+{
+	string st = string(arr);
+	string st2 = st.substr(begin, end);
+	char* res = new char[st2.length() + 1];
+	strcpy(res, st2.c_str());
+	return res;
+}
+
 using namespace std;
 /// Префиксное дерево, как множество
 struct Trie {
@@ -313,7 +322,7 @@ struct TrieUM {
 	}
 };
 
-template<class T>
+/*template<class T>
 struct TrieL {
 	bool final = false;
 	int _size = 0;
@@ -388,7 +397,7 @@ struct TrieL {
 		}
 		return res;// curr->final ? &curr->val : 0;
 	}
-};
+};*/
 
 template<class T>
 struct TrieVP {
@@ -452,6 +461,196 @@ struct TrieVP {
 				}
 			}
 			//curr = &curr->next[(unsigned char)m[p1]].second;
+			if (curr->final) {
+				res = &curr->val;
+				pos = p1 + 1;
+			}
+		}
+		return res;// curr->final ? &curr->val : 0;
+	}
+};
+
+
+template<class T>
+struct TrieCUM {
+	bool final = false;
+	char* edgelabel;
+	int _size = 0;
+	T val{};
+	unordered_map<char, TrieCUM<T>> next;
+	int used_memory() const {
+		int res = (int)(sizeof(TrieCUM<T>));
+		for (auto& x : next)
+			res += x.second.used_memory() + sizeof(int) + sizeof(void*);
+		//res += (next.capacity() - next.size()) * (int)sizeof(TrieUM<T>);
+		return res;
+	}
+	int size()const { return _size; }
+
+	const T* operator()(char* word) {
+		TrieCUM<T>* curr = this;
+		size_t i = 0, j = 0;
+		char* match_word;
+		if (curr->next.find(word[0]) == curr->next.end())
+		{
+			return 0;
+		}
+		bool flag = false;
+		curr = &curr->next[word[0]];
+		while (i < strlen(word))
+		{
+			j = 0;
+			match_word = curr->edgelabel;
+			while ((i < strlen(word)) && (j < strlen(match_word)) && (word[i] == match_word[j]))
+			{
+				i++;
+				j++;
+			}
+			if (i == strlen(word))
+			{
+				if ((j == strlen(match_word)) && (curr->final = true))
+				{
+					flag = true;
+				}
+				else
+				{
+					flag = false;
+				}
+			}
+			else
+			{
+				if (j == strlen(match_word))
+				{
+					if (curr->next.find(word[i]) == curr->next.end())
+					{
+						flag = false;
+						break;
+					}
+					else
+					{
+						curr = curr->next[word[i]];
+					}
+				}
+				else
+				{
+					flag = false;
+					break;
+				}
+			}
+		}
+		return flag ? &curr->val : 0;
+	}
+
+	T& operator[](char* word) {
+		TrieCUM<T>* curr = this;
+		if (curr->next.find(word[0]) == curr->next.end())
+		{
+			curr = &curr->next[word[0]];
+			curr->edgelabel = word;
+			_size += !curr->final;
+			curr->final = true;
+			return curr->val;
+		}
+		else
+		{
+			size_t i = 0, j = 0;
+			char* cmp_word;
+			curr = &curr->next[word[0]];
+			while (i < strlen(word))
+			{
+				cmp_word = curr->edgelabel;
+				j = 0;
+				while ((i < strlen(word)) && (j < strlen(cmp_word)) && (word[i] == word[j]))
+				{
+					i++;
+					j++;
+				}
+				//Случай 1: слово, которое хотим добавить полностью содержится в слове, приписанном одному из рёбер.
+				if (i == strlen(word))
+				{
+					//Они полностью совпадают.
+					if (j == strlen(cmp_word))
+					{
+						_size += !curr->final;
+						curr->final = true;
+						return curr->val;
+					}
+					// Слово на ребре больше, тогда добавляем вершину, соответствующую слову cmp_word.
+					else
+					{
+						char* remain = substr(cmp_word, j, strlen(cmp_word));
+						TrieCUM<T>* newnode;
+						newnode->edgelabel = remain;
+						newnode->final = curr->final;
+						newnode->next = move(curr->next);
+
+						curr->edgelabel = substr(cmp_word, 0, j);
+						_size += !curr->final;
+						curr->final = true;
+						curr->next.clear();
+						curr->next[remain[0]] = move(newnode);
+						return curr->val;
+					}
+				}
+				else
+				{
+					// Случай 2: Слово cmp_word на ребре является частью слова word, которое добавляем.
+					if (j == strlen(cmp_word))
+					{
+						if (curr->next.find(word[i]) == curr->next.end())
+						{
+							curr = &curr->next[word[i]];
+							curr->edgelabel = substr(word, i, strlen(word));
+							_size += !curr->final;
+							curr->final = true;
+							return curr->val;
+						}
+						else
+						{
+							curr = curr->next[word[i]];
+						}
+					}
+					// Случай 3: Ни одно из слов не является подмножеством другого, но у них есть совпадающие части. Делаем разветвление.
+					else
+					{
+						char* remain_i = substr(word, i, strlen(word));
+						char* remain_j = substr(cmp_word, j, strlen(cmp_word));
+						char* match = substr(word, 0, i);
+
+						TrieCUM<T>* newnode;
+						newnode->final = curr->final;
+						newnode->next = move(curr->next);
+						newnode->edgelabel = remain_j;
+
+						TrieCUM<T>* newnode2;
+						_size += curr->final;
+						newnode2->final = true;
+						newnode2->edgelabel = remain_i;
+
+						curr->final = false;
+						curr->edgelabel = match;
+						curr->next.clear();
+						curr.next[remain_j[0]] = move(newnode);
+						curr.next[remain_i[0]] = move(newnode2);
+
+						return newnode2->val;
+					}
+				}
+			}
+		}
+	}
+
+	T& operator[](const std::string& m) {
+		return (*this)[m.c_str()];
+	}
+
+	const T* operator()(const char* m, int& pos) {
+		const T* res = 0;
+		TrieUM<T>* curr = this;
+		int p1 = pos;
+		for (; m[p1]; p1++) {
+			if (curr->next.empty())return res;
+			curr = &curr->next[(unsigned char)m[p1]];
 			if (curr->final) {
 				res = &curr->val;
 				pos = p1 + 1;
