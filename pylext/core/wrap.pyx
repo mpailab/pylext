@@ -105,23 +105,32 @@ cdef class ParseContext:
     cdef list exported_macro
     cdef list exported_tokens
     cdef list exported_lexer_rules
+    cdef list exported_syntax_expansion
     cdef dict global_vars
+    cdef set imported_modules
     cdef object old_context
 
     def __init__(self, global_vars):
-        self.px = create_python_context(True, python_grammar)
         self.syntax_rules = {}
         self.macro_rules = {}
         self.token_rules = {}
 
         self.exported_syntax = []
+        self.exported_syntax_expansion = []
         self.exported_macro = []
         self.exported_tokens = []
         self.exported_lexer_rules = []
         self.exported_funcs = []
         self.old_context = None
+        self.imported_modules = set()
 
         self.global_vars=global_vars or {}
+
+    def __cinit__(self):
+        self.px = create_python_context(True, python_grammar)
+
+    def __dealloc__(self):
+        del_python_context(self.px)
 
     def globals(self):
         return self.global_vars
@@ -153,8 +162,11 @@ cdef class ParseContext:
         __parse_context__ = self.old_context
         self.old_context = None
 
-    def __del__(self):
-        del_python_context(self.px)
+    def import_new_module(self, func):
+        if func in self.imported_modules:
+            return False
+        self.imported_modules.add(func)
+        return True
 
     cpdef add_token(self, string name, string rhs, object apply=None, bool for_export=False):
         cdef int rule_id = add_token(self.px, name, rhs)
@@ -175,11 +187,28 @@ cdef class ParseContext:
         # cdef string rhss = ' '.join(str(x) for x in rhs)
         # print(f'add rule: {lhs} -> {rhs}:',end='')
         cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
+        if rule_id in self.macro_rules or rule_id in self.syntax_rules:
+            raise Exception(f'Rule already exists: {lhs} -> {" ".join(rhs)}')
         # print(f' id = {rule_id}, f = {apply}')
         # print(f'add macro rule {rule_id}')
         self.macro_rules[rule_id] = apply
         if for_export:
             self.exported_macro.append((lhs, rhs, apply, lpriority, rpriority))
+
+    def set_rule_expansion(self, lhs: str, rhs: list, apply, for_export=False):
+        # cdef string rhss = ' '.join(str(x) for x in rhs)
+        # print(f'add rule: {lhs} -> {rhs}:',end='')
+        cdef int rule_id = self.px.grammar().ruleId(lhs, rhs)
+        if rule_id < 0:
+            raise Exception(f'No rule: {lhs} -> {" ".join(rhs)}')
+        if rule_id in self.macro_rules or rule_id in self.syntax_rules:
+            raise Exception(f'Redefinition of rule expansion: {lhs} -> {" ".join(rhs)}')
+
+        # print(f' id = {rule_id}, f = {apply}')
+        # print(f'add macro rule {rule_id}')
+        self.syntax_rules[rule_id] = apply
+        if for_export:
+            self.exported_syntax_expansion.append((lhs, rhs))
 
     def add_syntax_rule(self, lhs: str, rhs, apply, for_export=False, lpriority=-1, rpriority=-1):
         # cdef string rhss = ' '.join(str(x) for x in rhs)
@@ -191,6 +220,8 @@ cdef class ParseContext:
     def gen_syntax_import(self):
         res = "def _import_grammar(module_name=None):\n" \
               "  px = parse_context()\n" \
+              "  # проверяем, не запускалась ли ещё эта функция в текущем контексте при импорте из других модулей\n" \
+              "  if not px.import_new_module(_import_grammar): return\n" \
               "  # во-первых, импортируем грамматику из всех подмодулей, если такие были\n" \
               "  if '_imported_syntax_modules' in globals():\n" \
               "    for sm in _imported_syntax_modules:\n" \
@@ -198,6 +229,8 @@ cdef class ParseContext:
               "        sm._import_grammar(px)\n\n"
         for lhs, rhs, apply, lpr, rpr in self.exported_syntax:
             res += f'''  px.add_syntax_rule({repr(lhs)}, {repr(rhs)}, apply={apply.__name__}, lpriority={lpr}, rpriority={rpr})\n'''
+        for lhs, rhs, apply, lpr, rpr in self.exported_syntax_expansion:
+            res += f'''  px.set_rule_expansion({repr(lhs)}, {repr(rhs)}, apply={apply.__name__}, lpriority={lpr}, rpriority={rpr})\n'''
         for lhs, rhs, apply, lpr, rpr in self.exported_macro:
             res += f'''  px.add_macro_rule({repr(lhs)}, {repr(rhs)}, apply={apply.__name__}, lpriority={lpr}, rpriority={rpr})\n'''
         for lhs, rhs, apply in self.exported_tokens:

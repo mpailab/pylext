@@ -96,6 +96,7 @@ def exec_expand_macros(text, vars, by_stmt=False):
         stmt = px.gen_syntax_import()
         res.append(stmt)
         exec(stmt, vars)
+
     if not by_stmt:
         return ''.join(res)
     return res
