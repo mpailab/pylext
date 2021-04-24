@@ -50,7 +50,7 @@ int add_macro_rule(ParseContext& px, ParseNodePtr& n, int off) {
  *  @param off -- номер дочернего узла, соответствующего имени макроса
  *  @param fnm -- имя функции, на которую заменяется макроопределение
  * */
-int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm, bool macro) {
+int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm, string decorator_name) {
 	vector<string> rhs, expand;
 	string arglist = "(";
 	for (int i = 0; i < (int)n[off+1].ch.size(); i++) {
@@ -83,7 +83,7 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm, bo
 		n->ch[off+2] = stmts; //px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
 	}
 	int rule_num = px.grammar().addRule(n[off].term, rhs);
-	string funcdef = R"(@{}_rule("{}",[)"_fmt(macro ? "macro" : "syntax", n[off].term);
+	string funcdef = R"(@{}("{}",[)"_fmt(decorator_name, n[off].term);
 	for(int i = 0; i<len(rhs); i++){
 	    if(i) funcdef+=',';
         ((funcdef += '"') += rhs[i]) += '"';
@@ -269,14 +269,21 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt, const string
         auto &px = static_cast<PythonParseContext&>(pt);
         flatten(pt, n);
         string fnm = px.pymodule.uniq_name("syntax_" + n[0].term);
-        int id = conv_macro(px, n, 0, fnm, false);
+        int id = conv_macro(px, n, 0, fnm, "syntax_rule");
+        px.pymodule.syntax[id] = PySyntax{fnm, id};
+    });
+    addRule(*pg, "root_stmt -> 'syntax_expand' syntax_rule ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
+        auto &px = static_cast<PythonParseContext&>(pt);
+        flatten(pt, n);
+        string fnm = px.pymodule.uniq_name("syntax_" + n[0].term);
+        int id = conv_macro(px, n, 0, fnm, "set_rule_expansion");
         px.pymodule.syntax[id] = PySyntax{fnm, id};
     });
     addRule(*pg, "root_stmt -> 'defmacro' ident syntax_rule ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
         auto &px = static_cast<PythonParseContext&>(pt);
         flatten_p(pt, n, 1);
         string fnm = px.pymodule.uniq_name("macro_" + n[0].term);
-        int id = conv_macro(px, n, 1, fnm, true);
+        int id = conv_macro(px, n, 1, fnm, "macro_rule");
         px.pymodule.macros[id] = PyMacro{ fnm, id };
     });
 

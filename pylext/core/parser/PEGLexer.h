@@ -168,25 +168,8 @@ public:
     int declareSOFToken(const std::string &nm, int ext_num, int enforce=0) {
         return _declareSpecToken(nm, ext_num, &sof, "SOF", enforce);
     }
-	void addPEGRule(const string &nt, const string &rhs, int ext_num, bool to_begin = false) {
-		int errpos = -1;
-		string err;
-		PEGExpr e = readParsingExpr(&peg, rhs, &errpos, &err);
-		if (errpos >= 0)
-			throw SyntaxError("Cannot parse PEG rule `"s + rhs + "` at position "+to_string(errpos)+": "+err);
-		peg.add_rule(nt, e, to_begin);
-		if (ext_num)declareNCToken(nt,ext_num);
-	}
-	int declareNCToken(const string& nm, int ext_num, bool spec = false) {
-		int t = _ten[nm];
-		int a = peg._en.num(nm);
-		if (!spec && a < 0)throw Exception("Cannot declare token `" + nm + "` when no rules exists");
-		if (t >= (int)tokens.size())
-			tokens.resize(t+1,make_pair(-1,-1));
-		tokens[t] = make_pair(a,ext_num);
-		simple.add(t);
-		return _intnum[ext_num] = t;
-	}
+	void addPEGRule(const string &nt, const string &rhs, int ext_num, bool to_begin = false);
+	int declareNCToken(const string& nm, int ext_num, bool spec = false);
 
 	int internalNum(const string& nm) {
 		return _ten[nm];
@@ -197,25 +180,12 @@ public:
     int internalNumCheck(const string& nm) const {
 	    return _ten.num(nm);
 	}
-	void addCToken(int t, const string &x) {
-		cterms[x.c_str()] = t;
-		if (ctokens.size() <= t)
-			ctokens.resize(t + 1);
-		ctokens[t] = x;
-	}
+	void addCToken(int t, const string &x);
 	//Устанавливает имя специального токена, означающего пробел/комментарий в PEG-грамматике
 	int setWsToken(const string& tname) {
 		return ws_token = peg._en[tname];
 	}
-	~PEGLexer() {
-		if (!_counter.empty()) {
-			cout << "\n============ LEXER STATS =============\n";
-			for (auto &p : _counter) {
-				cout << "  " << _ten[p.first] << ":\t" << p.second << "\n";
-			}
-			cout << "======================================\n";
-		}
-	}
+	~PEGLexer();
 
     int pos() const;
     Pos cpos() const;
@@ -239,18 +209,7 @@ class LexIterator {
         } type;
         IndentSt data;
     };
-    void undo(const StAction &a) {
-        switch (a.type) {
-            case StAction::Push:
-                indents.pop_back();
-                break;
-            case StAction::Pop:
-                indents.push_back(a.data);
-                break;
-            case StAction::Change:
-                indents.back() = a.data;
-        }
-    }
+    void undo(const StAction &a);
     void undo_all() {
         for (int i = (int)undo_stack.size(); i--;)
             undo(undo_stack[i]);
@@ -391,6 +350,7 @@ public:
     }
     bool atEnd() const { return _at_end; }
     void acceptToken(Token& tok);
+    void clearToken();
     const vector<Token>& operator*()const {
         return curr_t;
     }

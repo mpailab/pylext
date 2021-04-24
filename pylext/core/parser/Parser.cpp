@@ -559,7 +559,9 @@ ParseTree ParserState::parse_next() {
     try {
         switch(state){
             case AtStart: break;
-            case Paused: goto resume;
+            case Paused:
+                nextTok(*g, lit, ss);
+                goto resume;
             case AtEnd: return {};
         }
         while (!lit.atEnd()) {
@@ -609,13 +611,16 @@ ParseTree ParserState::parse_next() {
 						if(debug_pr & DBG_STATE) printstate(std::cout << ": ", *g, ss.s.back());
 						std::cout << "\n";
 					}
-                    lit.acceptToken(t);
 
                     if(sp.s.back()->type == ParseNode::Final) {
+                        // Если ставим разбор на паузу, то не принимаем следующий токен, грамматика может поменяться,
+                        // и могут добавиться новые токены.
+                        lit.clearToken();
                         state = Paused;
                         sp.s.back()->type = ParseNode::FinalUsed;
                         return ParseTree(sp.s.back().get());
                     }
+                    lit.acceptToken(t);
                     break;
                 }
             }

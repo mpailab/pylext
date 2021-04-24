@@ -195,6 +195,12 @@ cdef class ParseContext:
         if for_export:
             self.exported_macro.append((lhs, rhs, apply, lpriority, rpriority))
 
+    def rule_id(self, lhs: str, rhs: list) -> int:
+        cdef int id = self.px.grammar().ruleId(lhs, rhs)
+        if id < 0:
+            raise Exception(f'No rule: {lhs} -> {" ".join(rhs)}')
+        return id
+
     def set_rule_expansion(self, lhs: str, rhs: list, apply, for_export=False):
         # cdef string rhss = ' '.join(str(x) for x in rhs)
         # print(f'add rule: {lhs} -> {rhs}:',end='')

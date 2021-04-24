@@ -201,6 +201,26 @@ bool LexIterator::readSpecToken(const NTSet &t) { // Чтение специал
     return false;
 }
 
+void LexIterator::undo(const LexIterator::StAction &a)
+{
+    switch (a.type) {
+        case StAction::Push:
+            indents.pop_back();
+            break;
+        case StAction::Pop:
+            indents.push_back(a.data);
+            break;
+        case StAction::Change:
+            indents.back() = a.data;
+    }
+}
+
+void LexIterator::clearToken()
+{
+    _accepted = true;
+    curr_t.clear();
+}
+
 int PEGLexer::_declareSpecToken(const string &nm, int ext_num, PEGLexer::SpecialToken *tok, const string &intname,
                                 int enforce)
 {
@@ -214,4 +234,46 @@ int PEGLexer::_declareSpecToken(const string &nm, int ext_num, PEGLexer::Special
     tok->ext_num = ext_num;
     special.add(tok->num);
     return tok->num;
+}
+
+PEGLexer::~PEGLexer()
+{
+    if (!_counter.empty()) {
+        cout << "\n============ LEXER STATS =============\n";
+        for (auto &p : _counter) {
+            cout << "  " << _ten[p.first] << ":\t" << p.second << "\n";
+        }
+        cout << "======================================\n";
+    }
+}
+
+int PEGLexer::declareNCToken(const string &nm, int ext_num, bool spec)
+{
+    int t = _ten[nm];
+    int a = peg._en.num(nm);
+    if (!spec && a < 0)throw Exception("Cannot declare token `" + nm + "` when no rules exists");
+    if (t >= (int)tokens.size())
+        tokens.resize(t+1,make_pair(-1,-1));
+    tokens[t] = make_pair(a,ext_num);
+    simple.add(t);
+    return _intnum[ext_num] = t;
+}
+
+void PEGLexer::addPEGRule(const string &nt, const string &rhs, int ext_num, bool to_begin)
+{
+    int errpos = -1;
+    string err;
+    PEGExpr e = readParsingExpr(&peg, rhs, &errpos, &err);
+    if (errpos >= 0)
+        throw SyntaxError("Cannot parse PEG rule `"s + rhs + "` at position "+to_string(errpos)+": "+err);
+    peg.add_rule(nt, e, to_begin);
+    if (ext_num)declareNCToken(nt,ext_num);
+}
+
+void PEGLexer::addCToken(int t, const string &x)
+{
+    cterms[x.c_str()] = t;
+    if (ctokens.size() <= t)
+        ctokens.resize(t + 1);
+    ctokens[t] = x;
 }
