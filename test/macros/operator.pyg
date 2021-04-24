@@ -40,6 +40,7 @@ builtin_bin = {'+','-','*','/','//','%','|','&','@','^',
 infix_symbols = set('<=>+-*/%~?@|!&^.:;')
 
 
+@gexport
 def make_op_expand(f):
     def expand(*args):
         arglist = args[-1]
@@ -50,6 +51,7 @@ def make_op_expand(f):
     return expand
 
 
+@gexport
 def decl_infix_operator(op, lpr, rpr):
     def set_func(f):
         parse_context().add_macro_rule('expr', ['expr', f"'{op}'", 'expr'], make_op_expand(f), for_export=True, lpriority=lpr, rpriority=rpr)
@@ -57,49 +59,88 @@ def decl_infix_operator(op, lpr, rpr):
         return f
     return set_func
 
-#set_cpp_debug(0x20)
 
 new_token('operation', '[<=>+\\-*/%~?@|!&^.:;]+')
 
-# Определим макрос для простого определения операций
-# Следующее определение слишком упрощённое и лишь показывает идею,
-# как примерно можно было бы писать такие макросы
-defmacro infxl(root_stmt, 'infxl', '(', priority: expr, ')', op: *stringliteral, '(', x: *ident,',',y: *ident, ')',':', c:func_body_suite):
+
+def check_infix_op(lpriority, rpriority, op, leftassoc):
     op_name = eval(op)
-    pr = eval_in_context(priority)
-    lpr = pr*2+1
-    rpr = pr*2
+    lpr = 2*eval_in_context(lpriority)
+    rpr = 2*eval_in_context(rpriority)
+    if leftassoc>0: rpr += leftassoc
+    else: lpr -= leftassoc
     if any(not c in infix_symbols for c in op_name):
         raise GrammarError(f'invalid operator name {op_name}')
     if op_name in builtin_bin:
         raise GrammarError(f'operator name {op_name} conflicts with built-in operator')
+    return lpr, rpr, op_name
 
+# Определим макрос для простого определения левоассоциативной операций
+defmacro infxl_def(root_stmt, 'infxl', '(', priority: expr, ')', op: *stringliteral, '(', x: *ident,',',y: *ident, ')',':', c:func_body_suite):
+    lpr, rpr, op_name = check_infix_op(priority, priority, op, 1)
     fnm = 'infix_'+'_'.join(sym_names[c] for c in op_name) # Каким-то способом генерируется уникальное имя
     return stmt`@decl_infix_operator({op}, {lpr}, {rpr})\ndef {fnm}({x}, {y}): $c`
 
 
-defmacro infxl(root_stmt, 'infxl', '(', priority: expr, ')', x: *ident, op: *operation, y: *ident, ':', c:func_body_suite):
-    op_name = op
-    pr = eval_in_context(priority)
-    lpr = pr*2+1
-    rpr = pr*2
+# Аналогичный макросы, когда функция, реализующая операцию, уже определена
+defmacro infxl(root_stmt, 'infxl', '(', priority: expr, ')', op: *stringliteral, '=', func_name: *ident):
+    lpr, rpr, _ = check_infix_op(priority, priority, op, 1)
+    return stmt`decl_infix_operator({op}, {lpr}, {rpr})({func_name})\n`
+
+
+# Аналогичные макросы для правоассоциативной операции
+defmacro infxr_def(root_stmt, 'infxr', '(', priority: expr, ')', op: *stringliteral, '(', x: *ident,',',y: *ident, ')',':', c:func_body_suite):
+    lpr, rpr, op_name = check_infix_op(priority, priority, op, -1)
+    fnm = 'infix_'+'_'.join(sym_names[c] for c in op_name) # Каким-то способом генерируется уникальное имя
+    return stmt`@decl_infix_operator({op}, {lpr}, {rpr})\ndef {fnm}({x}, {y}): $c`
+
+
+# Правоассоциативная операция, когда функция, реализующая операцию, уже определена
+defmacro infxr(root_stmt, 'infxr', '(', priority: expr, ')', op: *stringliteral, '=', func_name: *ident):
+    lpr, rpr, _ = check_infix_op(priority, priority, op, -1)
+    return stmt`decl_infix_operator({op}, {lpr}, {rpr})({func_name})\n`
+
+
+# Макросы для определения операций, у которой левый и правый приоритет задаются явно
+defmacro infix_def(root_stmt, 'infxl', '(', lpriority: expr, ',', rpriority: expr, ')', op: *stringliteral, '(', x: *ident,',',y: *ident, ')',':', c:func_body_suite):
+    lpr, rpr, op_name = check_infix_op(lpriority, rpriority, op, 0)
+    fnm = 'infix_'+'_'.join(sym_names[c] for c in op_name) # Каким-то способом генерируется уникальное имя
+    return stmt`@decl_infix_operator({op}, {lpr}, {rpr})\ndef {fnm}({x}, {y}): $c`
+
+
+defmacro infix(root_stmt, 'infix', '(', lpriority: expr, ',', rpriority: expr, ')',  op: *stringliteral, '=', func_name: *ident):
+    lpr, rpr, _ = check_infix_op(lpriority, rpriority, op, 0)
+    return stmt`decl_infix_operator({op}, {lpr}, {rpr})({func_name})\n`
+
+
+def infix_macro(lpriority, rpriority, op, x, y, definition, leftassoc):
+    op_name = eval(op)
+    lpr = 2*eval_in_context(lpriority)
+    rpr = 2*eval_in_context(rpriority)
+    if leftassoc>0: rpr+=leftassoc
+    else: lpr -= leftassoc
+
     if any(not c in infix_symbols for c in op_name):
         raise GrammarError(f'invalid operator name {op_name}')
     if op_name in builtin_bin:
         raise GrammarError(f'operator name {op_name} conflicts with built-in operator')
 
     fnm = 'infix_'+'_'.join(sym_names[c] for c in op_name) # Каким-то способом генерируется уникальное имя
-    return stmt`@decl_infix_operator({repr(op)}, {lpr}, {rpr})\ndef {fnm}({x}, {y}): $c`
+    return stmt`@macro_rule('expr', ['expr', "'{op_name}'", 'expr'], {lpr}, {rpr})\ndef {fnm}({x}, {y}): $definition`
 
 
-#Упрощённое создание макросов для операторов. Здесь используется только что определённый макрос
-infxl(0) '..' (b, e): return range(b, e+1)
+defmacro infxl_macro(root_stmt, 'infxl_macro', '(', priority: expr, ')', op: *stringliteral,
+                     '(', x: *ident,',',y: *ident, ')',':', definition: func_body_suite):
+    return infix_macro(priority, priority, op, x, y, definition, 1)
 
-infxl(0) b !! e: return range(b, e+1)
 
-# Тестируем макросы
-def test(a,b):
-    return list(a+1..10+b)
+defmacro infxr_macro(root_stmt, 'infxr_macro', '(', priority: expr, ')', op: *stringliteral,
+                     '(', x: *ident,',',y: *ident, ')',':', definition: func_body_suite):
+    return infix_macro(priority, priority, op, x, y, definition, -1)
 
-def validation(a,b):
-    return list(range(a+1,b+11))
+
+defmacro infix_macro(root_stmt, 'infix_macro', '(', lpriority: expr, ',', rpriority: expr, ')', op: *stringliteral,
+                     '(', x: *ident,',',y: *ident, ')',':', definition: func_body_suite):
+    return infix_macro(lpriority, rpriority, op, x, y, definition, 0)
+
+

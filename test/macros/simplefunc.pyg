@@ -1,0 +1,56 @@
+gimport macros.operator
+
+# Синтаксис для более короткого определения функции, состоящей из одного return-оператора
+# Вместо ':' знак = и опускаем return
+defmacro fassign(stmt, 'def', name:*ident, args: parameters, '=', e: expr, EOL):
+    return stmt`def {name} ${args}: return ${e} $$EOL`
+
+# Вытаскиваем номера правил встроенной грамматики языка питон
+star_rule  = get_rule_id('star_expr', "'*' expr")
+ident_rule = get_rule_id('atom', 'ident')
+tuple_rule = get_rule_id('atom', "'(' testlist_comp ')'")
+inside_tuple_rule = get_rule_id('identd_or_star_list', "identd_or_star_list ',' identd_or_star")
+
+
+infix_macro(101, 1) '->' (x, y):
+    args = ''
+    if x.rule() == tuple_rule:
+        if any(y.rule() not in (ident_rule, star_rule) or y.rule() == star_rule and y[0].rule()!=ident_rule for y in x[0].children()):
+            raise Exception(f'Invalid lambda arguments {parse_context().ast_to_text(x)}')
+        args = parse_context().ast_to_text(x[0])
+    elif x.rule() == star_rule:
+        if x[0].rule() != ident_rule:
+            raise Exception(f'Invalid lambda arguments {parse_context().ast_to_text(x)}')
+        args = parse_context().ast_to_text(x)
+    elif x.rule() == ident_rule:
+        args = parse_context().ast_to_text(x)
+    else: raise Exception(f'Invalid lambda arguments {parse_context().ast_to_text(x)}')
+    return `(lambda {args}: $y)`
+
+
+def map_res_type(x):
+    if type(x) in (tuple, list, set):
+        return type(x)
+    else: return list
+
+# реализация оператора /@ рекурсивная, поэтому функция определяется отдельно от самого оператора
+def map_ff(f, data):
+    if not callable(f):
+        if hasattr(f, '__iter__'):
+            return map_res_type(f)(map_ff(fi, data) for fi in f)
+        else: raise Exception(f'first argument of /@ must be a function or list of functions, but has type {type(f)}')
+    return map_res_type(data)(map(f, data))
+
+# map operator, как в Wolfram Mathematica (применение функции к массиву)
+infxl(5) '/@' = map_ff
+
+# применение функции к двумерному массиву
+infxl(5) '/@@' (f, data):
+    return (x -> f /@ x) /@ data
+
+
+def listpow(lx, ly) = (x -> y -> x**y) /@ lx /@ ly
+
+def check(lx, ly):
+    return [[x**y for y in ly] for x in lx]
+

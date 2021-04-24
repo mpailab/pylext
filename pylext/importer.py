@@ -49,12 +49,43 @@ def syntax_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     return set_func
 
 
-def _gimport___(module, as_name, global_vars):
+def set_rule_expansion(lhs: str, rhs: list):
+    def set_func(expand_func):
+        if parse_context() is not None:
+            parse_context().set_rule_expansion(lhs, rhs, expand_func, for_export=True)
+        return expand_func
+    return set_func
+
+
+def get_rule_id(lhs, rhs):
+    if type(rhs) is str:
+        rhs = rhs.split()
+    return parse_context().rule_id(lhs, rhs)
+
+
+def gexport(f):
+    """
+    Декоратор для функций, которые при выполнении команды gimport
+    импортируются под тем же именем, под которым объявлены.
+    Необходим для функций, используемых внутри квазицитат при раскрытии макросов.
+    """
+    parse_context().export_function(f)
+    return f
+
+
+class GImportError(Exception):
+    pass
+
+
+def _gimport___(module, as_name, global_vars: dict):
+    """ Функция, реализующая команду gimport """
     mname = as_name if as_name else module
     if as_name:
         exec(f'import {module} as {as_name}', global_vars)
     else:
         exec(f'import {module}', global_vars)
+    global_vars.setdefault('_imported_syntax_modules', set())
+    exec(f'_imported_syntax_modules.add({mname})', global_vars)
     loc = {}
     exec(f'import {module} as m', loc)
     if hasattr(loc['m'], '_import_grammar'):
@@ -72,13 +103,21 @@ module_vars = {
     'new_lexer_rule': new_lexer_rule,
     'new_token_decorator': new_token_decorator,
     'eval_in_context': eval_in_context,
-    '_gimport___'     : _gimport___
+    '_gimport___' : _gimport___,
+    'get_rule_id' : get_rule_id,
+    'gexport'     : gexport
 }
 
 _dbg_statements = False
 
 
 def exec_expand_macros(text, vars, by_stmt=False):
+    """
+    Загружает текст в интерпретатор, предварительно раскрывая в нём макросы.
+    В конце добавляет функцию _import_grammar() для импорта из
+    других модулей грамматики, объявленной в этом тексте.
+    При этом возвращает текст с раскрытыми макросами
+    """
     vars.update(module_vars)
     res = [] if by_stmt else ''
     with ParseContext(vars) as px:
@@ -103,6 +142,11 @@ def exec_expand_macros(text, vars, by_stmt=False):
 
 
 def exec_macros(text, vars, filename=None):
+    """
+    Загружает текст в интерпретатор, предварительно раскрывая в нём макросы.
+    В конце добавляет функцию _import_grammar() для импорта из
+    других модулей грамматики, объявленной в этом тексте.
+    """
     vars.update(module_vars)
     with ParseContext(vars) as px:
         for stmt_ast in parse_gen(px, text):

@@ -174,14 +174,14 @@ python_grammar_str = '''
 %syntax: comp_op         -> '<'|'>'|'=='|'>='|'<='|'<>'|'!='|'in'|'not' 'in'|'is'|'is' 'not';
 %syntax: star_expr       -> '*' expr;
 
-%prefix(expr,10) : '+' | '-' | '~';
-%infxr(expr,7) : '**';
-%infxl(expr,6) : '*' | '@' | '/' | '%' | '//';
-%infxl(expr,5) : '+' | '-';
-%infxl(expr,4) : '<<' | '>>';
-%infxl(expr,3) : '&';
-%infxl(expr,2) : '^';
-%infxl(expr,1) : '|';
+%prefix(expr,100) : '+' | '-' | '~';
+%infxr(expr,70) : '**';
+%infxl(expr,60) : '*' | '@' | '/' | '%' | '//';
+%infxl(expr,50) : '+' | '-';
+%infxl(expr,40) : '<<' | '>>';
+%infxl(expr,30) : '&';
+%infxl(expr,20) : '^';
+%infxl(expr,10) : '|';
 
 %syntax: expr            -> atom_expr; # | expr ('*' | '@' | '/' | '%' | '//' | '+' | '-' | '**' | '<<' | '>>' | '&' | '|' | '^') expr | ('+' | '-' | '~') expr;
 %syntax: atom_expr       -> ['await'] atom | atom_expr trailer;
