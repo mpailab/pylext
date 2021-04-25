@@ -1,4 +1,4 @@
-gimport macros.operator
+gimport pylext.macros.operator
 
 # Синтаксис для более короткого определения функции, состоящей из одного return-оператора
 # Вместо ':' знак = и опускаем return
@@ -42,10 +42,10 @@ def map_ff(f, data):
     return map_res_type(data)(map(f, data))
 
 # map operator, как в Wolfram Mathematica (применение функции к массиву)
-infxl(5) '/@' = map_ff
+infixl(5) '/@' = map_ff
 
 # применение функции к двумерному массиву
-infxl(5) '/@@' (f, data):
+infixl(5) '/@@' (f, data):
     return (x -> f /@ x) /@ data
 
 

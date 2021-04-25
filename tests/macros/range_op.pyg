@@ -1,7 +1,7 @@
-gimport macros.operator
+gimport pylext.macros.operator
 
 #Упрощённое создание макросов для операторов. Здесь используется только что определённый макрос
-infxl(0) '..' (b, e): return range(b, e+1)
+infixl(0) '..' (b, e): return range(b, e+1)
 
 # Тестируем макросы
 def test(a,b):

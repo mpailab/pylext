@@ -4,6 +4,7 @@ include pylext/core/CMakeLists.txt
 include pylext/core/format/CMakeLists.txt
 include pylext/core/parser/CMakeLists.txt
 include pylext/core/pymacro/CMakeLists.txt
+recursive-include pylext/macros *.pyg
 recursive-include pylext/core *.pyx *.pxd
 recursive-include pylext/core/format *.cpp *.h
 recursive-include pylext/core/parser *.cpp *.h

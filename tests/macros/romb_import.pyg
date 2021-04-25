@@ -37,7 +37,7 @@ def test_romb_1():
 
 
 # Циклический сдвиг массива/кортежа вправо. Приоритет операции такой же, как у обычных сдвигов >> и <<
-infxl(40) '>>>' (x, y):
+infixl(40) '>>>' (x, y):
 	if hasattr(x, '__rotr__'):
 		return x.__rotr__(y)
 	if hasattr(y, '__rrotr__'):
@@ -59,12 +59,12 @@ def test_romb_2():
 
 
 # Ещё раз импортируем модуль operator.pyg, на этот раз напрямую
-gimport macros.operator
+gimport pylext.macros.operator
 
 
 # Проверяем, что после прямого импорта уже импортированного модуля ничего не испортилось:
 # с помощью макроса infxl из operator.pyg определяем циклический сдвиг массива влево
-infxl(40) '<<<' (x, y):
+infixl(40) '<<<' (x, y):
 	if hasattr(x, '__rotl__'):
 		return x.__rotl__(y)
 	if hasattr(y, '__rrotl__'):
