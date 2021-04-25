@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'pymacros'
+project = 'pylext'
 copyright = '2021, Bokov G.V., Kalachev G.V.'
 author = 'Bokov G.V., Kalachev G.V.'
 

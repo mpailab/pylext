@@ -1,4 +1,4 @@
-# Example of pymacros usage
+# Example of pylext usage
 import struct
 
 syntax(matchcase, pattern: expr, ':', action: suite):

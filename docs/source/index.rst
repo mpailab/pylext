@@ -1,9 +1,9 @@
-.. pymacros documentation master file, created by
+.. pylext documentation master file, created by
    sphinx-quickstart on Sat Apr 17 02:01:38 2021.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to pymacros's documentation!
+Welcome to pylext's documentation!
 ====================================
 
 .. toctree::
@@ -11,7 +11,7 @@ Welcome to pymacros's documentation!
    :caption: Contents:
 
 
-Библиотека pymacros предназначена для создания всевозможных синтаксических расширений языка python.
+Библиотека pylext предназначена для создания всевозможных синтаксических расширений языка python.
 
 Основной целью этой библиотеки является добавить в язык Python возможность создания встроенных DSL для различных целей.
 Поддерживается добавление в грамматику языка новых синтаксических правил. Поддерживаются произвольные LR1-грамматики.
@@ -50,7 +50,7 @@ Run command:
 
 .. code:: console
 
-   $ pip install pymacros
+   $ pip install pylext
 
 
 Поддерживаемый класс грамматик
@@ -98,7 +98,7 @@ Run command:
 3. Генерируется функция _import_grammar(), которая вызывается при импорте данного модуля через gimport
 
 Для того, чтобы можно было импортировать pyg модули из обычных питоновских файлов, необходимо активировать библиотеку,
-импортировав pymacros.
+импортировав pylext.
 
 
 Indices and tables
