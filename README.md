@@ -2,7 +2,7 @@
 
 This library allows to add new syntax into Python language. 
 It is based on LR(1) algorithm implementation that allows dynamically
-add new rules and tokens into grammar.
+add new rules and tokens into grammar ([see parser description](pylext/core/README.md)).
 
 Macro extension system works in two stages: parsing text and 
 expanding macros, i.e. transforming syntax tree from extended 
@@ -33,7 +33,7 @@ Currently only available installation using setup.py
 python setup.py install
 ```
 
-## Basic examples
+## Simple examples
 ### Custom operators
 The simplest syntax extension is a new operator. For example we want to define 
 left-assotiative operator /@
@@ -64,6 +64,41 @@ simple.test(10)
 
 Custom operators may be useful as a syntactic sugar for
 symbolic computations libraries such as SymPy or SageMath.
+
+### function literals for binary operators
+Sometimes we need to use binary operator as a function object, for example if we want
+to reduce array using some binary operation. 
+```python
+# define new literal
+new_token('op_lambda', '[(][<=>+\\-*/%~?@|!&\\^.:;]+[)]')
+
+defmacro op_lambda(expr, op:*op_lambda):
+    op = op[1:-1]  # remove parentheses
+    try:
+        return `(lambda x, y: x {op} y)`
+    except RuntimeError as e:  # excetion will be thrown if op is not binary operator
+        pass
+    raise Exception(f'`{op}` is not a binary operator')
+```
+This simple macro for each binary operator
+`op` creates function literal `(op)` which represents lambda function
+`lambda x, y: x op y`.
+
+After macros expansion these 2 lines will be equivalent:
+```python
+reduce((^), range(100))
+reduce(lambda x,y: x ^ y, range(100))
+```
+
+We can write test function checking that result is the same
+```python
+def test():
+    from functools import reduce
+    result  = reduce((^), range(100))  # reduce array by XOR operation
+    correct = reduce(lambda x, y: x ^ y, range(100))
+    return result == correct
+```
+
 
 ### Guard operator
 Sometimes function checks a lot of conditions, and returns false of any condition is false.
@@ -154,32 +189,42 @@ We can define operator `->` creating lambda functions. In this case we cannot si
 as a function, we need to convert `x -> f(x)` to `(lambda x: f(x))`. Sinse x can be 
 arbitrary expression we also must check that it is a variable or tuple of variables. 
 ```python
-gimport pylext.macros.operator
-
 star_rule  = get_rule_id('star_expr', "'*' expr")
 ident_rule = get_rule_id('atom', 'ident')
 tuple_rule = get_rule_id('atom', "'(' testlist_comp ')'")
 inside_tuple_rule = get_rule_id('identd_or_star_list', "identd_or_star_list ',' identd_or_star")
 
-infix_macro(101, 1) '->' (x, y):
-    args = ''
-    if x.rule() == tuple_rule:
-        if any(y.rule() not in (ident_rule, star_rule) or y.rule() == star_rule and y[0].rule()!=ident_rule for y in x[0].children()):
-            raise Exception(f'Invalid lambda arguments {parse_context().ast_to_text(x)}')
-        args = parse_context().ast_to_text(x[0])
-    elif x.rule() == star_rule:
-        if x[0].rule() != ident_rule:
-            raise Exception(f'Invalid lambda arguments {parse_context().ast_to_text(x)}')
-        args = parse_context().ast_to_text(x)
-    elif x.rule() == ident_rule:
-        args = parse_context().ast_to_text(x)
-    else: raise Exception(f'Invalid lambda arguments {parse_context().ast_to_text(x)}')
-    return `(lambda {args}: $y)`
+def check_arg_list(x):  
+   """ checking that tree represents valid argument list """
+   if x.rule() == inside_tuple_rule:
+      check_arg_list(x[0])
+      check_arg_list(x[1])
+   elif x.rule() != ident_rule and (x.rule() != star_rule or x[0].rule() != ident_rule):
+      raise Exception(f'Invalid function argument {parse_context().ast_to_text(x)}')
 
-# map operator in Haskell style (similar to /@ from first example)
+infix_macro(101, 1) '->' (x, y):
+   args = ''
+   if x.rule() == tuple_rule:
+      x = x[0]  # remove parentheses
+   check_arg_list(x)
+   # lambda arg list and expr list are formally different nonterminals.
+   # simplest convertion is: ast -> text -> ast
+   args = parse_context().ast_to_text(x)
+   return `(lambda {args}: $y)`
+```
+Here we defined operator `->` with highest left priority and lowest right priority. 
+This means that left side must be atomic expression like a variable or tuple, 
+right side can contain arbitrary operations except `or`, `and` and `not`. 
+Also this allows to combine `->` operators in a chain to produce lambda returning 
+lambda functions.
+
+We can also define `<$>` operator similar to Haskell `fmap` operator and our `/@` 
+operator from first example:
+```python
 infixl(40) '<$>' (f, data):
     return type(data)(f(x) for x in data)
-
-# Test new macros.
+```
+Now we can test it together:
+```python
 print((x -> y -> x**y) <$> (2,1,3) <$> [1,4])
 ```

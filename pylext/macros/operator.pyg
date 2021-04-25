@@ -31,7 +31,7 @@ sym_names = {
 class GrammarError(Exception): pass
 
 
-builtin_bin = {'+','-','*','/','//','%','|','&','@','^',
+builtin_bin_names = {'+','-','*','/','//','%','|','&','@','^',
                ',','.','^',':',';',
                '=','!=','<','>','<=','>=',
                '<<','>>',
@@ -71,7 +71,7 @@ def check_infix_op(lpriority, rpriority, op, leftassoc):
     else: lpr -= leftassoc
     if any(not c in infix_symbols for c in op_name):
         raise GrammarError(f'invalid operator name {op_name}')
-    if op_name in builtin_bin:
+    if op_name in builtin_bin_names:
         raise GrammarError(f'operator name {op_name} conflicts with built-in operator')
     return lpr, rpr, op_name
 
@@ -122,7 +122,7 @@ def infix_macro(lpriority, rpriority, op, x, y, definition, leftassoc):
 
     if any(not c in infix_symbols for c in op_name):
         raise GrammarError(f'invalid operator name {op_name}')
-    if op_name in builtin_bin:
+    if op_name in builtin_bin_names:
         raise GrammarError(f'operator name {op_name} conflicts with built-in operator')
 
     fnm = 'infix_'+'_'.join(sym_names[c] for c in op_name) # Каким-то способом генерируется уникальное имя

@@ -39,7 +39,7 @@ except FileExistsError:
     pass
 
 with open('temp/expanded.py', 'w') as f:
-    f.write("from pymacros.importer import *\n")
+    f.write("from pylext.importer import *\n")
     f.write(''.join(res))
 t1 = time()
 import temp.expanded

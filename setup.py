@@ -29,5 +29,6 @@ setup(
     python_requires='>=3.6',
     install_requires=['cython', 'scikit-build', 'setuptools'],
     packages=find_packages(),
+    package_data={'pylext': ['macros/*.pyg']},
     cmake_args=cmake_args,
 )

@@ -12,19 +12,22 @@ tuple_rule = get_rule_id('atom', "'(' testlist_comp ')'")
 inside_tuple_rule = get_rule_id('identd_or_star_list', "identd_or_star_list ',' identd_or_star")
 
 
+def check_arg_list(x):
+    if x.rule() == inside_tuple_rule:
+        check_arg_list(x[0])
+        check_arg_list(x[1])
+    elif x.rule() != ident_rule and (x.rule() != star_rule or x[0].rule() != ident_rule):
+        raise Exception(f'Invalid function argument {parse_context().ast_to_text(x)}')
+
+
 infix_macro(101, 1) '->' (x, y):
     args = ''
     if x.rule() == tuple_rule:
-        if any(y.rule() not in (ident_rule, star_rule) or y.rule() == star_rule and y[0].rule()!=ident_rule for y in x[0].children()):
-            raise Exception(f'Invalid lambda arguments {parse_context().ast_to_text(x)}')
-        args = parse_context().ast_to_text(x[0])
-    elif x.rule() == star_rule:
-        if x[0].rule() != ident_rule:
-            raise Exception(f'Invalid lambda arguments {parse_context().ast_to_text(x)}')
-        args = parse_context().ast_to_text(x)
-    elif x.rule() == ident_rule:
-        args = parse_context().ast_to_text(x)
-    else: raise Exception(f'Invalid lambda arguments {parse_context().ast_to_text(x)}')
+        x = x[0]  # remove parentheses
+    check_arg_list(x)
+    # lambda arg list and expr list are formally different nonterminals.
+    # simplest convertion is: ast -> text -> ast
+    args = parse_context().ast_to_text(x)
     return `(lambda {args}: $y)`
 
 
@@ -51,6 +54,7 @@ infixl(5) '/@@' (f, data):
 
 def listpow(lx, ly) = (x -> y -> x**y) /@ lx /@ ly
 
+listpow2 = (lx, ly) -> (x -> y -> x**y) /@ lx /@ ly
+
 def check(lx, ly):
     return [[x**y for y in ly] for x in lx]
-

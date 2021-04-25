@@ -3,7 +3,7 @@ import pylext
 
 
 # pylext.core.wrap.set_debug(0xFF)
-# pylext.importer._dbg_statements=True
+pylext.importer._dbg_statements=True
 
 
 def test1():
@@ -51,7 +51,25 @@ def test4():
     print("Test4: " + ("ok" if res == vld else "failed"))
 
 
+def test5():
+    from macros.simplefunc import listpow2, check
+    lx = [1, 2, 4]
+    ly = [0, 1, 3]
+    res = listpow2(lx, ly)
+    vld = check(lx, ly)
+    print(f'result  = {res}')
+    print(f'correct = {vld}')
+    print("Test5: " + ("ok" if res == vld else "failed"))
+
+
+def test6():
+    from macros.op_func import test
+    print("Test6: " +("ok" if test() else "failed"))
+
+
 test1()
 test2()
 test3()
 test4()
+test5()
+test6()
