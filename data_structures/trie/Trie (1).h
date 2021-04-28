@@ -129,7 +129,6 @@ public:
 
 };
 
-/*
 inline char* substr(const char* arr, int begin, int end)
 {
 	string st = string(arr);
@@ -137,14 +136,14 @@ inline char* substr(const char* arr, int begin, int end)
 	char* res = new char[st2.length() + 1];
 	strcpy(res, st2.c_str());
 	return res;
-}*/
+}
 
 using namespace std;
 /// Префиксное дерево, как множество
 struct Trie {
 	bool final = false;
 	vector<Trie> next;
-	bool operator[](const char* m)const {
+	bool operator[](const char *m)const {
 		const Trie* curr = this;
 		for (; *m; m++) {
 			if (next.empty())return false;
@@ -152,8 +151,8 @@ struct Trie {
 		}
 		return curr->final;
 	}
-	Trie& operator<<(const char* str) {
-		Trie* c = this;
+	Trie& operator<<(const char *str) {
+		Trie *c = this;
 		for (; *str; str++) {
 			if (next.empty())next.resize(256);
 			c = &next[(unsigned char)str[0]];
@@ -178,7 +177,7 @@ struct TrieV {
 		return res;
 	}
 	int size()const { return _size; }
-	const T* operator()(const char* m) {
+	const T* operator()(const char* m){
 		TrieV<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.hash((unsigned char)m[0]) == -1) return 0;
@@ -225,14 +224,14 @@ struct TrieM {
 	T val{};
 	vector<TrieM<T>> next;
 	int used_memory() const {
-		int res = (int)sizeof(TrieM<T>);
-		for (auto& x : next)
-			res += x.used_memory();
-		res += (next.capacity() - next.size()) * (int)sizeof(TrieM<T>);
-		return res;
+	    int res = (int)sizeof(TrieM<T>);
+        for(auto &x: next)
+            res += x.used_memory();
+        res += (next.capacity()-next.size())*(int)sizeof(TrieM<T>);
+        return res;
 	}
 	int size()const { return _size; }
-	const T* operator()(const char* m)const {
+	const T* operator()(const char *m)const {
 		const TrieM<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.empty())return 0;
@@ -240,7 +239,7 @@ struct TrieM {
 		}
 		return curr->final ? &curr->val : 0;
 	}
-	T& operator[](const char* m) {
+	T& operator[](const char *m) {
 		TrieM<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.empty())curr->next.resize(256);
@@ -253,8 +252,8 @@ struct TrieM {
 	T& operator[](const std::string& m) {
 		return (*this)[m.c_str()];
 	}
-	const T* operator()(const char* m, int& pos)const {
-		const T* res = 0;
+	const T*operator()(const char *m, int &pos)const {
+		const T*res = 0;
 		const TrieM<T>* curr = this;
 		int p1 = pos;
 		for (; m[p1]; p1++) {
@@ -262,7 +261,7 @@ struct TrieM {
 			curr = &curr->next[(unsigned char)m[p1]];
 			if (curr->final) {
 				res = &curr->val;
-				pos = p1 + 1;
+				pos = p1+1;
 			}
 		}
 		return res;// curr->final ? &curr->val : 0;
@@ -284,7 +283,7 @@ struct TrieUM {
 		return res;
 	}
 	int size()const { return _size; }
-	const T* operator()(const char* m) {
+	const T* operator()(const char* m){
 		TrieUM<T>* curr = this;
 		for (; *m; m++) {
 			if (curr->next.empty())return 0;
@@ -292,7 +291,7 @@ struct TrieUM {
 		}
 		return curr->final ? &curr->val : 0;
 	}
-	T& operator[](const char* m) {
+	T& operator[](const char* m){
 		TrieUM<T>* curr = this;
 		for (; *m; m++) {
 			//if (curr->next.empty())curr->next.resize(256);
@@ -302,11 +301,11 @@ struct TrieUM {
 		curr->final = true;
 		return curr->val;
 	}
-	T& operator[](const std::string& m) {
+	T& operator[](const std::string& m){
 		return (*this)[m.c_str()];
 	}
-
-	const T* operator()(const char* m, int& pos) {
+	
+	const T* operator()(const char* m, int& pos){
 		const T* res = 0;
 		TrieUM<T>* curr = this;
 		int p1 = pos;
@@ -418,7 +417,7 @@ struct TrieVP {
 		for (; *m; m++) {
 			if (curr->next.empty())return 0;
 			for (auto& x : curr->next) {
-				if (x.first == (unsigned char)m[0]) {
+				if (x.first == (unsigned char)m[0]){
 					curr = &x.second;
 				}
 			}
@@ -436,7 +435,7 @@ struct TrieVP {
 				i++;
 			}
 			for (auto& x : curr->next) {
-				if (x.first == (unsigned char)m[0]) {
+				if (x.first == (unsigned char)m[0]){
 					curr = &x.second;
 				}
 			}
@@ -456,7 +455,7 @@ struct TrieVP {
 		for (; m[p1]; p1++) {
 			if (curr->next.empty())return res;
 			for (auto& x : curr->next) {
-				if (x.first == (unsigned char)m[p1]) {
+				if (x.first == (unsigned char)m[p1]){
 					curr = &x.second;
 				}
 			}
@@ -499,38 +498,34 @@ struct TrieCUM {
 		while (word[i]) {
 			int j = 0;
 			auto& match_word = curr->edgelabel;
-			for (size_t j = 0; j < match_word.size(); j++) {
-				if (word[i + j] != match_word[j])
-					return nullptr;
+			for (size_t j = 0; j < match_word.size(); j++){
+			    if(word[i+j] != match_word[j])
+			        return nullptr;
 			}
 			i += match_word.size();
-			if (!word[i]) {
-				return curr->final ? &curr->val : nullptr;
+			if(!word[i]) {
+			    return curr->final ? &curr->val: nullptr;
 			}
-			if (curr->next.find(word[i]) == curr->next.end()) {
-				return nullptr;
-			}
-			else {
-				curr = &curr->next[word[i]];
-			}
-			continue;
-			////////////////////////////////////
-			/*while (word[i] && (j < match_word.size()) && (word[i] == match_word[j])) {
+            if (curr->next.find(word[i]) == curr->next.end()) {
+                return nullptr;
+            } else {
+                curr = &curr->next[word[i]];
+            }
+            continue;
+            ////////////////////////////////////
+			while (word[i] && (j < match_word.size()) && (word[i] == match_word[j])) {
 				i++;
 				j++;
 			}
 			if (i == strlen(word)) {
-				if ((j == strlen(match_word)) && curr->final) {
-					return &curr->val;
-				}
-				else return nullptr;
-			}
-			else {
+                if((j == strlen(match_word)) && curr->final){
+                    return &curr->val;
+                } else return nullptr;
+			} else {
 				if (j == match_word.size()) {
 					if (curr->next.find(word[i]) == curr->next.end()) {
-						return nullptr;
-					}
-					else {
+					    return nullptr;
+					} else {
 						curr = &curr->next[word[i]];
 					}
 				}
@@ -539,7 +534,7 @@ struct TrieCUM {
 					flag = false;
 					break;
 				}
-			}*/
+			}
 		}
 		return flag ? &curr->val : 0;
 	}
@@ -557,12 +552,12 @@ struct TrieCUM {
 		else
 		{
 			size_t i = 0, j = 0;
-			//const char* cmp_word;
+			const char* cmp_word;
 			curr = &curr->next[word[0]];
 			while (true) {
 				auto& cmp_word = curr->edgelabel;
 				j = 0;
-				while ((word[i]) && (j < cmp_word.size()) && (word[i] == cmp_word[j]))
+				while (word[i] && j < cmp_word.size() && word[i] == word[j])
 				{
 					i++;
 					j++;
@@ -582,7 +577,6 @@ struct TrieCUM {
 						newnode.edgelabel = remain;
 						newnode.final = curr->final;
 						newnode.next = move(curr->next);
-						newnode.val = curr->val;
 
 						curr->edgelabel.resize(j);
 						_size += !curr->final;
@@ -599,7 +593,6 @@ struct TrieCUM {
 					{
 						if (curr->next.find(word[i]) == curr->next.end())
 						{
-							//curr->edgelabel.resize(j);
 							curr = &curr->next[word[i]];
 							curr->edgelabel = word + i; //substr(word, i, strlen(word));
 							_size += 1;
@@ -614,26 +607,27 @@ struct TrieCUM {
 					// Случай 3: Ни одно из слов не является подмножеством другого, но у них есть совпадающие части. Делаем разветвление.
 					else
 					{
-						string remain_i = word + i;
+						string remain_i = word+i;
 						string remain_j = cmp_word.substr(j);
-						string match(cmp_word, 0, j);
+						string match(word, i);
 
 						TrieCUM<T> newnode;
 						newnode.final = curr->final;
 						newnode.next = move(curr->next);
 						newnode.edgelabel = remain_j;
-						newnode.val = curr->val;
+
 						curr->next.clear();
 
 
-						curr->next[remain_j[0]] = move(newnode);
-						TrieCUM<T>& newnode2 = curr->next[remain_i[0]];
+                        curr->next[remain_j[0]] = move(newnode);
+                        TrieCUM<T>& newnode2 = curr->next[remain_i[0]];
 						_size += curr->final;
 						newnode2.final = true;
 						newnode2.edgelabel = remain_i;
 
 						curr->final = false;
 						curr->edgelabel = match;
+
 						return newnode2.val;
 					}
 				}
@@ -645,66 +639,18 @@ struct TrieCUM {
 		return (*this)[m.c_str()];
 	}
 
-	const T* operator()(const char* word, int& pos) {
-		TrieCUM<T>* curr = this;
-		int p1 = pos;
+	const T* operator()(const char* m, int& pos) {
 		const T* res = 0;
-		if (curr->next.find(word[p1]) == curr->next.end())
-		{
-			return nullptr;
+		TrieUM<T>* curr = this;
+		int p1 = pos;
+		for (; m[p1]; p1++) {
+			if (curr->next.empty())return res;
+			curr = &curr->next[(unsigned char)m[p1]];
+			if (curr->final) {
+				res = &curr->val;
+				pos = p1 + 1;
+			}
 		}
-		bool flag = false;
-		curr = &curr->next[word[p1]];
-		while (word[p1]) {
-			int j = 0;
-			auto& match_word = curr->edgelabel;
-			for (size_t j = 0; j < match_word.size(); j++) {
-				if (word[p1 + j] != match_word[j])
-					return nullptr;
-			}
-			p1 += match_word.size();
-			if (!word[p1]) {
-				if (curr->final) {
-					res = &curr->val;
-					pos = p1 + 1;
-				}
-				else
-					return nullptr;
-			}
-			if (curr->next.find(word[p1]) == curr->next.end()) {
-				return nullptr;
-			}
-			else {
-				curr = &curr->next[word[p1]];
-			}
-			continue;
-			////////////////////////////////////
-			/*while (word[i] && (j < match_word.size()) && (word[i] == match_word[j])) {
-				i++;
-				j++;
-			}
-			if (i == strlen(word)) {
-				if ((j == strlen(match_word)) && curr->final) {
-					return &curr->val;
-				}
-				else return nullptr;
-			}
-			else {
-				if (j == match_word.size()) {
-					if (curr->next.find(word[i]) == curr->next.end()) {
-						return nullptr;
-					}
-					else {
-						curr = &curr->next[word[i]];
-					}
-				}
-				else
-				{
-					flag = false;
-					break;
-				}
-			}*/
-		}
-		return res;
+		return res;// curr->final ? &curr->val : 0;
 	}
 };
