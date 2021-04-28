@@ -26,10 +26,11 @@ inline int popcnt(uint64_t x) {
 
 using namespace std;
 
-template<class V, int SIZE_OF_VERTIX>
+template<class V, int max_size>
 class Vertix_Const
 {
 private:
+	static constexpr int SIZE_OF_VERTIX = (max_size + 63) / 64;
 	std::array<uint64_t, SIZE_OF_VERTIX> mask;
 	std::array<int, SIZE_OF_VERTIX> counts;
 	//std::vector<V> values;
@@ -169,7 +170,7 @@ struct TrieV {
 	int _size = 0;
 	T val{};
 	//TrieV<T> buf;
-	Vertix_Const<TrieV<T>, 4> next{};
+	Vertix_Const<TrieV<T>, 256> next{};
 	int used_memory() const {
 		int res = (int)sizeof(TrieV<T>);
 		for (auto& x : next.values)

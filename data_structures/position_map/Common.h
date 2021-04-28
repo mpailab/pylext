@@ -61,10 +61,11 @@ int popcnt(uint64_t x) {
 
 //constexpr int BIT_SIZE = 64;
 
-template<class V,int SIZE_OF_VERTIX>
+template<class V,int max_size>
 class Vertix_Const
 {
 private:
+    static constexpr int SIZE_OF_VERTIX = (max_size + 63) / 64;
     std::array<uint64_t, SIZE_OF_VERTIX> mask;
     std::array<int, SIZE_OF_VERTIX> counts;
     std::vector<V> values;
