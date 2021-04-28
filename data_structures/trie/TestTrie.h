@@ -83,6 +83,9 @@ int test_trie_correct(const std::vector<std::string>& kwords, const char* text) 
         int pos4 = pos;
         if ((((tr1(text, pos1) != nullptr) && (tr2(text, pos2)) == nullptr)) || ((tr1(text, pos3) == nullptr) && (tr2(text, pos4) != nullptr))) {
             flag = 0;
+            pos1 = pos;
+            pos2 = pos;
+            cout << "Sanya " << tr1(text, pos1) <<  " " << tr2(text, pos2) << endl;
             break;
         }
         pos1 = pos;

@@ -649,7 +649,7 @@ struct TrieCUM {
 	const T* operator()(const char* word, int& pos) {
 		TrieCUM<T>* curr = this;
 		int p1 = pos;
-		const T* res = 0;
+		const T* res = nullptr;
 		if (curr->next.find(word[p1]) == curr->next.end())
 		{
 			return nullptr;
@@ -661,19 +661,18 @@ struct TrieCUM {
 			auto& match_word = curr->edgelabel;
 			for (size_t j = 0; j < match_word.size(); j++) {
 				if (word[p1 + j] != match_word[j])
-					return nullptr;
+					return res;
 			}
 			p1 += match_word.size();
+			if (curr->final) {
+				res = &curr->val;
+				pos = p1 + 1;
+			}
 			if (!word[p1]) {
-				if (curr->final) {
-					res = &curr->val;
-					pos = p1 + 1;
-				}
-				else
-					return nullptr;
+				return res;
 			}
 			if (curr->next.find(word[p1]) == curr->next.end()) {
-				return nullptr;
+				return res;
 			}
 			else {
 				curr = &curr->next[word[p1]];
