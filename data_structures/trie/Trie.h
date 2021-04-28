@@ -105,7 +105,7 @@ public:
 
 	}
 
-	void del(int n) {
+	/*void del(int n) {
 		typename std::vector<V>::iterator it;
 		int x = hash(n), d;
 		if (x != -1) {
@@ -126,6 +126,11 @@ public:
 			}
 			values.erase(it);
 		}
+	}*/
+	void clear(void) {
+		mask.fill(uint64_t(0));
+		values.clear();
+		counts.fill(0);
 	}
 
 };
@@ -709,3 +714,249 @@ struct TrieCUM {
 	}
 };
 
+template<class T>
+struct TrieCV {
+	bool final = false;
+	string edgelabel;
+	int _size = 0;
+	T val{};
+	Vertix_Const<TrieCV<T>, 256> next{};
+	//unordered_map<char, TrieCUM<T>> next;
+	int used_memory() const {
+		int res = (int)(sizeof(TrieCV<T>));
+		for (auto& x : next.values)
+			res += x.used_memory();
+		//res += (next.capacity() - next.size()) * (int)sizeof(TrieUM<T>);
+		return res;
+	}
+	int size()const { return _size; }
+
+	const T* operator()(const char* word) {
+		TrieCV<T>* curr = this;
+		size_t i = 0;
+		if (curr->next.hash(word[0]) == -1)
+		{
+			return 0;
+		}
+		bool flag = false;
+		curr = &curr->next.get(word[0]);
+		while (word[i]) {
+			int j = 0;
+			auto& match_word = curr->edgelabel;
+			for (size_t j = 0; j < match_word.size(); j++) {
+				if (word[i + j] != match_word[j])
+					return nullptr;
+			}
+			i += match_word.size();
+			if (!word[i]) {
+				return curr->final ? &curr->val : nullptr;
+			}
+			if (curr->next.hash(word[i]) == -1) {
+				return nullptr;
+			}
+			else {
+				curr = &curr->next.get(word[i]);
+			}
+			continue;
+			////////////////////////////////////
+			/*while (word[i] && (j < match_word.size()) && (word[i] == match_word[j])) {
+				i++;
+				j++;
+			}
+			if (i == strlen(word)) {
+				if ((j == strlen(match_word)) && curr->final) {
+					return &curr->val;
+				}
+				else return nullptr;
+			}
+			else {
+				if (j == match_word.size()) {
+					if (curr->next.find(word[i]) == curr->next.end()) {
+						return nullptr;
+					}
+					else {
+						curr = &curr->next[word[i]];
+					}
+				}
+				else
+				{
+					flag = false;
+					break;
+				}
+			}*/
+		}
+		return flag ? &curr->val : 0;
+	}
+
+	T& operator[](const char* word) {
+
+		TrieCV<T>* curr = this;
+		TrieCV<T> buf;
+		Vertix_Const<TrieCV<T>, 256> buf1{};
+		if (curr->next.hash(word[0]) == -1)
+		{
+			curr->next.add(word[0], buf);
+			curr = &curr->next.get(word[0]);
+			curr->edgelabel = word;
+			_size += !curr->final;
+			curr->final = true;
+			return curr->val;
+		}
+		else
+		{
+			size_t i = 0, j = 0;
+			//const char* cmp_word;
+			curr = &curr->next.get(word[0]);
+			while (true) {
+				auto& cmp_word = curr->edgelabel;
+				j = 0;
+				while ((word[i]) && (j < cmp_word.size()) && (word[i] == cmp_word[j]))
+				{
+					i++;
+					j++;
+				}
+				//Случай 1: слово, которое хотим добавить полностью содержится в слове, приписанном одному из рёбер.
+				if (!word[i]) {
+					//Они полностью совпадают.
+					if (j == cmp_word.size()) {
+						_size += !curr->final;
+						curr->final = true;
+						return curr->val;
+					}
+					// Слово на ребре больше, тогда добавляем вершину, соответствующую слову cmp_word.
+					else {
+						string remain = cmp_word.substr(j);
+						TrieCV<T> newnode;
+						newnode.edgelabel = remain;
+						newnode.final = curr->final;
+						newnode.next = move(curr->next);
+						newnode.val = curr->val;
+
+						curr->edgelabel.resize(j);
+						_size += !curr->final;
+						curr->final = true;
+						curr->next.clear();
+						curr->next.add(remain[0], newnode);
+						//curr->next[remain[0]] = move(newnode);
+						return curr->val;
+					}
+				}
+				else
+				{
+					// Случай 2: Слово cmp_word на ребре является частью слова word, которое добавляем.
+					if (j == cmp_word.size())
+					{
+						if (curr->next.hash(word[i]) == -1)
+						{
+							//curr->edgelabel.resize(j);
+							curr->next.add(word[i], buf);
+							curr = &curr->next.get(word[i]);
+							//curr = &curr->next[word[i]];
+							curr->edgelabel = word + i; //substr(word, i, strlen(word));
+							_size += 1;
+							curr->final = true;
+							return curr->val;
+						}
+						else
+						{
+							curr = &curr->next.get(word[i]);
+						}
+					}
+					// Случай 3: Ни одно из слов не является подмножеством другого, но у них есть совпадающие части. Делаем разветвление.
+					else
+					{
+						string remain_i = word + i;
+						string remain_j = cmp_word.substr(j);
+						string match(cmp_word, 0, j);
+
+						TrieCV<T> newnode;
+						newnode.final = curr->final;
+						newnode.next = move(curr->next);
+						newnode.edgelabel = remain_j;
+						newnode.val = curr->val;
+						curr->next.clear();
+
+
+						curr->next.add(remain_j[0], newnode);
+						//curr->next[remain_j[0]] = move(newnode);
+						curr->next.add(remain_i[0], buf);
+						TrieCV<T>& newnode2 = curr->next.get(remain_i[0]);
+						_size += curr->final;
+						newnode2.final = true;
+						newnode2.edgelabel = remain_i;
+
+						curr->final = false;
+						curr->edgelabel = match;
+						return newnode2.val;
+					}
+				}
+			}
+		}
+	}
+
+	T& operator[](const std::string& m) {
+		return (*this)[m.c_str()];
+	}
+
+	const T* operator()(const char* word, int& pos) {
+		TrieCV<T>* curr = this;
+		int p1 = pos;
+		const T* res = nullptr;
+		if (curr->next.hash(word[p1]) == -1)
+		{
+			return nullptr;
+		}
+		bool flag = false;
+		curr = &curr->next.get(word[p1]);
+		while (word[p1]) {
+			int j = 0;
+			auto& match_word = curr->edgelabel;
+			for (size_t j = 0; j < match_word.size(); j++) {
+				if (word[p1 + j] != match_word[j])
+					return res;
+			}
+			p1 += match_word.size();
+			if (curr->final) {
+				res = &curr->val;
+				pos = p1 + 1;
+			}
+			if (!word[p1]) {
+				return res;
+			}
+			if (curr->next.hash(word[p1]) == -1) {
+				return res;
+			}
+			else {
+				curr = &curr->next.get(word[p1]);
+			}
+			continue;
+			////////////////////////////////////
+			/*while (word[i] && (j < match_word.size()) && (word[i] == match_word[j])) {
+				i++;
+				j++;
+			}
+			if (i == strlen(word)) {
+				if ((j == strlen(match_word)) && curr->final) {
+					return &curr->val;
+				}
+				else return nullptr;
+			}
+			else {
+				if (j == match_word.size()) {
+					if (curr->next.find(word[i]) == curr->next.end()) {
+						return nullptr;
+					}
+					else {
+						curr = &curr->next[word[i]];
+					}
+				}
+				else
+				{
+					flag = false;
+					break;
+				}
+			}*/
+		}
+		return res;
+	}
+};
