@@ -287,7 +287,7 @@ struct TrieCUM {
 	int used_memory() const {
 		int res = (int)(sizeof(TrieCUM<T>));
 		for (auto& x : next)
-			res += x.second.used_memory() + sizeof(int) + sizeof(void*);
+			res += x.second.used_memory() + sizeof(char) + sizeof(void*) + edgelabel.size();
 		//res += (next.capacity() - next.size()) * (int)sizeof(TrieUM<T>);
 		return res;
 	}
