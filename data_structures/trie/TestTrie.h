@@ -120,13 +120,13 @@ int test_trie_correct(const std::vector<std::string>& kwords, const char* text) 
 template<class Trie>
 void test_trie(const std::string& name, const std::vector<std::string>& kwords, const std::string& text, int num_tries = 100, double timeout = 1) {
     double bytes_per_symbol = test_trie_memory<Trie>(kwords);
-    std::cout << name << " memory :\t" << bytes_per_symbol << " bytes/symbol" << std::endl;
+    std::cout << name << " memory:\t" << bytes_per_symbol << " bytes/symbol" << std::endl;
 
     double find_speed = test_trie_find_speed<Trie>(kwords, num_tries, text.c_str(), timeout);
-    std::cout << name << " find  :\t" << int(find_speed) << " calls/s" << std::endl;
+    std::cout << name << " find :\t" << int(find_speed) << " calls/s" << std::endl;
 
     double copy_speed = test_trie_copy_speed<Trie>(kwords, num_tries, timeout);
-    std::cout << name << " copy  :\t" << int(copy_speed) << " calls/s" << std::endl;
+    std::cout << name << " copy :\t" << int(copy_speed) << " calls/s" << std::endl;
 
     int corr = test_trie_correct<Trie>(kwords, text.c_str());
         if (corr == 1) { std::cout << name << " correct " << std::endl;}

@@ -19,131 +19,8 @@
 #include <immintrin.h>
 #include <stdio.h>
 #include <algorithm>
+#include "Common.h"
 
-inline int popcnt(uint64_t x) {
-	return (int)_mm_popcnt_u64(x);
-}
-
-using namespace std;
-
-template<class V, int max_size>
-class Vertix_Const
-{
-private:
-	static constexpr int SIZE_OF_VERTIX = (max_size + 63) / 64;
-	std::array<uint64_t, SIZE_OF_VERTIX> mask;
-	std::array<int, SIZE_OF_VERTIX> counts;
-	//std::vector<V> values;
-	//V _default;
-	int BIT_SIZE = sizeof(uint64_t) * 8;
-public:
-	std::vector<V> values;
-	Vertix_Const() { mask.fill(uint64_t(0)); }
-	/*Vertix_Const(V def) { _default = def; mask.fill(uint64_t(0)); }
-	Vertix_Const(std::vector<pair<int, V>> dict, V def) {
-		_default = def;
-		mask.fill(uint64_t(0));
-		sort(dict.begin(), dict.end(), [](pair<int, V> x, pair<int, V> y) { return x.first < y.first; });
-		for (int i = 0; i < dict.size(); i++) {
-			int d;
-			bool res = true;
-			for (int j = 0; j < i; j++) {
-				if (dict[j].first == dict[i].second) {
-					res = false;
-				}
-			}
-			if (res) {
-				d = dict[i].first / BIT_SIZE;
-				mask[d] = mask[d] | uint64_t(1) << (dict[i].first % BIT_SIZE);
-				values.push_back(dict[i].second);
-			}
-		}
-		int sum = 0;
-		for (int i = 0; i < SIZE_OF_VERTIX; i++) {
-			int x = popcnt(mask[i]);
-			counts[i] = sum;
-			sum += x;
-		}
-	}*/
-
-	int hash(int n) {
-		int cnts;
-		uint64_t m, t;
-		cnts = counts[n / BIT_SIZE];
-		m = mask[n / BIT_SIZE];
-		t = uint64_t(1) << (n % BIT_SIZE);
-		if ((t & m) == 0)
-			return -1;
-		return cnts + popcnt(m & (t - 1));
-	}
-
-	V& get(int n) {
-		int x = hash(n);
-		if (x == -1)
-			return values[0];
-		else
-			return values[x];
-	}
-
-	void add(int n, V value) {
-		typename std::vector<V>::iterator it;
-		int x = hash(n), d;
-		if (x != -1) {
-			values[x] = value;
-		}
-		else {
-			d = n / BIT_SIZE;
-			mask[d] = mask[d] | uint64_t(1) << (n % BIT_SIZE);
-			int sum = 0;
-			for (int i = 0; i < SIZE_OF_VERTIX; i++) {
-				int x = popcnt(mask[i]);
-				counts[i] = sum;
-				sum += x;
-			}
-			values.insert(std::next(values.begin(), hash(n)), std::move(value));
-		}
-
-	}
-
-	/*void del(int n) {
-		typename std::vector<V>::iterator it;
-		int x = hash(n), d;
-		if (x != -1) {
-			d = n / BIT_SIZE;
-			mask[d] = mask[d] & ~(uint64_t(1) << (n % BIT_SIZE));
-			int sum = 0;
-			for (int i = 0; i < SIZE_OF_VERTIX; i++) {
-				int x = popcnt(mask[i]);
-				counts[i] = sum;
-				sum += x;
-			}
-			int i = 0;
-			int c = hash(n);
-			for (it = values.begin(); it != values.end();) {
-				if (i == c)
-					break;
-				i++;
-			}
-			values.erase(it);
-		}
-	}*/
-	void clear(void) {
-		mask.fill(uint64_t(0));
-		values.clear();
-		counts.fill(0);
-	}
-
-};
-
-/*
-inline char* substr(const char* arr, int begin, int end)
-{
-	string st = string(arr);
-	string st2 = st.substr(begin, end);
-	char* res = new char[st2.length() + 1];
-	strcpy(res, st2.c_str());
-	return res;
-}*/
 
 using namespace std;
 /// Префиксное дерево, как множество
@@ -328,83 +205,6 @@ struct TrieUM {
 	}
 };
 
-/*template<class T>
-struct TrieL {
-	bool final = false;
-	int _size = 0;
-	T val{};
-	list<pair<int,TrieL<T>>> next;
-	int used_memory() const {
-		int res = (int)sizeof(TrieL<T>);
-		for (auto& x : next)
-			res += x.second.used_memory() + sizeof(int) + 2*sizeof(void*);
-		return res;
-	}
-	int size()const { return _size; }
-	const T* operator()(const char* m){
-		TrieL<T>* curr = this;
-		for (; *m; m++) {
-			if (curr->next.empty())return 0;
-			list<pair<int, TrieL<T>>>::iterator it = curr->next.begin();
-			for (list<pair<int, TrieL<T>>>::iterator it = curr->next.begin(); it != curr->next.end(); ++it)
-			{
-				if ((*it).first == (unsigned char)m[0])
-				{
-					curr = &(*it).second;
-					break;
-				}
-			}
-		}
-		return curr->final ? &curr->val : 0;
-	}
-	T& operator[](const char* m) {
-		TrieL<T>* curr = this;
-		for (; *m; m++) {
-			if (curr->next.empty())curr->next.resize(256);
-			int i = 0;
-			for (list<pair<int, TrieL<T>>>::iterator it = curr->next.begin(); it != curr->next.end(); ++it, i++)
-			{
-				(*it).first = i;
-			}
-			for (list<pair<int, TrieL<T>>>::iterator it = curr->next.begin(); it != curr->next.end(); ++it)
-			{
-				if ((*it).first == (unsigned char)m[0])
-				{
-					curr = &(*it).second;
-					break;
-				}
-			}
-		}
-		_size += !curr->final;
-		curr->final = true;
-		return curr->val;
-	}
-	T& operator[](const std::string& m) {
-		return (*this)[m.c_str()];
-	}
-	const T* operator()(const char* m, int& pos){
-		const T* res = 0;
-		TrieL<T>* curr = this;
-		int p1 = pos;
-		for (; m[p1]; p1++) {
-			if (curr->next.empty())return res;
-			for (list<pair<int, TrieL<T>>>::iterator it = curr->next.begin(); it != curr->next.end(); ++it)
-				{
-					if ((*it).first == (unsigned char)m[p1])
-					{
-						curr = &(*it).second;
-						break;
-					}
-				}
-			if (curr->final) {
-				res = &curr->val;
-				pos = p1 + 1;
-			}
-		}
-		return res;// curr->final ? &curr->val : 0;
-	}
-};*/
-
 template<class T>
 struct TrieVP {
 	bool final = false;
@@ -496,8 +296,7 @@ struct TrieCUM {
 	const T* operator()(const char* word) {
 		TrieCUM<T>* curr = this;
 		size_t i = 0;
-		if (curr->next.find(word[0]) == curr->next.end())
-		{
+		if (curr->next.find(word[0]) == curr->next.end()) {
 			return 0;
 		}
 		bool flag = false;
@@ -552,24 +351,21 @@ struct TrieCUM {
 
 	T& operator[](const char* word) {
 		TrieCUM<T>* curr = this;
-		if (curr->next.find(word[0]) == curr->next.end())
-		{
+		if (curr->next.find(word[0]) == curr->next.end()) {
 			curr = &curr->next[word[0]];
 			curr->edgelabel = word;
 			_size += !curr->final;
 			curr->final = true;
 			return curr->val;
 		}
-		else
-		{
+		else {
 			size_t i = 0, j = 0;
 			//const char* cmp_word;
 			curr = &curr->next[word[0]];
 			while (true) {
 				auto& cmp_word = curr->edgelabel;
 				j = 0;
-				while ((word[i]) && (j < cmp_word.size()) && (word[i] == cmp_word[j]))
-				{
+				while ((word[i]) && (j < cmp_word.size()) && (word[i] == cmp_word[j])) {
 					i++;
 					j++;
 				}
@@ -598,13 +394,10 @@ struct TrieCUM {
 						return curr->val;
 					}
 				}
-				else
-				{
+				else {
 					// Случай 2: Слово cmp_word на ребре является частью слова word, которое добавляем.
-					if (j == cmp_word.size())
-					{
-						if (curr->next.find(word[i]) == curr->next.end())
-						{
+					if (j == cmp_word.size()) {
+						if (curr->next.find(word[i]) == curr->next.end()) {
 							//curr->edgelabel.resize(j);
 							curr = &curr->next[word[i]];
 							curr->edgelabel = word + i; //substr(word, i, strlen(word));
@@ -612,14 +405,12 @@ struct TrieCUM {
 							curr->final = true;
 							return curr->val;
 						}
-						else
-						{
+						else {
 							curr = &curr->next[word[i]];
 						}
 					}
 					// Случай 3: Ни одно из слов не является подмножеством другого, но у них есть совпадающие части. Делаем разветвление.
-					else
-					{
+					else {
 						string remain_i = word + i;
 						string remain_j = cmp_word.substr(j);
 						string match(cmp_word, 0, j);
@@ -655,8 +446,7 @@ struct TrieCUM {
 		TrieCUM<T>* curr = this;
 		int p1 = pos;
 		const T* res = nullptr;
-		if (curr->next.find(word[p1]) == curr->next.end())
-		{
+		if (curr->next.find(word[p1]) == curr->next.end()) {
 			return nullptr;
 		}
 		bool flag = false;
@@ -734,8 +524,7 @@ struct TrieCV {
 	const T* operator()(const char* word) {
 		TrieCV<T>* curr = this;
 		size_t i = 0;
-		if (curr->next.hash(word[0]) == -1)
-		{
+		if (curr->next.hash(word[0]) == -1) {
 			return 0;
 		}
 		bool flag = false;
@@ -793,8 +582,7 @@ struct TrieCV {
 		TrieCV<T>* curr = this;
 		TrieCV<T> buf;
 		Vertix_Const<TrieCV<T>, 256> buf1{};
-		if (curr->next.hash(word[0]) == -1)
-		{
+		if (curr->next.hash(word[0]) == -1) {
 			curr->next.add(word[0], buf);
 			curr = &curr->next.get(word[0]);
 			curr->edgelabel = word;
@@ -802,16 +590,14 @@ struct TrieCV {
 			curr->final = true;
 			return curr->val;
 		}
-		else
-		{
+		else {
 			size_t i = 0, j = 0;
 			//const char* cmp_word;
 			curr = &curr->next.get(word[0]);
 			while (true) {
 				auto& cmp_word = curr->edgelabel;
 				j = 0;
-				while ((word[i]) && (j < cmp_word.size()) && (word[i] == cmp_word[j]))
-				{
+				while ((word[i]) && (j < cmp_word.size()) && (word[i] == cmp_word[j])) {
 					i++;
 					j++;
 				}
@@ -841,8 +627,7 @@ struct TrieCV {
 						return curr->val;
 					}
 				}
-				else
-				{
+				else {
 					// Случай 2: Слово cmp_word на ребре является частью слова word, которое добавляем.
 					if (j == cmp_word.size())
 					{
@@ -857,14 +642,12 @@ struct TrieCV {
 							curr->final = true;
 							return curr->val;
 						}
-						else
-						{
+						else {
 							curr = &curr->next.get(word[i]);
 						}
 					}
 					// Случай 3: Ни одно из слов не является подмножеством другого, но у них есть совпадающие части. Делаем разветвление.
-					else
-					{
+					else {
 						string remain_i = word + i;
 						string remain_j = cmp_word.substr(j);
 						string match(cmp_word, 0, j);
@@ -902,8 +685,7 @@ struct TrieCV {
 		TrieCV<T>* curr = this;
 		int p1 = pos;
 		const T* res = nullptr;
-		if (curr->next.hash(word[p1]) == -1)
-		{
+		if (curr->next.hash(word[p1]) == -1) {
 			return nullptr;
 		}
 		bool flag = false;
