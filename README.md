@@ -8,7 +8,7 @@ Macro extension system works in two stages: parsing text and
 expanding macros, i.e. transforming syntax tree from extended 
 grammar to standard python grammar.
 This procedure is applied to each statement in file separately, 
-tso it is possible to define new syntax and use it in the next statement.   
+so it is possible to define new syntax and use it in the next statement.   
 
 ## Requirements
 
@@ -65,7 +65,7 @@ simple.test(10)
 Custom operators may be useful as a syntactic sugar for
 symbolic computations libraries such as SymPy or SageMath.
 
-### function literals for binary operators
+### Function literals for binary operators
 Sometimes we need to use binary operator as a function object, for example if we want
 to reduce array using some binary operation. 
 ```python
@@ -121,7 +121,36 @@ defmacro guard(stmt, 'guard', cond: test, EOL):
     return stmt`if not (${test}): return False\n`
 ```
 Now instead of writing `if not <expr>: return False` we can simply write `guard <expr>`.
-This allow write some functions in more declarative style.
+This allow write some functions in more declarative style. For example, we write solver for solve some task and 
+solution is a sequence of transformations of input data. Each transformation has some conditions when it can be applied.
+At each moment we select applicable transformation and apply it. 
+For example, we want to find real roots of the polynomial, and there are simple rules for linear and quadratic equations:
+```python
+class Eqn:
+   def __init__(self, coeffs):
+      self.coeffs = coeffs
+      while self.coeffs and self.coeffs[-1]==0:
+         del self.coeffs[-1]
+      self.roots = None
+   @property
+   def degree(self):
+       return len(self.coeffs)
+
+def no_solution(eqn: Eqn):
+   guard eqn.degree == 0
+   eqn.roots = []
+
+def solve_linear(eqn: Eqn):
+   guard eqn.degree == 1
+   eqn.roots = [eqn.coeffs[0]/eqn.coeffs[1]]
+    
+def solve_quadratic(eqn: Eqn):
+   guard eqn.degree == 2
+   c, b, a = eqn.coeffs 
+   d = b*b - 4*a*c
+   guard d >= 0
+   eqn.roots = [(-b-d**0.5)/2/a, (-b+d**0.5)/2/a]
+```
 
 ## Library usage
 To activate library, add command to main file:
@@ -129,15 +158,149 @@ To activate library, add command to main file:
 import pylext
 ```
 When pylext loads, it adds new importer for python with extended grammar.
-These files should have .pyg extension. New syntax can be defined and
-used only in .pyg files. One .pyg file can import syntax defined 
-in another .pyg file using `gimport` command.
-.pyg files can be imported from .py files using standard `import` command.
+These files should have **.pyg** extension. New syntax can be defined and
+used only in *pyg* files. One pyg file can import syntax defined 
+in another *pyg* file using `gimport` command.
+*pyg* files can be imported from *py* files using standard `import` command. 
+When *pyg* file is imported with import command, actually loaded python code 
+obtained by expansion of all macros from this *pyg* file. 
+
+### New operator definition
+New infix operation may be defined using `infixl` or `infixr` syntax construction defined in operator.pyg module.
+First pylext/macros/operator.pyg should be imported:
+```python
+gimport pylext.macros.operator
+```
+Syntax of new left-assotiative operator definition is one of following:
+```python
+'infixl' '(' priority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' ':' func: func_body_suite
+'infixl' '(' priority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' '=' func_name: ident
+```
+In first definition assotiated function for new operator is implemented inside infixl macro.
+Second definition allows to assotiate with new operator existing function.
+
+Similarly right-assotiative operator may be defined:
+```python
+'infixr' '(' priority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' ':' func: func_body_suite
+'infixr' '(' priority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' '=' func_name: ident
+```
+Also it is possible to set custom left and right operation priorities
+```python
+'infix' '(' lpriority: expr ',' rpriority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' ':' func: func_body_suite
+'infix' '(' lpriority: expr ',' rpriority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' '=' func_name: ident
+```
+Macro parameter description:
+- priority -- expression evaluating to priority of defined operator. Usually a constatn number.
+- op_name -- name of defined operator enclosed in quotes. Must consist of symbols from this set: `<=>+-*/%~?@|!&^.:;`
+- x, y -- arguments passed to function
+- func -- definition of function assigned to new operator. 
+  After macro expansion function definition becomes `def f(x,y): func`.
+- func_name -- name of function assigned with new operator.
+
+#### Built-in operation priorities
+Following table contains priorities of built-in operators.
+
+| operator | priority | assotiativity   |
+|:---------|:--------:|:---------------:|
+| unary `+`, `-`, `~` | 100  |          |
+| `**`       | 70       |  right        |
+| `*`, `@`, `/`, `%`, `//` | 60 |  left |
+| `+`, `-`   | 50       |  left         |
+| `<<`, `>>` | 40       |  left         |
+| `&`        | 30       |  left         |
+| `^`        | 20       |  left         |
+| `\|`       | 10       |  left         |
+
+Note that in current grammar definition comparison and logical operators don't have priorities 
+and defined via another nonterminals. They all have priority lower that those that can be defined using this macro. 
+
+### New syntax definition
+Usually to define a complex macro it is needed to have a lot of additional rules 
+that can be expanded using **syn_expand** function.
+Rule `A -> A1 A2 ... AN` is written as comma separated list `A, V1, ..., VN` where
+each element `Vi` has one of following format:
+- string literal, in this case Ai is terminal equal to value of this literal
+- `x : Ai` where x and **Ai** is identifier, **Ai** is terminal or nonterminal name. 
+    If no terminal with name **Ai**, then **Ai** is considered as new nonterminal. 
+   - If **Ai** is nonterminal, then **x** is name of variable representing parse tree for nonterminal **Ai**.
+   - If **Ai** is terminal name, then **x** is name of variable containing token of type **Ai**.
+- `x: *Ai` where **x** is identifier, **Ai** is terminal or nonterminal name. If no terminal with name **Ai**, then
+  Ai is considered as new nonterminal. 
+  - If **Ai** is nonterminal, then `x = syn_expand(t)` where `t` parse tree for nonterminal **Ai**.
+  - If **Ai** is terminal name, then **x** is string content of token of type **Ai**.
+
+All auxilliary rules are defined using following syntax:
+```python
+'syntax' '(' rule ')' ':' definition 
+```
+where 
+- **rule** is grammar rule in format described above,
+- **definition** describes transformation of parse tree into some more convenient python object
+
+Macro is defined using similar syntax:
+```python
+'defmacro' name: ident '(' rule ')' ':' definition
+```
+where
+- **name** is macro name that can be used for debug purposes,
+- **rule** is grammar rule in format described above,
+- **definition** describes transformation of parse tree into another parse tree. Important that **definition** 
+  must return **ParseNode** object. 
+
+### New token definition
+Lexer in pylext is based on packrat parser for PEG. 
+parsing expressions are used instead of regular expressions to define tokens.
+Every non-constant token in language is described by PEG nonterminal. 
+
+New terminals (tokens) may be defined by command:
+```python
+new_token(x, peg_expr)
+```
+New auxilliary lexer rules may be defined by command:
+```python
+new_lexer_rule(x, peg_expr)
+```
+where
+- **x** is string, name of new terminal,
+- **peg_expr** is string containing parsing expression describing new token.
+
+When new auxilliary lexer rule is defined, left side doesn't become a token, it can be used only in
+other lexer rule definitions.
+
+Parsing expression syntax is following:
+1. Atomic expressions:
+
+   | syntax           | description                   |
+   |:-----------------|:------------------------------|
+   | `[<symbols>]`    | any of listed symbols**       |
+   | `[^<symbols>]`   | any symbol except listed symbols**       |
+   | `'seq'`, `"seq"` | sequence of symbols in quotes |
+   |  identifier T | token of type T, T is nonterminal of PEG |
+   **   There are some special symbols in `<symbols>`: 
+   - `x-y` means any symbol from `x` to `y`
+   - escape sequences `\n`, `\r`, `\t`, `\\`, `\]`, `\-`
+
+2. Combine expressions 
+
+   | syntax           | description                   |
+   |:-----------------|:------------------------------|
+   | `!e`             | negative lookahead for expression e |
+   | `&e`             | positive lookahead for expression e |
+   | `(e)`            | parentheses around subexpression    |
+   | `e?`             | optional                            |
+   | `e*`             | zero or more                        |
+   | `e+`             | one or more                         |
+   | `e1 e2`          | sequence: e1, then e2               |
+   | `e1 / e2`        | ordered choise: e1 or (!e1 e2)      |
+
+NOTE: direct or indirect left recursion currently not supported
 
 ## More examples
 
 ### Simple match operator
-This example is match operator that is an analog of C++ switch operator.
+This example is match operator that is an analog of C++ switch operator. Actually, 
+python 3.10 already has [more powerful match operator](https://docs.python.org/3.10/whatsnew/3.10.html#pep-634-structural-pattern-matching)
+but here is example how simple version may be defined using pylext.
 
 File match.pyg:
 ```python
@@ -182,6 +345,44 @@ defmacro match(stmt, 'match', x:expr, ':', EOL, INDENT, mc:*matchcases, DEDENT):
         else:
             head = stmt`$head elif $condexpr: $s`
     return head
+```
+
+For example, it can be used for simple data serialization function:
+```python
+def serialize_match(x):
+    match type(x):
+        int:       return b'i' + struct.pack('<q', x)
+        bool:      return b'b' + struct.pack('<q', int(x))
+        float:     return b'f' + struct.pack('<d', float(x))
+        bytes:     return b'b' + struct.pack('<q', len(x)) + x
+        str:       return b's' + serialize_match(x.encode('utf8'))
+        list:
+            data = b'l' + struct.pack('<q', len(x))
+            for elem in x:
+                data += serialize_match(elem)
+            return data
+        _:         raise Exception(f'Unsupported type {type(x)}')
+```
+After macro expansion it is equivalent to implementation using if-elif-else construction available in python 3.8:
+```python
+def serialize(x):
+    if type(x) == int:
+        return b'i' + struct.pack('<q', x)
+    elif type(x) == bool:
+        return b'b' + struct.pack('<q', int(x))
+    elif type(x) == float:
+        return b'f' + struct.pack('<d', float(x))
+    elif type(x) == bytes:
+        return b'b' + struct.pack('<q', len(x)) + x
+    elif type(x) == str:
+        return b's' + serialize(x.encode('utf8'))
+    elif type(x) == list:
+        data = b'l' + struct.pack('<q', len(x))
+        for elem in x:
+            data += serialize(elem)
+        return data
+    else:
+        raise Exception(f'Unsupported type {type(x)}')
 ```
 
 ### Short lambda functions
