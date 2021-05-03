@@ -173,29 +173,31 @@ gimport pylext.macros.operator
 ```
 Syntax of new left-assotiative operator definition is one of following:
 ```python
-'infixl' '(' priority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' ':' func: func_body_suite
-'infixl' '(' priority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' '=' func_name: ident
+'infixl' '(' priority ')' op_name '(' x ',' y ')' ':' func
+'infixl' '(' priority ')' op_name '(' x ',' y ')' '=' func_name
 ```
 In first definition assotiated function for new operator is implemented inside infixl macro.
 Second definition allows to assotiate with new operator existing function.
 
-Similarly right-assotiative operator may be defined:
+Similarly, right-assotiative operator may be defined:
 ```python
-'infixr' '(' priority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' ':' func: func_body_suite
-'infixr' '(' priority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' '=' func_name: ident
+'infixr' '(' priority: expr ')' op_name '(' x ',' y ')' ':' func
+'infixr' '(' priority: expr ')' op_name '(' x ',' y ')' '=' func_name
 ```
 Also it is possible to set custom left and right operation priorities
 ```python
-'infix' '(' lpriority: expr ',' rpriority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' ':' func: func_body_suite
-'infix' '(' lpriority: expr ',' rpriority: expr ')' op_name: stringliteral '(' x:ident ',' y:ident ')' '=' func_name: ident
+'infix' '(' lpriority ',' rpriority ')' op_name '(' x ',' y ')' ':' func
+'infix' '(' lpriority ',' rpriority ')' op_name '(' x ',' y ')' '=' func_name
 ```
 Macro parameter description:
-- priority -- expression evaluating to priority of defined operator. Usually a constatn number.
-- op_name -- name of defined operator enclosed in quotes. Must consist of symbols from this set: `<=>+-*/%~?@|!&^.:;`
-- x, y -- arguments passed to function
-- func -- definition of function assigned to new operator. 
+- **priority** -- expression evaluating to priority of defined operator. Usually a constant number.
+- **lpriority** -- expression evaluating to left priority of defined operator. Usually a constant number.
+- **rpriority** -- expression evaluating to right priority of defined operator. Usually a constant number.
+- **op_name** -- string literal, name of defined operator enclosed in quotes. Must consist of symbols from this set: `<=>+-*/%~?@|!&^.:;`
+- **x**, **y** -- identifiers, arguments passed to function
+- **func** -- definition of function assigned to new operator. 
   After macro expansion function definition becomes `def f(x,y): func`.
-- func_name -- name of function assigned with new operator.
+- **func_name** -- name of function assigned with new operator.
 
 #### Built-in operation priorities
 Following table contains priorities of built-in operators.
@@ -247,7 +249,7 @@ where
 - **definition** describes transformation of parse tree into another parse tree. Important that **definition** 
   must return **ParseNode** object. 
 
-### New token definition
+### New token definition 
 Lexer in pylext is based on packrat parser for PEG. 
 parsing expressions are used instead of regular expressions to define tokens.
 Every non-constant token in language is described by PEG nonterminal. 
@@ -293,7 +295,67 @@ Parsing expression syntax is following:
    | `e1 e2`          | sequence: e1, then e2               |
    | `e1 / e2`        | ordered choise: e1 or (!e1 e2)      |
 
-NOTE: direct or indirect left recursion currently not supported
+NOTE: direct or indirect left recursion in PEG rules currently not supported
+
+## How does it work
+
+PyLExt extension adds new importer for .pyg files. PyLExt uses parser independent of python's parser,
+ here it is called *pylext parser*.
+
+### Pyg importing procedure
+1. Create pylext parser context `ctx` containing current macro and syntax definitions and some another metadata.
+2. Load text from file and initialize pylext parser in `ctx` context. 
+   Parser is always initialized with python grammar and built-in pylext syntax extensions
+   allowing to add new rules.
+3. Initialize module object `M` and add pylext built-ins into `M.__dict__`.
+4. Pylext parser reads text statement by statement. At each step it can do one of the following actions:
+   - return parse tree for next statement
+   - return NULL which means end of file
+   - throw exception if there is syntax error
+   
+   For each statement parse tree S we do:
+   1. `S <- macro_expand(ctx, S)` -- expanding all macros in `S` using rules from context `ctx`
+   2. `expanded <- ast_to_text(ctx, S)` -- convert S back to text
+   3. `exec(expanded, M.__dict__)` -- execute expanded statement in context of module M
+5. Generate definition of function `_import_grammar(module_name)` from current parse context
+   and load it into interpreter:
+   ```python
+   syn_gimport_func = px.gen_syntax_import()
+   exec(stmt, M.__dict__)
+   ```
+   Function adds all grammar defined in this module and in all 
+   gimported modules into current context. 
+   This function is called when module is imported using `gimport` command.
+
+### Macro expansion procedure
+All macros have 2 types: built-in and user-defined. Built-in macros expanded at moment 
+when corresponding parse tree node is created. User-defined macros are expanded in **macro_expand** function.
+
+#### Built-in macros
+There are following built-in macros for basic support of macro extension system
+1. `defmacro`, `syntax` described in [new syntax definition section](###new-syntax-definition)
+2. Quasiquotes. Quasiquote syntax is following:
+   ```python
+   `<quoted expr>`
+   <nt_name>`<quoted nonterminal nt>`
+   ```
+   where 
+   - *quoted expr* can be parsed as expression. It allows f string-like braced expressions and
+     in addition it allows inserting parse subtrees using `${<expr>}` where expr evaluates to ParseNode object. 
+   - *nt_name* is nonterminal name (identifier)
+   - *quoted nt* can be parsed as nonterminal **nt** after substitution of all subtrees marked as `${<expr>}`.
+3. gimport macro. It allows to use syntax similar to `import` statement but import module together with grammar
+   defined in that module.
+   It allows 2 forms:
+   ```python
+   gimport <module name>
+   gimport <module name> as <name> 
+   ```
+
+#### User-defined macros
+Each macro is assotiated with some syntax rule. Function **expand_macro** search in parse tree nodes with rules 
+assotiated with user-defined macros. Search order is depth-first, starting from root. 
+If in some node macro rule is detected, then it is expanded using function from macro definition. 
 
 ## More examples
 
