@@ -119,7 +119,7 @@ def exec_expand_macros(text, vars, by_stmt=False):
     При этом возвращает текст с раскрытыми макросами
     """
     vars.update(module_vars)
-    res = [] if by_stmt else ''
+    res = []
     with ParseContext(vars) as px:
         for stmt_ast in parse_gen(px, text):
             if _dbg_statements:

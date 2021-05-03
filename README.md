@@ -118,7 +118,7 @@ Create file `guard.pyg`:
 ```python
 # define guard macro
 defmacro guard(stmt, 'guard', cond: test, EOL):
-    return stmt`if not (${test}): return False\n`
+    return stmt`if not (${cond}): return False\n`
 ```
 Now instead of writing `if not <expr>: return False` we can simply write `guard <expr>`.
 This allow write some functions in more declarative style. For example, we write solver for solve some task and 
@@ -199,6 +199,21 @@ Macro parameter description:
   After macro expansion function definition becomes `def f(x,y): func`.
 - **func_name** -- name of function assigned with new operator.
 
+#### Example:
+```python
+infixl(0) '/@' (f, data):
+    return [f(x) for x in data]
+```
+Here defined left-assotiative operator `/@` with priority 0, i.e. the lowest possible priority.
+This is equivalent to following definition:
+```python
+def list_map(f, data):
+    return [f(x) for x in data]
+infixl(0) '/@' (f, data) = list_map
+```
+In this case we first define function, then operator. It is useful if function is recursive because
+new operator cannot be used inside its own definition.
+
 #### Built-in operation priorities
 Following table contains priorities of built-in operators.
 
@@ -213,8 +228,8 @@ Following table contains priorities of built-in operators.
 | `^`        | 20       |  left         |
 | `\|`       | 10       |  left         |
 
-Note that in current grammar definition comparison and logical operators don't have priorities 
-and defined via another nonterminals. They all have priority lower that those that can be defined using this macro. 
+Note that in current grammar definition comparison and logical operators are defined via another nonterminals (not expr). 
+So, they all have priority lower that those that can be defined using this `infix` macros. 
 
 ### New syntax definition
 Usually to define a complex macro it is needed to have a lot of additional rules 
@@ -248,6 +263,31 @@ where
 - **rule** is grammar rule in format described above,
 - **definition** describes transformation of parse tree into another parse tree. Important that **definition** 
   must return **ParseNode** object. 
+
+### Quasiquotes
+To define a macro it is necessary to build new parse trees. The only correct way to do this is to use quasiquotes.
+Quasiquote allow correctly constructing new syntax tree with given subtrees. Quasiquote syntax is the following:
+1. `<quoted expr>` -- quasiquote for expr
+2. ``<nt_name>`<quoted nonterminal nt>` `` -- quasiquote for nonterminal with name **nt_name**.
+
+where
+- *quoted expr* can be parsed as expression. It allows f string-like braced expressions and
+  in addition it allows inserting parse subtrees using `${<expr>}` where expr evaluates to ParseNode object.
+- *nt_name* is nonterminal name (identifier)
+- *quoted nt* can be parsed as nonterminal **nt** after substitution of all subtrees marked as `${<expr>}`.
+
+#### Example
+Guard macro from [simple examples](#simple-examples) uses this syntax:
+```python
+defmacro guard(stmt, 'guard', cond: test, EOL):
+    return stmt`if not (${cond}): return False\n`
+```
+Here we defined macro assotiated with new grammar rule `stmt -> 'guard' test EOL` where
+   - **test** -- nonterminal for logic expressions
+   - **EOL** -- end of line token
+
+Macro expansion here is single command that builds new statement `if not (cond): return False`. 
+`\n` is needed because statement must end by EOL token. 
 
 ### New token definition 
 Lexer in pylext is based on packrat parser for PEG. 
@@ -297,6 +337,22 @@ Parsing expression syntax is following:
 
 NOTE: direct or indirect left recursion in PEG rules currently not supported
 
+### Importing macros from other modules
+
+To import macros from another modules use `gimport` command.
+Its syntax is similar to `import` statement, but it imports module together with grammar
+defined in that module.
+It is available in 2 forms:
+```python
+gimport <module name>
+gimport <module name> as <name> 
+```
+#### Example
+Importing macros `infixl`, `infixr` and `infix` for defining new operators:
+```python
+gimport pylext.macros.operator
+```
+
 ## How does it work
 
 PyLExt extension adds new importer for .pyg files. PyLExt uses parser independent of python's parser,
@@ -333,30 +389,181 @@ when corresponding parse tree node is created. User-defined macros are expanded 
 
 #### Built-in macros
 There are following built-in macros for basic support of macro extension system
-1. `defmacro`, `syntax` described in [new syntax definition section](###new-syntax-definition)
-2. Quasiquotes. Quasiquote syntax is following:
+1. `defmacro`, `syntax` described in [new syntax definition section](#new-syntax-definition)
+   This macro adds new syntax rule into grammar at the moment when ':' is read, 
+   even before macro definition is parsed. 
+   
+   This macro converts code
    ```python
-   `<quoted expr>`
-   <nt_name>`<quoted nonterminal nt>`
+   defmacro name(lhs, <rhs args>): 
+      definition
+   ```
+   into
+   ```python
+   @syntax_rule(lhs, rhs_names)
+   def macro_name_<unique id>(<rhs_vars>):
+      <syn_expand definitions>
+      definition
    ```
    where 
-   - *quoted expr* can be parsed as expression. It allows f string-like braced expressions and
-     in addition it allows inserting parse subtrees using `${<expr>}` where expr evaluates to ParseNode object. 
-   - *nt_name* is nonterminal name (identifier)
-   - *quoted nt* can be parsed as nonterminal **nt** after substitution of all subtrees marked as `${<expr>}`.
-3. gimport macro. It allows to use syntax similar to `import` statement but import module together with grammar
-   defined in that module.
-   It allows 2 forms:
-   ```python
-   gimport <module name>
-   gimport <module name> as <name> 
+   - **rhs args** -- list of defmacro arguments containing variables and its types (terminal and nonterminal names)
+   - **rhs_names** is list of terminal and nonterminal names from rhs args
+   - **rhs_vars** -- list of vars in **rhs args**
+   - **unique id** -- unique number to make sure that expansion functions for diffenernt macros
+     have different names
+   - **syn_expand definitions** -- sequence of commands `x = syn_expand(x)`
+     for all vars **x** occured in **rhs args** in the form `x: *y` 
+2. Quasiquotes. 
+   Quasiquote `` `<quoted expr>` `` processed in the same way as `` expr`<quoted expr>` ``.
+   In general quasiquote is 
+   ``` 
+   <nonterminal>` <some code with insertions of {<expr>[format]} and ${<expr>}> ` 
    ```
+   Fragments `{...}` expanded in the same way as in f string. 
+   For fragments `${expr}` it is assumed that, result of expr is parse tree, i.e. **ParseNode** object.
+   This type of insertion after parsing become a leaf in parse tree, and then it is replaced by subtree
+   which is result of expression **expr**.
+
+   Techically expansion algorithm of quasiqoute ``[type]`s0 ${expr1} s1 ${expr2} s_2 ... ${exprN} s_N ` `` is following:
+   1. First quasiquote is translated into function call `quasiquote(type, [f"""s0""", f"""s1""",..., f"""sN"""], [expr1, ..., exprN])`.
+      Fragments `s0, s1, ..., sN` become f strings and automatically when it will be executed, all `{...}` fragments 
+      will be expanded.
+   2. When resulting code is executed, all fragments `{...}` in `f"""si"""` automatically substituted 
+      by python interpretter as in formatted string.
+   3. Function quasiquote(type, frags, subtrees) works as follows: 
+      - For each subtree `s[i]` in **subtrees** get root nonterminal type `nt[i]`.
+      - Form string concatenation `code = f" {frags[0]} ${nt[0]} {frags[1]} ... ${nt[N-1]} {frags[N]}"`.
+      - Parse string `code` into parse tree `tree`. For each nonterminal **nt** in grammar there is rule `nt -> '$nt'`
+      - Traverse `tree` and replace node with i-th occurence of rule `nt -> '$nt'` by `subtrees[i]`
+      - Return resulting parse tree.
+3. Importing grammar macro, command `gimport`. It allows to use syntax similar to `import` statement but import module together with grammar
+   defined in that module. 
+   1. `gimport M` is converted to function call `_gimport___('M', None, globals())`
+   2. `gimport M as N` is converted to function call `_gimport___('M', 'N', globals())`
+   Function `_gimport___` do following:
+      - imports module M using standard *import*/*import as* command
+      - registers imported module in variable `_imported_syntax_modules`
+      - executes `_import_grammar` function of module M (if exists). Thus, all macro definitions from M and from all 
+        modules imported from M added to current parse context.
 
 #### User-defined macros
 Each macro is assotiated with some syntax rule. Function **expand_macro** search in parse tree nodes with rules 
 assotiated with user-defined macros. Search order is depth-first, starting from root. 
-If in some node macro rule is detected, then it is expanded using function from macro definition. 
+If in some node macro rule is detected, then it is expanded using function from macro definition:
+1. While current node `curr` assotiated with macro
+   - `f <- macro expansion function`
+   - `curr <- f(*curr.children)`
+2. For all children run **macro_expand**
+### Examples
+#### Expansion of guard macro definition
+```python
+defmacro guard(stmt, 'guard', cond: test, EOL):
+    return stmt`if not (${cond}): return False\n`
+```
+Expansion of this definition consists of following steps:
+- Add grammar rule `stmt -> 'guard' test EOL`
+- Convert syntax tree of initial macro definition to python syntax.
 
+  Here right-hand part of rule contains 3 elements but only one is nonconstant, so
+  macro expansion function variavle `macro_guard_0` has one argument.
+  
+  Quasiquote `` stmt`if not (${test}): return False\n` `` doesn't contain `{...}` fragments, 
+  only one `${...}` fragment. Hence, quasiquote content is split into parts `s0 = """if not ("""` and 
+  `s1 = """): return False\n"""` which are simple strings, not f strings. The expansion result is:
+  ```python
+  quasiquote("stmt", [s0, s1], [cond])
+  ```
+  The whole statement is expanded to following:
+   ```python
+   @ macro_rule ( "stmt" , [ "'guard'" , "test" , "EOL" ] )
+   def macro_guard_0 ( cond ) :
+      return quasiquote ( "stmt" , [ """if not (""" , """): return False\n""" ] , [ cond ] )
+   ```  
+
+#### Expansion of lambda literals
+Here is simplified version of lambda literal macro. Consider file op_lambda.pyg containing following code:
+```python
+new_token('op_lambda', '[(][<=>+\\-*/%~?@|!&\\^.:;]+[)]')
+
+defmacro op_lambda(expr, op:*op_lambda):
+    op = op[1:-1]  # remove parentheses
+    return `(lambda x, y: x {op} y)`
+ 
+print(reduce((^), range(100)))
+```
+1. First statement doesn't contain macros, preprocessing doesn't change it, when it executed,
+new token **op_lambda** is added to grammar.
+
+2. Second statement introduces new macro corresponding to grammar rule `expr -> op_lambda`.
+   This rule is added into grammar and then **defmacro** is expanded.
+   Key points in this macro definition is:
+   - Right-hand side consists of one terminal `op_lambda`, so expansion function is decorated by 
+      `@macro_rule("expr", ["op_lambda"])`.
+   - Variable *op* was declared as `op: *op_lambda`, anterisk means that **syn_expand** should be applied to op.
+   - Quasiquote `` `(lambda x, y: x {op} y)` `` doesn't have `${...}` fragments, so it is expanded to 
+     `quasiquote("expr", [f"""(lambda x, y: x {op} y)"""], [])`
+
+   As a result we have:
+   ```python
+   @ macro_rule ( "expr" , [ "op_lambda" ] )
+   def macro_op_lambda_0 ( op ) :
+      op = syn_expand ( op )
+      op = op [ 1 : - 1 ]
+      return quasiquote ( "expr" , [ f"""(lambda x, y: x {op} y)""" ] , [ ] )
+   ```
+   Then this code is executed and function `macro_op_lambda_0` is loaded in interpreter and decorator 
+   `@macro_rule` associates it with new syntax rule `expr -> op_lambda`.
+3. Last statement uses new macro. When macro_expand applied to node corresponding to token `(^)`, then 
+   - it finds that rule `expr -> op_lambda` is macro with expansion function macro_op_lambda_0.
+   - calls `macro_op_lambda_0('(^)')` which returns parse tree **T** for expression `( lambda x , y : x ^ y )`
+   - replaces node `(^)` by tree **T**
+   
+   After macro_expand is finished, it parse tree converted back to text:
+   ```python
+   print( reduce ( ( lambda x , y : x ^ y ) , range ( 100 ) ) )
+   ```
+   And then executed by interpreter
+4. When file op_lambda.pyg is parsed, then `_import_grammar` function is generated. In this module 2 things were introduced:
+   1. New token **op_lambda**.
+   2. New macro assotiated with grammar rule `expr -> op_lambda`. 
+   `_import_grammar` consists of following steps:
+      - Get current context and check whether this module already was gimported into this context:
+         ```python
+         px = parse_context()
+         if not px.import_new_module(_import_grammar): return
+         ```
+         In parse context there is a set of `_import_grammar` functions from all modules.
+         `px.import_new_module` function adds current `_import_grammar` function to this set 
+         and returns False if it is already in that set (in this case this function 
+         already was executed in current context `px`) 
+      - Recursively importing grammar from imported syntax modules:
+        ```python
+        if '_imported_syntax_modules' in globals():
+           for sm in _imported_syntax_modules:
+              if hasattr(sm, '_import_grammar'):
+                  sm._import_grammar(px)
+        ```
+      - Import token defined in this module
+        ```python
+        px.add_token('op_lambda', '[(][<=>+\\-*/%~?@|!&\\^.:;]+[)]', apply=None)
+        ```
+      - Import macro defined in this module  
+        ```python
+        px.add_macro_rule('expr', ['op_lambda'], apply=macro_op_lambda_0, lpriority=-1, rpriority=-1)
+        ```
+      Load resulting `_import_grammar` definition into interpreter:  
+      ```python
+      def _import_grammar(module_name=None):
+         px = parse_context()
+         if not px.import_new_module(_import_grammar): return
+         if '_imported_syntax_modules' in globals():
+            for sm in _imported_syntax_modules:
+               if hasattr(sm, '_import_grammar'):
+                   sm._import_grammar(px)
+         
+         px.add_token('op_lambda', '[(][<=>+\\-*/%~?@|!&\\^.:;]+[)]', apply=None)
+         px.add_macro_rule('expr', ['op_lambda'], apply=macro_op_lambda_0, lpriority=-1, rpriority=-1)
+      ```
 ## More examples
 
 ### Simple match operator
