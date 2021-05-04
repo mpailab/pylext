@@ -70,7 +70,7 @@ Sometimes we need to use binary operator as a function object, for example if we
 to reduce array using some binary operation. 
 ```python
 # define new literal
-new_token('op_lambda', '[(][<=>+\\-*/%~?@|!&\\^.:;]+[)]')
+new_token('op_lambda', '"(" [<=>+\\-*/%~?@|!&\\^.:;]+ ")"')
 
 defmacro op_lambda(expr, op:*op_lambda):
     op = op[1:-1]  # remove parentheses
@@ -318,6 +318,7 @@ Parsing expression syntax is following:
    | `[^<symbols>]`   | any symbol except listed symbols**       |
    | `'seq'`, `"seq"` | sequence of symbols in quotes |
    |  identifier T | token of type T, T is nonterminal of PEG |
+   
    **   There are some special symbols in `<symbols>`: 
    - `x-y` means any symbol from `x` to `y`
    - escape sequences `\n`, `\r`, `\t`, `\\`, `\]`, `\-`
@@ -336,6 +337,14 @@ Parsing expression syntax is following:
    | `e1 / e2`        | ordered choise: e1 or (!e1 e2)      |
 
 NOTE: direct or indirect left recursion in PEG rules currently not supported
+
+#### Example
+New token was defined in lambda literal example:
+```python
+new_token('op_lambda', '"(" [<=>+\\-*/%~?@|!&\\^.:;]+ ")"')
+```
+In this definition constant string "(", then one or more symbols from set `<=>+-*/%~?@|!&^.:;`, then constant string ")".
+Symbols `-` and `^` are special inside `[ ]`, so they should be escaped.
 
 ### Importing macros from other modules
 
@@ -483,7 +492,7 @@ Expansion of this definition consists of following steps:
 #### Expansion of lambda literals
 Here is simplified version of lambda literal macro. Consider file op_lambda.pyg containing following code:
 ```python
-new_token('op_lambda', '[(][<=>+\\-*/%~?@|!&\\^.:;]+[)]')
+new_token('op_lambda', '"(" [<=>+\\-*/%~?@|!&\\^.:;]+ ")"')
 
 defmacro op_lambda(expr, op:*op_lambda):
     op = op[1:-1]  # remove parentheses

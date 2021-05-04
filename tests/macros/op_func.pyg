@@ -1,6 +1,6 @@
 # This file defines function literals (+), (-), ...
 
-new_token('op_lambda', '[(][<=>+\\-*/%~?@|!&\\^.:;]+[)]')
+new_token('op_lambda', '"(" [<=>+\\-*/%~?@|!&\\^.:;]+ ")"')
 
 defmacro op_lambda(expr, op:*op_lambda):
     op = op[1:-1]  # remove parentheses
