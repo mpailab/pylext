@@ -348,16 +348,6 @@ void init_python_grammar_cached(PythonParseContext* px, bool read_by_stmt, const
     *px = *c;
 }
 
-bool equal_subtrees(ParseNode* x, ParseNode* y) {
-    if(x->isTerminal())
-        return y->isTerminal() && x->term==y->term;
-    if(x->ch.size()!=y->ch.size())return false;
-    for(int i=0; i<len(x->ch); i++)
-        if(!equal_subtrees(x->ch[i], y->ch[i]))
-            return false;
-    return true;
-}
-
 int add_lexer_rule(PythonParseContext *px, const string&nm, const string&rhs)
 {
     if (px->grammar().ts.has(nm))

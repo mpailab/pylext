@@ -55,7 +55,7 @@ def make_op_expand(f):
 def decl_infix_operator(op, lpr, rpr):
     def set_func(f):
         parse_context().add_macro_rule('expr', ['expr', f"'{op}'", 'expr'], make_op_expand(f), for_export=True, lpriority=lpr, rpriority=rpr)
-        parse_context().export_function(f)
+        parse_context().add_export_func(f)
         return f
     return set_func
 

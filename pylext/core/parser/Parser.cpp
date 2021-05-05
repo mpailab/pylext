@@ -984,3 +984,16 @@ ParseNode* ParseContext::quasiquote(const string& nt, const string& q, const std
         throw std::move(e);
     }
 }
+
+/**
+ * Проверка равенства поддеревьев разбора, заданных своими вершинами
+ */
+bool equal_subtrees(const ParseNode* x, const ParseNode* y) {
+    if(x->isTerminal())
+        return y->isTerminal() && x->term==y->term;
+    if(x->ch.size()!=y->ch.size())return false;
+    for(int i=0; i<len(x->ch); i++)
+        if(!equal_subtrees(x->ch[i], y->ch[i]))
+            return false;
+    return true;
+}

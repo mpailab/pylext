@@ -2,9 +2,8 @@
 import sys
 
 # Internal imports
-from .importer import PygImporter, exec_macros, exec_expand_macros
+from .base import exec_macros
+from .importer import PygImporter as _PygImporter
 
 # Add the PYG importer at the begin of the list of finders
-sys.meta_path.insert(0, PygImporter)
-
-print('pylext activated')
+sys.meta_path.insert(0, _PygImporter)

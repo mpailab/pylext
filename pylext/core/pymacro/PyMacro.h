@@ -57,7 +57,6 @@ void del_python_context(PythonParseContext*);
 PythonParseContext* create_python_context(bool read_by_stmt, const string & syntax_def);
 
 std::string ast_to_text(ParseContext* pcontext, ParseNode *pn);
-bool equal_subtrees(ParseNode* x, ParseNode* y);
 
 int add_lexer_rule(PythonParseContext *px, const string&nm, const string&rhs);
 int add_token(PythonParseContext *px, const string& nm, const string& tokdef);

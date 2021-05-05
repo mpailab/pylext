@@ -28,14 +28,14 @@ if(BUILD_PYLEXT)
 
     include_directories(.)
 
-    add_cython_target(wrap.pyx CXX)
+    add_cython_target(parse.pyx CXX)
 
-    add_library(wrap MODULE ${wrap})
-    target_link_libraries(wrap parser format pymacro)
+    add_library(parse MODULE ${parse})
+    target_link_libraries(parse parser format pymacro)
 
-    python_extension_module(wrap)
-
-    install(TARGETS wrap LIBRARY DESTINATION pylext/core)
+    python_extension_module(parse)
+    
+    install(TARGETS parse LIBRARY DESTINATION pylext/core)
 
 else()
 
