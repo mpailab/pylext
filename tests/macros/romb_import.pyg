@@ -21,7 +21,9 @@ def test_from_match():
 	# Печатаем результат
 	print(f'result  = {res}')
 	print(f'correct = {m.validation}')
-	print("Test from match_macro.pyg: "+("ok" if res == m.validation else "failed"))
+	print("Test from match.pyg: "+("ok" if res == m.validation else "failed"))
+
+	assert res == m.validation
 
 # Импортируем оператор /@
 gimport macros.simplefunc
@@ -34,6 +36,8 @@ def test_romb_1():
 	print(f'result  = {res}')
 	print(f'correct = {m.validation}')
 	print("Test romb 1: "+("ok" if res == m.validation else "failed"))
+
+	assert res == m.validation
 
 
 # Циклический сдвиг массива/кортежа вправо. Приоритет операции такой же, как у обычных сдвигов >> и <<
@@ -56,6 +60,8 @@ def test_romb_2():
 	print(f'result  = {res}')
 	print(f'correct = {vld}')
 	print("Test romb 2: "+("ok" if res == vld else "failed"))
+
+	assert res == vld
 
 
 # Ещё раз импортируем модуль operator.pyg, на этот раз напрямую
@@ -80,3 +86,5 @@ def test_romb_3():
 	print(f'result  = {res}')
 	print(f'correct = {vld}')
 	print("Test romb 3: "+("ok" if res == vld else "failed"))
+
+	assert res == vld

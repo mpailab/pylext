@@ -31,6 +31,9 @@
 *.out
 *.app
 
+# Python cached files
+**/__pycache__
+
 # visual studio code files
 .vscode/
 
