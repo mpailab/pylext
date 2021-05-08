@@ -10,6 +10,7 @@ from typing import List
 # Internal imports
 from .base import exec_macros
 
+
 class PygImporter():
     def __init__(self, pyg_path):
         """Store path to PYG file"""

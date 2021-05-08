@@ -10,28 +10,19 @@ from typing import List
 # Internal imports
 from .core.parse import *
 
-def new_token(lhs: str, rhs: str, expand_func=None):
-    ctx = parse_context()
-    if ctx is not None:
-        ctx.add_token_rule(lhs, rhs, expand_func, for_export=True)
 
-
-def new_lexer_rule(lhs: str, rhs: str):
-    ctx = parse_context()
-    if ctx is not None:
-        ctx.add_lexer_rule(lhs, rhs, for_export=True)
-
-
-def new_token_decorator(lhs: str, rhs: str):
+# decorator for token expansion declaration
+def _new_token_decorator(lhs: str, rhs: str):
     def set_func(expand_func):
         new_token(lhs, rhs, expand_func)
         return expand_func
     return set_func
 
 
-def macro_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
+# decorator for macro rule declaration
+def _macro_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     def set_func(expand_func):
-        ctx = parse_context()
+        ctx = parse_context_not_check()
         if ctx is not None:
             ctx.add_macro_rule( lhs, rhs, expand_func, for_export=True,
                                 lpriority=lpriority if lpriority is not None else -1,
@@ -40,9 +31,10 @@ def macro_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     return set_func
 
 
-def syntax_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
+# decorator for syntax rule declaration
+def _syntax_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     def set_func(expand_func):
-        ctx = parse_context()
+        ctx = parse_context_not_check()
         if ctx is not None:
             ctx.add_syntax_rule(lhs, rhs, expand_func, for_export=True,
                                 lpriority=lpriority if lpriority is not None else -1,
@@ -51,16 +43,90 @@ def syntax_rule(lhs: str, rhs: list, lpriority=None, rpriority=None):
     return set_func
 
 
-def add_pyexpand_rule(lhs: str, rhs: list):
+# decorator for expansion function for built-in grammar rule
+def _add_pyexpand_rule(lhs: str, rhs: list):
     def set_func(expand_func):
-        ctx = parse_context()
+        ctx = parse_context_not_check()
         if ctx is not None:
             ctx.add_pyexpand_rule(lhs, rhs, expand_func, for_export=True)
         return expand_func
     return set_func
 
 
+def new_token(lhs: str, rhs: str, expand_func=None):
+    """
+    Add new token into grammar.
+    This adds new nonterminal with rule in lexer's parsing expression grammar
+
+    Parameters
+    ----------
+    lhs: str
+        Name of new token (PEG nonterminal).
+    rhs: str
+        Parsing expression describing new token.
+    expand_func: callable, optional
+        Function called when expansion of token is requested.
+
+    Raises
+    ------
+    InvalidParseContext
+        If function called not during pyg module import
+    ValueError
+        If token with this name already exist
+        If error in parsing expression
+    """
+    ctx = parse_context_not_check()
+    if ctx is not None:
+        ctx.add_token_rule(lhs, rhs, expand_func, for_export=True)
+
+
+def new_lexer_rule(lhs: str, rhs: str):
+    """
+    Add rule to lexer's parsing expression grammar
+
+    Parameters
+    ----------
+    lhs: str
+        Name of PEG nonterminal.
+    rhs: str
+        Parsing expression for new PEG nonterminal.
+
+    Raises
+    ------
+    InvalidParseContext
+        If function called not during pyg module import
+    ValueError
+        If token with this name already exist
+        If error in parsing expression
+    """
+    ctx = parse_context_not_check()
+    if ctx is not None:
+        ctx.add_lexer_rule(lhs, rhs, for_export=True)
+
+
 def get_rule_id(lhs, rhs):
+    """
+    Finds rule in current parse context and returns its id
+
+    Parameters
+    ----------
+    lhs: str
+        Rule left-hand side, nonterminal name
+    rhs: list of str
+        Rule right-hand side, list of terminal names and nonterminal names
+
+    Returns
+    -------
+    int
+        Identifier of rule lhs -> rhs in current parse context
+
+    Raises
+    ------
+    ValueError
+        If such rule lrs -> rhs doesn't exist in current context
+    InvalidParseContext
+        If function called not during pyg module import
+    """
     if type(rhs) is str:
         rhs = rhs.split()
     return parse_context().rule_id(lhs, rhs)
@@ -68,20 +134,23 @@ def get_rule_id(lhs, rhs):
 
 def gexport(f):
     """
-    Декоратор для функций, которые при выполнении команды gimport
-    импортируются под тем же именем, под которым объявлены.
-    Необходим для функций, используемых внутри квазицитат при раскрытии макросов.
+    Decorator for functions that need to be imported
+    under same name as they declared without prefix
+    when import is done by gimport command.
+
+    This is necessary for functions used inside quasiquotes in macro definitions.
+
+    Raises
+    ------
+    InvalidParseContext
+        If function called not during pyg module import
     """
     parse_context().add_export_func(f)
     return f
 
 
-class GImportError(Exception):
-    pass
-
-
 def _gimport___(module, as_name, global_vars: dict):
-    """ Функция, реализующая команду gimport """
+    """ Function implements gimport command """
     mname = as_name if as_name else module
     if as_name:
         exec(f'import {module} as {as_name}', global_vars)
@@ -95,31 +164,74 @@ def _gimport___(module, as_name, global_vars: dict):
         loc['m']._import_grammar(mname)
 
 
-module_vars = {
+_module_vars = {
+    # internal built-in functions:
+    '_syntax_rule' : _syntax_rule,
+    '_macro_rule'  : _macro_rule,
+    '_new_token_decorator': _new_token_decorator,
+    '_gimport___'  : _gimport___,
+    '_add_pyexpand_rule': _add_pyexpand_rule,
+
+    # built-in functions that can be called by user:
+    'syn_expand'   : syn_expand,
     'parse_context': parse_context,
-    'syntax_rule' : syntax_rule,
-    'macro_rule'  : macro_rule,
-    'syn_expand' : syn_expand,
-    'quasiquote'  : quasiquote,
-    'new_token'   : new_token,
+    'quasiquote'   : quasiquote,
+    'new_token'    : new_token,
     'new_lexer_rule': new_lexer_rule,
-    'new_token_decorator': new_token_decorator,
     'eval_in_context': eval_in_context,
-    '_gimport___' : _gimport___,
     'get_rule_id' : get_rule_id,
     'gexport'     : gexport
 }
 
+
+def insert_pyg_builtins(vars: dict):
+    """
+    Inserts pyg built-in functions into vars dictionary
+
+    Parameters
+    ----------
+    vars : dict
+        Dictionary of imported module global variables
+    """
+    vars.update(_module_vars)
+
+
+def pyg_builtins():
+    """
+    Creates dictionary with pyg built-in functions
+
+    Returns
+    ----------
+    dict
+        Copy of dictionary of pyg built-in functions
+    """
+    return {**_module_vars}
+
+
 _dbg_statements = False
+
 
 def exec_macros(text, vars, filename=None, by_stmt=False):
     """
-    Загружает текст в интерпретатор, предварительно раскрывая в нём макросы.
-    В конце добавляет функцию _import_grammar() для импорта из
-    других модулей грамматики, объявленной в этом тексте.
-    При этом возвращает текст с раскрытыми макросами
+    Parses text statement by statement and expand macros,
+    then loads it into interpreter. In the end of text adds function
+    _import_grammar() that will be executed if this module will be imported
+    by gimport command.
+
+    Parameters
+    ----------
+    text: str
+        Text to be parsed
+    vars: dict
+        Global variables to pass in exec()
+
+    Returns
+    -------
+    str or list of str
+        Text with expanded macros if by_stmt = False
+        or list of statements with expanded macros if by_stmt = True
     """
-    vars.update(module_vars)
+    insert_pyg_builtins(vars)
     res = []
     with ParseContext(vars) as px:
         for stmt_ast in parse(text, px):
@@ -138,3 +250,7 @@ def exec_macros(text, vars, filename=None, by_stmt=False):
         exec(stmt, vars)
 
     return res if by_stmt else ''.join(res)
+
+
+# functions imported by command `from pylext.base import *`
+__all__ = ['exec_macros', 'pyg_builtins', 'insert_pyg_builtins']

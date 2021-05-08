@@ -134,7 +134,7 @@ class Eqn:
       self.roots = None
    @property
    def degree(self):
-       return len(self.coeffs)
+       return len(self.coeffs) - 1
 
 def no_solution(eqn: Eqn):
    guard eqn.degree == 0
@@ -142,7 +142,7 @@ def no_solution(eqn: Eqn):
 
 def solve_linear(eqn: Eqn):
    guard eqn.degree == 1
-   eqn.roots = [eqn.coeffs[0]/eqn.coeffs[1]]
+   eqn.roots = [-eqn.coeffs[0]/eqn.coeffs[1]]
     
 def solve_quadratic(eqn: Eqn):
    guard eqn.degree == 2

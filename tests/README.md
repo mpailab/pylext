@@ -1,6 +1,6 @@
 # Pylext testing
 
-Use [test](https://docs.pytest.org/en/6.2.x/contents.html) framework to write tests for pylext.
+Use [pytest](https://docs.pytest.org/en/6.2.x/contents.html) framework to write tests for pylext.
 
 ## Requirements
 
@@ -20,6 +20,16 @@ If we need more details, run
 ```shell
 $ pytest -v
 ```
+### Speed test
+
+For speed test of macro extension system, run
+```shell
+$ python test_speed.py 
+```
+It contain three tests:
+1. Time for parse context creation
+2. Time of parsing 1MB file with macro extensions
+3. Time of parsing many short files
 
 ## Write tests
 

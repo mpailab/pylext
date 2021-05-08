@@ -269,21 +269,21 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt, const string
         auto &px = static_cast<PythonParseContext&>(pt);
         flatten(pt, n);
         string fnm = px.pymodule.uniq_name("syntax_" + n[0].term);
-        int id = conv_macro(px, n, 0, fnm, "syntax_rule");
+        int id = conv_macro(px, n, 0, fnm, "_syntax_rule");
         px.pymodule.syntax[id] = PySyntax{fnm, id};
     });
     addRule(*pg, "root_stmt -> 'syntax_expand' syntax_rule ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
         auto &px = static_cast<PythonParseContext&>(pt);
         flatten(pt, n);
         string fnm = px.pymodule.uniq_name("syntax_" + n[0].term);
-        int id = conv_macro(px, n, 0, fnm, "set_rule_expansion");
+        int id = conv_macro(px, n, 0, fnm, "_add_pyexpand_rule");
         px.pymodule.syntax[id] = PySyntax{fnm, id};
     });
     addRule(*pg, "root_stmt -> 'defmacro' ident syntax_rule ':' suite", [](ParseContext& pt, ParseNodePtr& n) {
         auto &px = static_cast<PythonParseContext&>(pt);
         flatten_p(pt, n, 1);
         string fnm = px.pymodule.uniq_name("macro_" + n[0].term);
-        int id = conv_macro(px, n, 1, fnm, "macro_rule");
+        int id = conv_macro(px, n, 1, fnm, "_macro_rule");
         px.pymodule.macros[id] = PyMacro{ fnm, id };
     });
 

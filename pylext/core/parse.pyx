@@ -12,6 +12,12 @@ from libcpp.vector cimport vector
 from .parse cimport *
 from .grammar.python_3_8 import python_grammar_str
 
+
+class InvalidParseContext(Exception):
+    def __init__(self):
+        super().__init__("Request parse context after gimport finished")
+
+
 cdef class ParseNode:
     """
     A wrapper class for C++ class ParseNode that represents node of parse tree.
@@ -29,9 +35,16 @@ cdef class ParseNode:
         self._ptr = NULL
 
     def __del__(self):
-        """Class destructor"""
+        """Python class destructor"""
         if self._ptr:
             self._ptr.refs -= 1
+            self._ptr = NULL
+
+    def __dealloc__(self):
+        """C++ class destructor"""
+        if self._ptr:
+            self._ptr.refs -= 1
+            self._ptr = NULL
 
     @staticmethod
     cdef ParseNode from_ptr(CParseNode *_ptr):
@@ -245,7 +258,10 @@ cdef class ParseNode:
         """Official string representation of given node in parse tree"""
         return 'ParseNode:\n' + str(self)
 
+
 __parse_context__ = None
+
+
 def parse_context():
     """
     Get current parse context.
@@ -254,9 +270,37 @@ def parse_context():
     -------
     ParseContext
         Parse context of current module.
+
+    Raises
+    ------
+    InvalidParseContext
+        If function called not during pyg module import
+
+    Note
+    ----
+        Do not store result of this function in class attributes
+        and don't capture it in lambda functions.
+        After module import is finished, this object will be destroyed.
+    """
+    global __parse_context__
+    if __parse_context__ is None:
+        raise InvalidParseContext()
+
+    return __parse_context__
+
+
+def parse_context_not_check():
+    """
+    Get current parse context without check; for internal purposes
+
+    Returns
+    -------
+    ParseContext
+        Parse context of current module.
     """
     global __parse_context__
     return __parse_context__
+
 
 cdef class ParseContext:
     """
@@ -315,9 +359,10 @@ cdef class ParseContext:
 
     def __dealloc__(self):
         """Delete pointer to C++ class PythonParseContext"""
-        del_python_context(self._ptr)
+        if self._ptr != NULL:
+            del_python_context(self._ptr)
 
-    def __init__(self, global_vars = {}):
+    def __init__(self, global_vars=None):
         """
         Class constructor
 
@@ -336,11 +381,14 @@ cdef class ParseContext:
         self.exported_lexer_rules = []
         self.exported_funcs = []
         self.imported_modules = set()
-        self.global_vars = global_vars
+        self.global_vars = global_vars or {}
         self.parent_context = None
 
     def __enter__(self):
         """Implement ParseContext object at the start of with block"""
+        if self._ptr == NULL:
+            raise InvalidParseContext()
+
         global __parse_context__
         if __parse_context__ is not None and self.parent_context is not None:
             raise Exception('Enter parse context when previous context not deleted')
@@ -353,6 +401,8 @@ cdef class ParseContext:
         global __parse_context__
         __parse_context__ = self.parent_context
         self.parent_context = None
+        del_python_context(self._ptr)
+        self._ptr = NULL
 
     cdef PythonParseContext* to_ptr(self):
         """Get PythonParseContext pointer of ParseContext object"""
@@ -457,7 +507,7 @@ cdef class ParseContext:
         return False
 
     cpdef add_token_rule(
-        self, string name, string rhs, object apply=None, bool for_export=False
+        self, string name, string rhs, apply=None, bool for_export=False
     ):
         """
         Add token rule to current context.
@@ -475,6 +525,8 @@ cdef class ParseContext:
             If true, add token rule to list of ones exported by gimport 
             from current module.
         """
+        if self._ptr == NULL:
+            raise InvalidParseContext()
         cdef int rule_id = add_token(self._ptr, name, rhs)
         self.token_rules[rule_id] = apply
         if for_export:
@@ -493,10 +545,25 @@ cdef class ParseContext:
         for_export : bool
             If true, add lexer rule to list of ones exported by gimport 
             from current module.
+            
+        Raises    
+        ------
+        InvalidParseContext
+            If function called not during pyg module import
+        ValueError
+            If token with this name already exist
+            If error in parsing expression             
         """
-        cdef int rule_id = add_lexer_rule(self._ptr, lhs, rhs)
-        if for_export:
-            self.exported_lexer_rules.append((lhs, rhs))
+        cdef int rule_id
+        if self._ptr == NULL:
+            raise InvalidParseContext()
+        try:
+            rule_id = add_lexer_rule(self._ptr, lhs, rhs)
+            if for_export:
+                self.exported_lexer_rules.append((lhs, rhs))
+        except RuntimeError as e:  # Exception thrown if token already exists of invalid PEG rule
+            msg = e.args[0]
+        raise ValueError(msg)
 
     def add_export_func(self, func):
         """
@@ -507,6 +574,8 @@ cdef class ParseContext:
         func : object or str
             Python callable object or string represented name of python function.
         """
+        if self._ptr == NULL:
+            raise InvalidParseContext()
         self.exported_funcs.append(func.__name__ if callable(func) else func)
 
     def add_macro_rule(
@@ -533,6 +602,8 @@ cdef class ParseContext:
         rpriority : bool
             Right priority of binary operation or -1
         """
+        if self._ptr == NULL:
+            raise InvalidParseContext()
         cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
 
         if rule_id in self.macro_rules or rule_id in self.syntax_rules:
@@ -558,9 +629,11 @@ cdef class ParseContext:
         int
             Nonnegative integer represented the ID of given rule.
         """
+        if self._ptr == NULL:
+            raise InvalidParseContext()
         cdef int id = self._ptr.grammar().ruleId(lhs, rhs)
         if id < 0:
-            raise Exception(f'No rule: {lhs} -> {" ".join(rhs)}')
+            raise ValueError(f'No rule: {lhs} -> {" ".join(rhs)}')
         return id
 
     def add_pyexpand_rule(self, lhs: str, rhs: list, apply, for_export=False):
@@ -583,6 +656,8 @@ cdef class ParseContext:
         rpriority : bool
             Right priority of binary operation or -1
         """
+        if self._ptr == NULL:
+            raise InvalidParseContext()
         cdef int rule_id = self.rule_id(lhs, rhs)
 
         if rule_id in self.macro_rules or rule_id in self.syntax_rules:
@@ -615,6 +690,8 @@ cdef class ParseContext:
         rpriority : bool
             Right priority of binary operation or -1
         """
+        if self._ptr == NULL:
+            raise InvalidParseContext()
         cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
 
         if rule_id in self.macro_rules or rule_id in self.syntax_rules:
@@ -693,6 +770,9 @@ def _import_grammar(module_name=None):
         string
             String representation of parse node.
         """
+        if self._ptr == NULL:
+            raise InvalidParseContext()
+
         return c_ast_to_text(self._ptr, node.to_ptr())
 
     cdef int _add_rule(self, string lhs, vector[string] rhs, int lpr, int rpr):
@@ -753,10 +833,15 @@ cdef class ParseIterator:
 
     def __next__(self):
         """Next item from the iterator container"""
-        cdef CParseNode* root = self.state.parse_next().root.get()
-        if not root:
-            raise StopIteration
-        return ParseNode.from_ptr(root)
+        cdef CParseNode * root
+        try:
+            root = self.state.parse_next().root.get()
+            if not root:
+                raise StopIteration
+            return ParseNode.from_ptr(root)
+        except RuntimeError as e:
+            msg = e.args[0]
+        raise SyntaxError(msg)
 
 
 def parse(text : str, ctx : ParseContext):
@@ -777,6 +862,7 @@ def parse(text : str, ctx : ParseContext):
     """
     for node in ParseIterator(text, ctx):
         yield node
+
 
 cpdef macro_expand(ParseContext ctx, ParseNode node):
     """
@@ -809,6 +895,7 @@ cpdef macro_expand(ParseContext ctx, ParseNode node):
 
     return node
 
+
 cpdef syn_expand(node: ParseNode):
     """
     Expand syntax extentions for given parse node in default context.
@@ -835,6 +922,7 @@ cpdef syn_expand(node: ParseNode):
             "for rule {node.rule()}')
 
     return f(*node.children())
+
 
 cpdef quasiquote(string name, vector[string] frags, tree_list):
     """
@@ -866,6 +954,7 @@ cpdef quasiquote(string name, vector[string] frags, tree_list):
     cdef CParseNode* nn = c_quasiquote(ctx.to_ptr(), name, frags, subtrees)
     return ParseNode.from_ptr(nn)
 
+
 cdef string ast_to_text(ParseNode node):
     """
     Get string representation of parse node in default context.
@@ -882,6 +971,7 @@ cdef string ast_to_text(ParseNode node):
     """
     return __parse_context__.ast_to_text(node)
 
+
 def eval_in_context(expr):
     """
     Evaluate expression in default context.
@@ -896,7 +986,8 @@ def eval_in_context(expr):
     int
         Result evaluated from the expression.
     """
-    return __parse_context__.eval(expr)
+    return parse_context().eval(expr)
+
 
 class CppDbgFlags:
     """Parser debug flags"""
@@ -908,6 +999,7 @@ class CppDbgFlags:
     RULES = 0x20
     QQ = 0x40
     ALL = 0xFFFFFFF
+
 
 def set_debug(flag : int):
     """

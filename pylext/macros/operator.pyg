@@ -126,7 +126,7 @@ def infix_macro(lpriority, rpriority, op, x, y, definition, leftassoc):
         raise GrammarError(f'operator name {op_name} conflicts with built-in operator')
 
     fnm = 'infix_'+'_'.join(sym_names[c] for c in op_name) # Каким-то способом генерируется уникальное имя
-    return stmt`@macro_rule('expr', ['expr', "'{op_name}'", 'expr'], {lpr}, {rpr})\ndef {fnm}({x}, {y}): $definition`
+    return stmt`@_macro_rule('expr', ['expr', "'{op_name}'", 'expr'], {lpr}, {rpr})\ndef {fnm}({x}, {y}): $definition`
 
 
 defmacro infixl_macro(root_stmt, 'infixl_macro', '(', priority: expr, ')', op: *stringliteral,
