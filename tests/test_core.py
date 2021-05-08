@@ -9,7 +9,7 @@ def test_exception():
 def f(x)):
     return
 """, {})
-    except RuntimeError as err:
+    except SyntaxError as err:
         res = 1
     assert res == 1
 
