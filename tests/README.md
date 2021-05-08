@@ -4,9 +4,11 @@ Use [pytest](https://docs.pytest.org/en/6.2.x/contents.html) framework to write 
 
 ## Requirements
 
-To write tests, you’ll need to install pytest. As with most Python packages, you can install pytest in a virtual environment from PyPI using pip:
+To write tests, you’ll need to install pytest. As with most Python packages, 
+you can install pytest in a virtual environment from PyPI using pip:
 ```shell
 $ python -m pip install pytest
+$ python -m pip install pytest-benchmark
 ```
 The pytest command will now be available in your installation environment.
 
@@ -22,7 +24,10 @@ $ pytest -v
 ```
 ### Speed test
 
-For speed test of macro extension system, run
+File test_speed.py contains benchmark tests for pylext parser which is executed when pytest runs.
+
+Sometimes additional information is needed, like macros parsing speed in MB/s and comparison with python parser.
+To test these characteristics, run test_speed.py without pytest:
 ```shell
 $ python test_speed.py 
 ```

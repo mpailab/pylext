@@ -1,8 +1,31 @@
 from time import time
+import pytest
 import os
 import pylext.core.wrap as parser
 from pylext import exec_macros
 from pylext.base import *
+
+
+@pytest.mark.benchmark(group="pylext-parser")
+def test_context_creation(benchmark):
+    @benchmark
+    def create_context():
+        px = parser.ParseContext({})
+        del px
+
+
+@pytest.mark.benchmark(group="pylext-parser", min_rounds=1, warmup=False)
+def test_big_file(benchmark):
+    with open('macros/big_file.pyg') as f:
+        text = ''.join(f)
+    benchmark(exec_macros, text, {})
+
+
+@pytest.mark.benchmark(group="pylext-parser", min_rounds=1)
+def test_small_file(benchmark):
+    with open('macros/match.pyg') as f:
+        text = ''.join(f)
+    benchmark(exec_macros, text, {})
 
 
 def measure_speed():
@@ -18,7 +41,6 @@ def measure_speed():
     print(f'Time  = {t:.3f} s')
     print(f'Speed = {repeat/t:.3f} empty files/s')
 
-
     print('\n Single large file test:')
     with open('macros/big_file.pyg') as f:
         text = ''.join(f)
@@ -32,7 +54,6 @@ def measure_speed():
     print(f'Size          = {len(text)*1e-6:.3f} MB')
     print(f'Speed         = {len(text)/t*1e-6:.3f} MB/s')
     print(f'Expanded size = {len("".join(res))*1e-6:.3f} MB')
-
 
     try:
         os.mkdir("temp")
