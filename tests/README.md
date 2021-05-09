@@ -24,7 +24,7 @@ $ pytest -v
 ```
 ### Speed test
 
-File test_speed.py contains benchmark tests for pylext parser which is executed when pytest runs.
+File test_speed.py contains benchmark tests for pylext parser which is executed when pytest runs with option `--longrun`.
 
 Sometimes additional information is needed, like macros parsing speed in MB/s and comparison with python parser.
 To test these characteristics, run test_speed.py without pytest:
