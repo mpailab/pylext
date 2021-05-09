@@ -1,29 +1,32 @@
 from time import time
 import pytest
 import os
-import pylext.core.wrap as parser
+from pylext.core.parse import ParseContext
 from pylext import exec_macros
 from pylext.base import *
 
 
+@pytest.mark.long
 @pytest.mark.benchmark(group="pylext-parser")
 def test_context_creation(benchmark):
     @benchmark
     def create_context():
-        px = parser.ParseContext({})
+        px = ParseContext({})
         del px
 
 
+@pytest.mark.long
 @pytest.mark.benchmark(group="pylext-parser", min_rounds=1, warmup=False)
 def test_big_file(benchmark):
-    with open('macros/big_file.pyg') as f:
+    with open('tests/macros/big_file.pyg') as f:
         text = ''.join(f)
     benchmark(exec_macros, text, {})
 
 
+@pytest.mark.long
 @pytest.mark.benchmark(group="pylext-parser", min_rounds=1)
 def test_small_file(benchmark):
-    with open('macros/match.pyg') as f:
+    with open('tests/macros/match.pyg') as f:
         text = ''.join(f)
     benchmark(exec_macros, text, {})
 
@@ -33,7 +36,7 @@ def measure_speed():
     repeat = 100
     t = time()
     for i in range(repeat):
-        px = parser.ParseContext({})
+        px = ParseContext({})
         del px
 
     t = time() - t
@@ -42,7 +45,7 @@ def measure_speed():
     print(f'Speed = {repeat/t:.3f} empty files/s')
 
     print('\n Single large file test:')
-    with open('macros/big_file.pyg') as f:
+    with open('tests/macros/big_file.pyg') as f:
         text = ''.join(f)
 
     vars = {}
@@ -56,20 +59,20 @@ def measure_speed():
     print(f'Expanded size = {len("".join(res))*1e-6:.3f} MB')
 
     try:
-        os.mkdir("temp")
+        os.mkdir("tests/temp")
     except FileExistsError:
         pass
 
-    with open('temp/expanded.py', 'w') as f:
+    with open('tests/temp/expanded.py', 'w') as f:
         f.write("import pylext.base\n")
         f.write("pylext.base.insert_pyg_builtins(globals())\n")
         f.write(''.join(res))
     t1 = time()
     import temp.expanded
     t1 = time() - t1
-    os.remove("temp/expanded.py")
+    os.remove("tests/temp/expanded.py")
     try:
-        os.rmdir("temp")
+        os.rmdir("tests/temp")
     except OSError:
         pass
     print(f'Standard import time   = {t1:.3f} s')
@@ -86,7 +89,7 @@ def measure_speed():
     t = time()
     repeat = 100
     for i in range(repeat):
-        with open('macros/match.pyg') as f:
+        with open('tests/macros/match.pyg') as f:
             text = ''.join(f)
         vars = {}
         res = exec_macros(text, vars)

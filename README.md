@@ -1,4 +1,4 @@
-# PYLEXT: PYthon Language EXTension library
+# PyLExt: PYthon Language EXTension library
 
 This library allows to add new syntax into Python language. 
 It is based on LR(1) algorithm implementation that allows dynamically
@@ -17,26 +17,27 @@ so it is possible to define new syntax and use it in the next statement.
    - gcc 8 or later
    - apple clang 11 or later
 2. CMake 3.8 or later
-2. Python >= 3.6. Recommended is Python 3.8. Packages:
+3. Python >= 3.6. Recommended is Python 3.8. Packages:
    - cython
    - scikit-build
    - setuptools
+4. Package python3-dev (for Ubuntu)
 
 ## Installation:
 
 When package will be available on pypi.org: 
 ```shell
-pip install pylext
+$ pip install pylext
 ```
 Currently only available installation using setup.py
 ```shell
-python setup.py install
+$ python setup.py install
 ```
 
 ## Simple examples
 ### Custom operators
 The simplest syntax extension is a new operator. For example we want to define 
-left-assotiative operator /@
+left-associative operator /@
 that applies function to each element of collection and this operator has lowest priority.
 Than we should create file simple.pyg 
 
@@ -76,7 +77,7 @@ defmacro op_lambda(expr, op:*op_lambda):
     op = op[1:-1]  # remove parentheses
     try:
         return `(lambda x, y: x {op} y)`
-    except RuntimeError as e:  # excetion will be thrown if op is not binary operator
+    except RuntimeError as e:  # exception will be thrown if op is not binary operator
         pass
     raise Exception(f'`{op}` is not a binary operator')
 ```
@@ -171,15 +172,15 @@ First pylext/macros/operator.pyg should be imported:
 ```python
 gimport pylext.macros.operator
 ```
-Syntax of new left-assotiative operator definition is one of following:
+Syntax of new left-associative operator definition is one of following:
 ```python
 'infixl' '(' priority ')' op_name '(' x ',' y ')' ':' func
 'infixl' '(' priority ')' op_name '(' x ',' y ')' '=' func_name
 ```
-In first definition assotiated function for new operator is implemented inside infixl macro.
-Second definition allows to assotiate with new operator existing function.
+In first definition associated function for new operator is implemented inside infixl macro.
+Second definition allows to associate with new operator existing function.
 
-Similarly, right-assotiative operator may be defined:
+Similarly, right-associative operator may be defined:
 ```python
 'infixr' '(' priority: expr ')' op_name '(' x ',' y ')' ':' func
 'infixr' '(' priority: expr ')' op_name '(' x ',' y ')' '=' func_name
@@ -204,7 +205,7 @@ Macro parameter description:
 infixl(0) '/@' (f, data):
     return [f(x) for x in data]
 ```
-Here defined left-assotiative operator `/@` with priority 0, i.e. the lowest possible priority.
+Here defined left-associative operator `/@` with priority 0, i.e. the lowest possible priority.
 This is equivalent to following definition:
 ```python
 def list_map(f, data):
@@ -246,7 +247,7 @@ each element `Vi` has one of following format:
   - If **Ai** is nonterminal, then `x = syn_expand(t)` where `t` parse tree for nonterminal **Ai**.
   - If **Ai** is terminal name, then **x** is string content of token of type **Ai**.
 
-All auxilliary rules are defined using following syntax:
+All auxiliary rules are defined using following syntax:
 ```python
 'syntax' '(' rule ')' ':' definition 
 ```
@@ -282,7 +283,7 @@ Guard macro from [simple examples](#simple-examples) uses this syntax:
 defmacro guard(stmt, 'guard', cond: test, EOL):
     return stmt`if not (${cond}): return False\n`
 ```
-Here we defined macro assotiated with new grammar rule `stmt -> 'guard' test EOL` where
+Here we defined macro associated with new grammar rule `stmt -> 'guard' test EOL` where
    - **test** -- nonterminal for logic expressions
    - **EOL** -- end of line token
 
@@ -290,7 +291,7 @@ Macro expansion here is single command that builds new statement `if not (cond):
 `\n` is needed because statement must end by EOL token. 
 
 ### New token definition 
-Lexer in pylext is based on packrat parser for PEG. 
+Lexer in pylext is based on packrat parser for [PEG](https://en.wikipedia.org/wiki/Parsing_expression_grammar). 
 parsing expressions are used instead of regular expressions to define tokens.
 Every non-constant token in language is described by PEG nonterminal. 
 
@@ -298,7 +299,7 @@ New terminals (tokens) may be defined by command:
 ```python
 new_token(x, peg_expr)
 ```
-New auxilliary lexer rules may be defined by command:
+New auxiliary lexer rules may be defined by command:
 ```python
 new_lexer_rule(x, peg_expr)
 ```
@@ -306,7 +307,7 @@ where
 - **x** is string, name of new terminal,
 - **peg_expr** is string containing parsing expression describing new token.
 
-When new auxilliary lexer rule is defined, left side doesn't become a token, it can be used only in
+When new auxiliary lexer rule is defined, left side doesn't become a token, it can be used only in
 other lexer rule definitions.
 
 Parsing expression syntax is following:
@@ -334,7 +335,7 @@ Parsing expression syntax is following:
    | `e*`             | zero or more                        |
    | `e+`             | one or more                         |
    | `e1 e2`          | sequence: e1, then e2               |
-   | `e1 / e2`        | ordered choise: e1 or (!e1 e2)      |
+   | `e1 / e2`        | ordered choice: e1 or (!e1 e2)      |
 
 NOTE: direct or indirect left recursion in PEG rules currently not supported
 
@@ -418,10 +419,10 @@ There are following built-in macros for basic support of macro extension system
    - **rhs args** -- list of defmacro arguments containing variables and its types (terminal and nonterminal names)
    - **rhs_names** is list of terminal and nonterminal names from rhs args
    - **rhs_vars** -- list of vars in **rhs args**
-   - **unique id** -- unique number to make sure that expansion functions for diffenernt macros
+   - **unique id** -- unique number to make sure that expansion functions for different macros
      have different names
    - **syn_expand definitions** -- sequence of commands `x = syn_expand(x)`
-     for all vars **x** occured in **rhs args** in the form `x: *y` 
+     for all vars **x** occurred in **rhs args** in the form `x: *y` 
 2. Quasiquotes. 
    Quasiquote `` `<quoted expr>` `` processed in the same way as `` expr`<quoted expr>` ``.
    In general quasiquote is 
@@ -433,17 +434,17 @@ There are following built-in macros for basic support of macro extension system
    This type of insertion after parsing become a leaf in parse tree, and then it is replaced by subtree
    which is result of expression **expr**.
 
-   Techically expansion algorithm of quasiqoute ``[type]`s0 ${expr1} s1 ${expr2} s_2 ... ${exprN} s_N ` `` is following:
+   Technically expansion algorithm of quasiqoute ``[type]`s0 ${expr1} s1 ${expr2} s_2 ... ${exprN} s_N ` `` is following:
    1. First quasiquote is translated into function call `quasiquote(type, [f"""s0""", f"""s1""",..., f"""sN"""], [expr1, ..., exprN])`.
       Fragments `s0, s1, ..., sN` become f strings and automatically when it will be executed, all `{...}` fragments 
       will be expanded.
    2. When resulting code is executed, all fragments `{...}` in `f"""si"""` automatically substituted 
-      by python interpretter as in formatted string.
+      by python interpreter as in formatted string.
    3. Function quasiquote(type, frags, subtrees) works as follows: 
       - For each subtree `s[i]` in **subtrees** get root nonterminal type `nt[i]`.
       - Form string concatenation `code = f" {frags[0]} ${nt[0]} {frags[1]} ... ${nt[N-1]} {frags[N]}"`.
       - Parse string `code` into parse tree `tree`. For each nonterminal **nt** in grammar there is rule `nt -> '$nt'`
-      - Traverse `tree` and replace node with i-th occurence of rule `nt -> '$nt'` by `subtrees[i]`
+      - Traverse `tree` and replace node with i-th occurrence of rule `nt -> '$nt'` by `subtrees[i]`
       - Return resulting parse tree.
 3. Importing grammar macro, command `gimport`. It allows to use syntax similar to `import` statement but import module together with grammar
    defined in that module. 
@@ -456,10 +457,10 @@ There are following built-in macros for basic support of macro extension system
         modules imported from M added to current parse context.
 
 #### User-defined macros
-Each macro is assotiated with some syntax rule. Function **expand_macro** search in parse tree nodes with rules 
-assotiated with user-defined macros. Search order is depth-first, starting from root. 
+Each macro is associated with some syntax rule. Function **expand_macro** search in parse tree nodes with rules 
+associated with user-defined macros. Search order is depth-first, starting from root. 
 If in some node macro rule is detected, then it is expanded using function from macro definition:
-1. While current node `curr` assotiated with macro
+1. While current node `curr` associated with macro
    - `f <- macro expansion function`
    - `curr <- f(*curr.children)`
 2. For all children run **macro_expand**
@@ -474,7 +475,7 @@ Expansion of this definition consists of following steps:
 - Convert syntax tree of initial macro definition to python syntax.
 
   Here right-hand part of rule contains 3 elements but only one is nonconstant, so
-  macro expansion function variavle `macro_guard_0` has one argument.
+  macro expansion function variable `macro_guard_0` has one argument.
   
   Quasiquote `` stmt`if not (${test}): return False\n` `` doesn't contain `{...}` fragments, 
   only one `${...}` fragment. Hence, quasiquote content is split into parts `s0 = """if not ("""` and 
@@ -508,7 +509,7 @@ new token **op_lambda** is added to grammar.
    Key points in this macro definition is:
    - Right-hand side consists of one terminal `op_lambda`, so expansion function is decorated by 
       `@macro_rule("expr", ["op_lambda"])`.
-   - Variable *op* was declared as `op: *op_lambda`, anterisk means that **syn_expand** should be applied to op.
+   - Variable *op* was declared as `op: *op_lambda`, asterisk means that **syn_expand** should be applied to op.
    - Quasiquote `` `(lambda x, y: x {op} y)` `` doesn't have `${...}` fragments, so it is expanded to 
      `quasiquote("expr", [f"""(lambda x, y: x {op} y)"""], [])`
 
@@ -534,7 +535,7 @@ new token **op_lambda** is added to grammar.
    And then executed by interpreter
 4. When file op_lambda.pyg is parsed, then `_import_grammar` function is generated. In this module 2 things were introduced:
    1. New token **op_lambda**.
-   2. New macro assotiated with grammar rule `expr -> op_lambda`. 
+   2. New macro associated with grammar rule `expr -> op_lambda`. 
    `_import_grammar` consists of following steps:
       - Get current context and check whether this module already was gimported into this context:
          ```python
@@ -665,7 +666,7 @@ def serialize(x):
 
 ### Short lambda functions
 We can define operator `->` creating lambda functions. In this case we cannot simply define it
-as a function, we need to convert `x -> f(x)` to `(lambda x: f(x))`. Sinse x can be 
+as a function, we need to convert `x -> f(x)` to `(lambda x: f(x))`. Since x can be 
 arbitrary expression we also must check that it is a variable or tuple of variables. 
 ```python
 star_rule  = get_rule_id('star_expr', "'*' expr")
@@ -687,7 +688,7 @@ infix_macro(101, 1) '->' (x, y):
       x = x[0]  # remove parentheses
    check_arg_list(x)
    # lambda arg list and expr list are formally different nonterminals.
-   # simplest convertion is: ast -> text -> ast
+   # simplest conversion is: ast -> text -> ast
    args = parse_context().ast_to_text(x)
    return `(lambda {args}: $y)`
 ```

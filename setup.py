@@ -2,6 +2,9 @@ import platform
 from setuptools import find_packages
 from skbuild import setup
 
+with open("DESCRIPTION.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
 cmake_args = ['-DBUILD_PYLEXT=ON']
 if platform.system() == "Windows":
     cmake_args.append('-GVisual Studio 16 2019')
@@ -11,8 +14,8 @@ setup(
     version="0.1.0",
     author="Bokov G.V., Kalachev G.V.",
     author_email='author@example.com',
-    description="Domain specific language extensions for python",
-    long_description='long_description',
+    description="PyLExt allows to add new syntax extensions into python language.",
+    long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/mpailab/CFG-parser',
     license="MIT",

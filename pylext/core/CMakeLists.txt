@@ -6,9 +6,9 @@ endif()
 
 if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "-m64 -mpopcnt -mavx2 -mlzcnt -mbmi -mbmi2")
-	if(WIN32)
-		#set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
-	endif()
+    if(UNIX)
+        set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fPIC" )
+    endif()
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -31,7 +31,7 @@ if(BUILD_PYLEXT)
     add_cython_target(parse.pyx CXX)
 
     add_library(parse MODULE ${parse})
-    target_link_libraries(parse parser format pymacro)
+    target_link_libraries(parse pymacro parser format)
 
     python_extension_module(parse)
     

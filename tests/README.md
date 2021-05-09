@@ -12,7 +12,7 @@ $ python -m pip install pytest-benchmark
 ```
 The pytest command will now be available in your installation environment.
 
-## Testing:
+## Testing
 
 When package pylext is in your installation environment, run
 ```shell
@@ -43,4 +43,4 @@ Your test files
 - must have unique names of the form `test_*.py` or `*_test.py`, because pytest will search for these files and import them as top-level modules;
 - must contain test items:
    * `test` prefixed test functions or methods outside of class,
-   * `test` prefixed test functions or methods inside `Test` prefixed test classes (without an __init__ method).
+   * `test` prefixed test functions or methods inside `Test` prefixed test classes (without an `__init__` method).

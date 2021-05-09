@@ -866,7 +866,7 @@ def parse(text : str, ctx : ParseContext):
 
 cpdef macro_expand(ParseContext ctx, ParseNode node):
     """
-    Expand macro extentions for given parse node in given context.
+    Expand macro extensions for given parse node in given context.
 
     Parameters
     ----------
@@ -878,17 +878,17 @@ cpdef macro_expand(ParseContext ctx, ParseNode node):
     Returns
     -------
     User defined type or str
-        User defined representaion of expanded parse node.
+        User defined representation of expanded parse node.
     """
 
-    # Expand macro extentions for given parse node
+    # Expand macro extensions for given parse node
     while True:
         f = ctx.macro_expand_func(node.rule())
         if f is None:
             break
         node = f(*node.children())
 
-    # Expand macro extentions for children of given parse node
+    # Expand macro extensions for children of given parse node
     cdef int i
     for i in range(node.num_children()):
         node[i] = macro_expand(ctx, node[i])
@@ -898,7 +898,7 @@ cpdef macro_expand(ParseContext ctx, ParseNode node):
 
 cpdef syn_expand(node: ParseNode):
     """
-    Expand syntax extentions for given parse node in default context.
+    Expand syntax extensions for given parse node in default context.
 
     Parameters
     ----------
@@ -908,7 +908,7 @@ cpdef syn_expand(node: ParseNode):
     Returns
     -------
     User defined type or str
-        User defined representaion of expanded parse node.
+        User defined representation of expanded parse node.
     """
     cdef ParseContext ctx = __parse_context__
     if node.is_terminal():
