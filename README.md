@@ -158,12 +158,12 @@ To activate library, add command to main file:
 import pylext
 ```
 When pylext loads, it adds new importer for python with extended grammar.
-These files should have **.pyg** extension. New syntax can be defined and
+These files should have **.pyg** extension and UTF-8 encoding. New syntax can be defined and
 used only in *pyg* files. One pyg file can import syntax defined 
 in another *pyg* file using `gimport` command.
 *pyg* files can be imported from *py* files using standard `import` command. 
 When *pyg* file is imported with import command, actually loaded python code 
-obtained by expansion of all macros from this *pyg* file. 
+obtained by expansion of all macros from this *pyg* file.
 
 ### New operator definition
 New infix operation may be defined using `infixl` or `infixr` syntax construction defined in operator.pyg module.
