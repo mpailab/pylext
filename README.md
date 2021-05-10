@@ -17,10 +17,7 @@ so it is possible to define new syntax and use it in the next statement.
    - gcc 8 or later
    - apple clang 11 or later
 2. CMake 3.8 or later
-3. Python >= 3.6. Recommended is Python 3.8. Packages:
-   - cython
-   - scikit-build
-   - setuptools
+3. Python >= 3.6. Recommended is Python 3.8.
 4. Package python3-dev (for Ubuntu)
 
 ## Installation:

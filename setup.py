@@ -11,5 +11,6 @@ if platform.system() == "Windows":
 
 setup(
     packages=find_packages(),
+    package_data={'pylext': ['macros/*.pyg']},
     cmake_args=extra_cmake_args,
 )
