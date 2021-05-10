@@ -6,7 +6,7 @@ add new rules and tokens into grammar ([see parser description](pylext/core/READ
 
 Macro extension system works in two stages: parsing text and 
 expanding macros, i.e. transforming syntax tree from extended 
-grammar to standard python grammar.
+grammar to standard Python grammar.
 This procedure is applied to each statement in file separately, 
 so it is possible to define new syntax and use it in the next statement.   
 
@@ -54,7 +54,7 @@ from math import *
 def test(n):
    print(exp /@ range(n))
 ```
-Main file should be a python file, so we create main.py:
+Main file should be a Python file, so we create main.py:
 ```python
 import simple
 simple.test(10)
@@ -155,12 +155,12 @@ To activate library, add command to main file:
 ```python
 import pylext
 ```
-When pylext loads, it adds new importer for python with extended grammar.
+When pylext loads, it adds new importer for Python with extended grammar.
 These files should have **.pyg** extension and UTF-8 encoding. New syntax can be defined and
 used only in *pyg* files. One pyg file can import syntax defined 
 in another *pyg* file using `gimport` command.
 *pyg* files can be imported from *py* files using standard `import` command. 
-When *pyg* file is imported with import command, actually loaded python code 
+When *pyg* file is imported with import command, actually loaded Python code 
 obtained by expansion of all macros from this *pyg* file.
 
 ### New operator definition
@@ -250,7 +250,7 @@ All auxiliary rules are defined using following syntax:
 ```
 where 
 - **rule** is grammar rule in format described above,
-- **definition** describes transformation of parse tree into some more convenient python object
+- **definition** describes transformation of parse tree into some more convenient Python object
 
 Macro is defined using similar syntax:
 ```python
@@ -362,13 +362,13 @@ gimport pylext.macros.operator
 
 ## How does it work
 
-PyLExt extension adds new importer for .pyg files. PyLExt uses parser independent of python's parser,
+PyLExt extension adds new importer for .pyg files. PyLExt uses parser independent of Python's parser,
  here it is called *pylext parser*.
 
 ### Pyg importing procedure
 1. Create pylext parser context `ctx` containing current macro and syntax definitions and some another metadata.
 2. Load text from file and initialize pylext parser in `ctx` context. 
-   Parser is always initialized with python grammar and built-in pylext syntax extensions
+   Parser is always initialized with Python grammar and built-in pylext syntax extensions
    allowing to add new rules.
 3. Initialize module object `M` and add pylext built-ins into `M.__dict__`.
 4. Pylext parser reads text statement by statement. At each step it can do one of the following actions:
@@ -436,7 +436,7 @@ There are following built-in macros for basic support of macro extension system
       Fragments `s0, s1, ..., sN` become f strings and automatically when it will be executed, all `{...}` fragments 
       will be expanded.
    2. When resulting code is executed, all fragments `{...}` in `f"""si"""` automatically substituted 
-      by python interpreter as in formatted string.
+      by Python interpreter as in formatted string.
    3. Function quasiquote(type, frags, subtrees) works as follows: 
       - For each subtree `s[i]` in **subtrees** get root nonterminal type `nt[i]`.
       - Form string concatenation `code = f" {frags[0]} ${nt[0]} {frags[1]} ... ${nt[N-1]} {frags[N]}"`.
@@ -469,7 +469,7 @@ defmacro guard(stmt, 'guard', cond: test, EOL):
 ```
 Expansion of this definition consists of following steps:
 - Add grammar rule `stmt -> 'guard' test EOL`
-- Convert syntax tree of initial macro definition to python syntax.
+- Convert syntax tree of initial macro definition to Python syntax.
 
   Here right-hand part of rule contains 3 elements but only one is nonconstant, so
   macro expansion function variable `macro_guard_0` has one argument.
@@ -575,7 +575,7 @@ new token **op_lambda** is added to grammar.
 
 ### Simple match operator
 This example is match operator that is an analog of C++ switch operator. Actually, 
-python 3.10 already has [more powerful match operator](https://docs.python.org/3.10/whatsnew/3.10.html#pep-634-structural-pattern-matching)
+Python 3.10 already has [more powerful match operator](https://docs.python.org/3.10/whatsnew/3.10.html#pep-634-structural-pattern-matching)
 but here is example how simple version may be defined using pylext.
 
 File match.pyg:
@@ -639,7 +639,7 @@ def serialize_match(x):
             return data
         _:         raise Exception(f'Unsupported type {type(x)}')
 ```
-After macro expansion it is equivalent to implementation using if-elif-else construction available in python 3.8:
+After macro expansion it is equivalent to implementation using if-elif-else construction available in Python 3.8:
 ```python
 def serialize(x):
     if type(x) == int:

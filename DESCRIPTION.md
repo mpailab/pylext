@@ -1,5 +1,5 @@
 
-**PyLExt** provides add in python language:
+**PyLExt** provides add in Python language:
 - new operators with specified priorities,
 - syntax extensions given by [LR(1)](https://en.wikipedia.org/wiki/Canonical_LR_parser) grammars,
 - macros associated with new syntax rules,
@@ -7,7 +7,7 @@
 
 Language extension system works in two stages: parsing text and 
 expanding macros, i.e. transforming syntax tree from extended 
-grammar to standard python grammar.
+grammar to standard Python grammar.
 This procedure is applied to each statement in file separately, 
 so it is possible to define new syntax and use it in the next statement. 
 
@@ -31,7 +31,7 @@ from math import *
 def test(n):
    print(exp /@ range(n))
 ```
-Main file should be a python file, so we create main.py:
+Main file should be a Python file, so we create main.py:
 ```python
 import simple
 simple.test(10)
