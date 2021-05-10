@@ -95,7 +95,7 @@ bool LexIterator::tryFirstAction(const NTSet &t)
 string LexIterator::genErrorMsg(const NTSet *t, int bpos)
 {
     Pos ccpos = shifted(packrat.errpos);
-    string msg = "Unknown token at {} : '{}',\n"_fmt(cpos, substr(bpos, strcspn(s + bpos, "\n")));
+    string msg = "Unknown token at {} : '{}',\n"_fmt(cpos, substr(bpos, (int)strcspn(s + bpos, "\n")));
     if (t) {
         //_accepted = true;
         packrat.reseterr();

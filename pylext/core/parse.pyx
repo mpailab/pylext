@@ -29,31 +29,33 @@ cdef class ParseNode:
     """
 
     cdef CParseNode* _ptr
+    cdef object _ctx  # parse context
 
     def __init__(self):
         """Class constructor"""
         self._ptr = NULL
+        self._ctx = None
 
     def __del__(self):
         """Python class destructor"""
-        if self._ptr:
+        if self._ptr != NULL and self._ctx is not None and self._ctx.is_valid():
             self._ptr.refs -= 1
             self._ptr = NULL
 
     def __dealloc__(self):
         """C++ class destructor"""
-        if self._ptr:
+        if self._ptr != NULL and self._ctx is not None and self._ctx.is_valid():
             self._ptr.refs -= 1
             self._ptr = NULL
 
     @staticmethod
-    cdef ParseNode from_ptr(CParseNode *_ptr):
+    cdef ParseNode from_ptr(CParseNode *ptr, ctx):
         """
         Factory function to create ParseNode object from given CParseNode pointer.
 
         Parameters
         ----------
-        _ptr : CParseNode*
+        ptr : CParseNode*
             Pointer to C++ class ParseNode
 
         Returns
@@ -61,14 +63,15 @@ cdef class ParseNode:
         ParseNode
             Python object ParseNode.
         """
-        assert _ptr != NULL
+        assert ptr != NULL
 
         # Create new wrapper for given pointer
         cdef ParseNode wrapper = ParseNode.__new__(ParseNode)
-        wrapper._ptr = _ptr
+        wrapper._ptr = ptr
+        wrapper._ctx = ctx
 
         # Increase the number of references to given pointer
-        _ptr.refs += 1
+        ptr.refs += 1
 
         return wrapper
 
@@ -85,7 +88,7 @@ cdef class ParseNode:
         list
             List of ParseNode objects.
         """
-        return [ParseNode.from_ptr(x) for x in self._ptr.ch]
+        return [ParseNode.from_ptr(x, self._ctx) for x in self._ptr.ch]
 
     cpdef size_t num_children(self):
         """
@@ -118,7 +121,7 @@ cdef class ParseNode:
         if i < 0 or i >= n:
             raise ValueError(f"Parse node child index {i} out of range ({n})")
 
-        return ParseNode.from_ptr(self._ptr.ch[i])
+        return ParseNode.from_ptr(self._ptr.ch[i], self._ctx)
 
     def __getitem__(self, i : int):
         """
@@ -361,6 +364,7 @@ cdef class ParseContext:
         """Delete pointer to C++ class PythonParseContext"""
         if self._ptr != NULL:
             del_python_context(self._ptr)
+            self._ptr = NULL
 
     def __init__(self, global_vars=None):
         """
@@ -401,8 +405,8 @@ cdef class ParseContext:
         global __parse_context__
         __parse_context__ = self.parent_context
         self.parent_context = None
-        del_python_context(self._ptr)
-        self._ptr = NULL
+        #del_python_context(self._ptr)
+        #self._ptr = NULL
 
     cdef PythonParseContext* to_ptr(self):
         """Get PythonParseContext pointer of ParseContext object"""
@@ -436,6 +440,10 @@ cdef class ParseContext:
         if type(expr) is ParseNode:
             expr = self.ast_to_text(expr)
         return eval(expr, self.global_vars)
+
+    def is_valid(self):
+        """ Checks whether context is valid """
+        return self._ptr != NULL
 
     cdef object syntax_expand_func(self, int rule_id):
         """
@@ -809,6 +817,7 @@ cdef class ParseIterator:
     """
 
     cdef ParserState* state
+    cdef object ctx
 
     def __init__(self, text : str, ctx : ParseContext):
         """
@@ -821,9 +830,10 @@ cdef class ParseIterator:
         ctx : ParseContext
             Context for parsing.
         """
+        self.ctx = ctx
         self.state = new ParserState(ctx.to_ptr(), text, b"")
 
-    def __del__(self):
+    def __dealloc__(self):
         """Class destructor"""
         del self.state
 
@@ -838,7 +848,7 @@ cdef class ParseIterator:
             root = self.state.parse_next().root.get()
             if not root:
                 raise StopIteration
-            return ParseNode.from_ptr(root)
+            return ParseNode.from_ptr(root, self.ctx)
         except RuntimeError as e:
             msg = e.args[0]
         raise SyntaxError(msg)
@@ -947,12 +957,14 @@ cpdef quasiquote(string name, vector[string] frags, tree_list):
     cdef vector[CParseNode*] subtrees
     cdef size_t i, n = len(tree_list)
     cdef ParseNode pn
+    if ctx is None:
+        raise InvalidParseContext()
     subtrees.resize(n)
     for i in range(n):
         pn = tree_list[i]
         subtrees[i] = pn.to_ptr()
     cdef CParseNode* nn = c_quasiquote(ctx.to_ptr(), name, frags, subtrees)
-    return ParseNode.from_ptr(nn)
+    return ParseNode.from_ptr(nn, ctx)
 
 
 cdef string ast_to_text(ParseNode node):

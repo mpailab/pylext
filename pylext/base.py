@@ -152,16 +152,24 @@ def gexport(f):
 def _gimport___(module, as_name, global_vars: dict):
     """ Function implements gimport command """
     mname = as_name if as_name else module
+    if _dbg_statements:
+        print(f'importing module {module} as {mname}', flush=True)
     if as_name:
         exec(f'import {module} as {as_name}', global_vars)
     else:
         exec(f'import {module}', global_vars)
+    if _dbg_statements:
+        print(f'module {module} imported successfully', flush=True)
     global_vars.setdefault('_imported_syntax_modules', set())
     exec(f'_imported_syntax_modules.add({mname})', global_vars)
     loc = {}
     exec(f'import {module} as m', loc)
     if hasattr(loc['m'], '_import_grammar'):
+        if _dbg_statements:
+            print(f'Execute {module}._import_grammar({mname})',flush=True)
         loc['m']._import_grammar(mname)
+        if _dbg_statements:
+            print('_import_grammar finished', flush=True)
 
 
 _module_vars = {
@@ -236,16 +244,19 @@ def exec_macros(text, vars, filename=None, by_stmt=False):
     with ParseContext(vars) as px:
         for stmt_ast in parse(text, px):
             if _dbg_statements:
-                print(f'\nProcess statement:\n\n{px.ast_to_text(stmt_ast)}\n')
+                print(f'\nProcess statement:\n\n{px.ast_to_text(stmt_ast)}\n', flush=True)
             stmt_ast = macro_expand(px, stmt_ast)
             if _dbg_statements:
                 print('Expanded :\n')
             stmt = px.ast_to_text(stmt_ast)
             if _dbg_statements:
-                print(f'{stmt}\n===========================================\n')
+                print(f'{stmt}\n===========================================\n', flush=True)
             res.append(stmt)
             exec(stmt, vars)
         stmt = px.import_grammar_str()
+        if _dbg_statements:
+            print(f'===== Generated _import_grammar function =====\n')
+            print(f'{stmt}\n===========================================\n', flush=True)
         res.append(stmt)
         exec(stmt, vars)
 
