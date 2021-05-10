@@ -1,0 +1,19 @@
+# This file defines function literals (+), (-), ...
+
+new_token('op_lambda', '"(" [<=>+\\-*/%~?@|!&\\^.:;]+ ")"')
+
+defmacro op_lambda(expr, op:*op_lambda):
+    op = op[1:-1]  # remove parentheses
+    try:
+        return `(lambda x, y: x {op} y)`
+    except RuntimeError as e:  # excetion will be thrown if op is not binary operator
+        pass
+    raise Exception(f'`{op}` is not a binary operator')
+
+
+# test for this macro
+def test():
+    from functools import reduce
+    result  = reduce((^), range(100))  # reduce array by XOR operation
+    correct = reduce(lambda x,y: x ^ y, range(100))
+    return result == correct

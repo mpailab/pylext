@@ -31,6 +31,9 @@
 *.out
 *.app
 
+# Python cached files
+**/__pycache__
+
 # visual studio code files
 .vscode/
 
@@ -44,4 +47,22 @@ x64
 *.vspx
 *.psess
 *.user
+*.cbp
 
+#CMake files
+lib
+obj
+bin
+Makefile
+CMakeFiles
+CMakeCache.txt
+*.cmake
+
+#
+a.out
+log.txt
+failed.txt
+parse_out.txt
+.idea/
+
+/Testing/

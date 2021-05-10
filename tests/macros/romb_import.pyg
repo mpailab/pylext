@@ -1,0 +1,90 @@
+gimport macros.match as m
+gimport macros.range_op
+
+def run_test(n):
+	# Тестируем импортированные макросы
+	result = []
+	for x in 0 .. n:
+		match x:
+			1: result.append('a')
+			2: result.append('b')
+			_ if x<5 or x>8: result.append('c')
+			_: result.append('d')
+	return result
+
+validation = ['c', 'a', 'b', 'c', 'c', 'd', 'd', 'd', 'd', 'c']
+
+def test_from_match():
+    # Запускаем тест
+	res = [m.test1(x) for x in range(len(m.validation))]
+
+	# Печатаем результат
+	print(f'result  = {res}')
+	print(f'correct = {m.validation}')
+	print("Test from match.pyg: "+("ok" if res == m.validation else "failed"))
+
+	assert res == m.validation
+
+# Импортируем оператор /@
+gimport macros.simplefunc
+
+def test_romb_1():
+	print(f'Test romb import:')
+	res = m.test1 /@ range(len(m.validation))
+
+	# Печатаем результат
+	print(f'result  = {res}')
+	print(f'correct = {m.validation}')
+	print("Test romb 1: "+("ok" if res == m.validation else "failed"))
+
+	assert res == m.validation
+
+
+# Циклический сдвиг массива/кортежа вправо. Приоритет операции такой же, как у обычных сдвигов >> и <<
+infixl(40) '>>>' (x, y):
+	if hasattr(x, '__rotr__'):
+		return x.__rotr__(y)
+	if hasattr(y, '__rrotr__'):
+		return y.__rrotr__(x)
+	if type(x) not in (list, tuple) or type(y) is not int and not hasattr(y, '__int__'):
+		raise Exception(f'operator `>>>` not defined for these types: ({type(x)}, {type(y)})')
+	y = int(y) % len(x)
+	return x[y:] + x[:y]
+
+
+def test_romb_2():
+	print(f'Test macro defined in common imported file')
+	x = list(range(10))
+	vld = [6,7,8,9,0,1,2,3,4,5]
+	res = x >>> 6
+	print(f'result  = {res}')
+	print(f'correct = {vld}')
+	print("Test romb 2: "+("ok" if res == vld else "failed"))
+
+	assert res == vld
+
+
+# Ещё раз импортируем модуль operator.pyg, на этот раз напрямую
+gimport pylext.macros.operator
+
+
+# Проверяем, что после прямого импорта уже импортированного модуля ничего не испортилось:
+# с помощью макроса infxl из operator.pyg определяем циклический сдвиг массива влево
+infixl(40) '<<<' (x, y):
+	if hasattr(x, '__rotl__'):
+		return x.__rotl__(y)
+	if hasattr(y, '__rrotl__'):
+		return y.__rrotl__(x)
+	return x >>> -y
+
+
+def test_romb_3():
+	print(f'Test macro defined in common directly imported file')
+	x = list(range(10))
+	vld = [4,5,6,7,8,9,0,1,2,3]
+	res = x <<< 6
+	print(f'result  = {res}')
+	print(f'correct = {vld}')
+	print("Test romb 3: "+("ok" if res == vld else "failed"))
+
+	assert res == vld

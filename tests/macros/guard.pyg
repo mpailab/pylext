@@ -1,0 +1,64 @@
+# define guard macro
+defmacro guard(stmt, 'guard', cond: test, EOL):
+    return stmt`if not (${cond}): return False\n`
+
+class Eqn:
+    def __init__(self, coeffs):
+        self.coeffs = coeffs
+        while self.coeffs and self.coeffs[-1]==0:
+            del self.coeffs[-1]
+        self.roots = None
+
+    @property
+    def degree(self):
+        return len(self.coeffs)-1
+
+    def __str__(self):
+        fst = True
+        res = ''
+        for i,k in enumerate(self.coeffs):
+            if not k:
+                continue
+            if not fst:
+                res += ' + 'if k>0 else '-'
+            fst = False
+            if i==0 or abs(k) != 1:
+                res+=str(abs(k))
+            if i:
+                res+='x'
+            if i>1:
+                res+=f'^{i}'
+        return res or '0'
+
+def no_solution(eqn: Eqn):
+    guard eqn.degree == 0
+    eqn.roots = []
+
+def solve_linear(eqn: Eqn):
+    guard eqn.degree == 1
+    eqn.roots = [-eqn.coeffs[0]/eqn.coeffs[1]]
+
+def solve_quadratic(eqn: Eqn):
+    guard eqn.degree == 2
+    c, b, a = eqn.coeffs
+    d = b*b - 4*a*c
+    guard d >= 0
+    eqn.roots = [(-b-d**0.5)/2/a, (-b+d**0.5)/2/a]
+
+rules = [no_solution, solve_linear, solve_quadratic]
+
+def solve(eqn: Eqn):
+    print(f"Solve {eqn} == 0")
+    for rule in rules:
+        if rule(eqn) != False:
+            print(f"Solution: {eqn.roots}")
+            return sorted(eqn.roots)
+    print("Cannot solve")
+    return "Cannot solve"
+
+def test():
+    assert solve(Eqn([])) == "Cannot solve"
+    assert solve(Eqn([1])) == []
+    assert solve(Eqn([1,2])) == [-0.5]
+    assert solve(Eqn([1,0,-1])) == [-1, 1]
+    assert solve(Eqn([1,0,1])) == "Cannot solve"

@@ -1,0 +1,7 @@
+global-include CMakeLists.txt
+recursive-include pylext/macros *.pyg
+recursive-include pylext/core *.pyx *.pxd
+recursive-include pylext/core/format *.cpp *.h
+recursive-include pylext/core/parser *.cpp *.h
+recursive-include pylext/core/pymacro *.cpp *.h
+include pyproject.toml

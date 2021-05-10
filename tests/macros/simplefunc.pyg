@@ -1,0 +1,60 @@
+gimport pylext.macros.operator
+
+# Синтаксис для более короткого определения функции, состоящей из одного return-оператора
+# Вместо ':' знак = и опускаем return
+defmacro fassign(stmt, 'def', name:*ident, args: parameters, '=', e: expr, EOL):
+    return stmt`def {name} ${args}: return ${e} $$EOL`
+
+# Вытаскиваем номера правил встроенной грамматики языка питон
+star_rule  = get_rule_id('star_expr', "'*' expr")
+ident_rule = get_rule_id('atom', 'ident')
+tuple_rule = get_rule_id('atom', "'(' testlist_comp ')'")
+inside_tuple_rule = get_rule_id('identd_or_star_list', "identd_or_star_list ',' identd_or_star")
+
+
+def check_arg_list(x):
+    if x.rule() == inside_tuple_rule:
+        check_arg_list(x[0])
+        check_arg_list(x[1])
+    elif x.rule() != ident_rule and (x.rule() != star_rule or x[0].rule() != ident_rule):
+        raise Exception(f'Invalid function argument {parse_context().ast_to_text(x)}')
+
+
+infix_macro(101, 1) '->' (x, y):
+    args = ''
+    if x.rule() == tuple_rule:
+        x = x[0]  # remove parentheses
+    check_arg_list(x)
+    # lambda arg list and expr list are formally different nonterminals.
+    # simplest convertion is: ast -> text -> ast
+    args = parse_context().ast_to_text(x)
+    return `(lambda {args}: $y)`
+
+
+def map_res_type(x):
+    if type(x) in (tuple, list, set):
+        return type(x)
+    else: return list
+
+# реализация оператора /@ рекурсивная, поэтому функция определяется отдельно от самого оператора
+def map_ff(f, data):
+    if not callable(f):
+        if hasattr(f, '__iter__'):
+            return map_res_type(f)(map_ff(fi, data) for fi in f)
+        else: raise Exception(f'first argument of /@ must be a function or list of functions, but has type {type(f)}')
+    return map_res_type(data)(map(f, data))
+
+# map operator, как в Wolfram Mathematica (применение функции к массиву)
+infixl(5) '/@' = map_ff
+
+# применение функции к двумерному массиву
+infixl(5) '/@@' (f, data):
+    return (x -> f /@ x) /@ data
+
+
+def listpow(lx, ly) = (x -> y -> x**y) /@ lx /@ ly
+
+listpow2 = (lx, ly) -> (x -> y -> x**y) /@ lx /@ ly
+
+def check(lx, ly):
+    return [[x**y for y in ly] for x in lx]
