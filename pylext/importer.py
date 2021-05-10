@@ -1,11 +1,9 @@
-"""Importer of pyg files
-"""  
+"""Importer of pyg files"""  
 
 # External imports
 import pathlib
 import sys
 from importlib.machinery import ModuleSpec
-from typing import List
 
 # Internal imports
 from .base import exec_macros
