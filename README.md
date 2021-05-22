@@ -26,17 +26,17 @@ When package will be available on pypi.org:
 ```shell
 $ pip install pylext
 ```
-Currently only available installation using setup.py
+Currently, only available installation using setup.py
 ```shell
 $ python setup.py install
 ```
 
 ## Simple examples
 ### Custom operators
-The simplest syntax extension is a new operator. For example we want to define 
+The simplest syntax extension is a new operator. For example, we want to define 
 left-associative operator /@
-that applies function to each element of collection and this operator has lowest priority.
-Than we should create file simple.pyg 
+that applies function to each element of collection and this operator has the lowest priority.
+Then we should create file simple.pyg 
 
 ```python
 # Import syntax extension for new operator definition
@@ -119,7 +119,7 @@ defmacro guard(stmt, 'guard', cond: test, EOL):
     return stmt`if not (${cond}): return False\n`
 ```
 Now instead of writing `if not <expr>: return False` we can simply write `guard <expr>`.
-This allow write some functions in more declarative style. For example, we write solver for solve some task and 
+This allows to write some functions in more declarative style. For example, we write solver for solve some task and 
 solution is a sequence of transformations of input data. Each transformation has some conditions when it can be applied.
 At each moment we select applicable transformation and apply it. 
 For example, we want to find real roots of the polynomial, and there are simple rules for linear and quadratic equations:
@@ -175,7 +175,7 @@ Syntax of new left-associative operator definition is one of following:
 'infixl' '(' priority ')' op_name '(' x ',' y ')' '=' func_name
 ```
 In first definition associated function for new operator is implemented inside infixl macro.
-Second definition allows to associate with new operator existing function.
+Second definition allows associating with new operator existing function.
 
 Similarly, right-associative operator may be defined:
 ```python
@@ -384,7 +384,7 @@ PyLExt extension adds new importer for .pyg files. PyLExt uses parser independen
    and load it into interpreter:
    ```python
    syn_gimport_func = px.gen_syntax_import()
-   exec(stmt, M.__dict__)
+   exec(syn_gimport_func, M.__dict__)
    ```
    Function adds all grammar defined in this module and in all 
    gimported modules into current context. 
@@ -437,7 +437,7 @@ There are following built-in macros for basic support of macro extension system
       will be expanded.
    2. When resulting code is executed, all fragments `{...}` in `f"""si"""` automatically substituted 
       by Python interpreter as in formatted string.
-   3. Function quasiquote(type, frags, subtrees) works as follows: 
+   3. Function `quasiquote(type, frags, subtrees)` works as follows: 
       - For each subtree `s[i]` in **subtrees** get root nonterminal type `nt[i]`.
       - Form string concatenation `code = f" {frags[0]} ${nt[0]} {frags[1]} ... ${nt[N-1]} {frags[N]}"`.
       - Parse string `code` into parse tree `tree`. For each nonterminal **nt** in grammar there is rule `nt -> '$nt'`
@@ -527,7 +527,7 @@ new token **op_lambda** is added to grammar.
    
    After macro_expand is finished, it parse tree converted back to text:
    ```python
-   print( reduce ( ( lambda x , y : x ^ y ) , range ( 100 ) ) )
+   print ( reduce ( ( lambda x , y : x ^ y ) , range ( 100 ) ) )
    ```
    And then executed by interpreter
 4. When file op_lambda.pyg is parsed, then `_import_grammar` function is generated. In this module 2 things were introduced:
@@ -689,10 +689,10 @@ infix_macro(101, 1) '->' (x, y):
    args = parse_context().ast_to_text(x)
    return `(lambda {args}: $y)`
 ```
-Here we defined operator `->` with highest left priority and lowest right priority. 
+Here we defined operator `->` with the highest left priority and lowest right priority. 
 This means that left side must be atomic expression like a variable or tuple, 
 right side can contain arbitrary operations except `or`, `and` and `not`. 
-Also this allows to combine `->` operators in a chain to produce lambda returning 
+Also, this allows to combine `->` operators in a chain to produce lambda returning 
 lambda functions.
 
 We can also define `<$>` operator similar to Haskell `fmap` operator and our `/@` 

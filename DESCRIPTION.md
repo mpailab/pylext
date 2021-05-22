@@ -1,5 +1,5 @@
 
-**PyLExt** provides add in Python language:
+**PyLExt** allows you to add the following constructions to the Python language:
 - new operators with specified priorities,
 - syntax extensions given by [LR(1)](https://en.wikipedia.org/wiki/Canonical_LR_parser) grammars,
 - macros associated with new syntax rules,
@@ -13,9 +13,9 @@ so it is possible to define new syntax and use it in the next statement.
 
 ## Simple examples
 ### Custom operators
-The simplest syntax extension is a new operator. For example we want to define 
+The simplest syntax extension is a new operator. For example, we want to define 
 left-associative operator /@
-that applies function to each element of collection and this operator has lowest priority.
+that applies function to each element of collection and this operator has the lowest priority.
 Than we should create file simple.pyg 
 
 ```python
