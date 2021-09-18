@@ -388,7 +388,8 @@ cdef class ParseContext:
         self.global_vars = global_vars or {}
         self.parent_context = None
 
-    def enter(self):
+    def __enter__(self):
+        """Implement ParseContext object at the start of with block"""
         if self._ptr == NULL:
             raise InvalidParseContext()
 
@@ -399,18 +400,11 @@ cdef class ParseContext:
         __parse_context__ = self
         return self
 
-    def __enter__(self):
-        """Implement ParseContext object at the start of with block"""
-        self.enter()
-
-    def exit(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Implement ParseContext object at the end of with block"""
         global __parse_context__
         __parse_context__ = self.parent_context
         self.parent_context = None
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Implement ParseContext object at the end of with block"""
-        self.exit()
         #del_python_context(self._ptr)
         #self._ptr = NULL
 
