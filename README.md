@@ -31,6 +31,9 @@ Currently, only available installation using setup.py
 $ python setup.py install
 ```
 
+If you use Visual Studio Code, you can install syntax
+highlighter extension for .pyg files from [vscode/pylext-0.0.1.vsix](vscode/pylext-0.0.1.vsix)
+
 ## Simple examples
 ### Custom operators
 The simplest syntax extension is a new operator. For example, we want to define 
