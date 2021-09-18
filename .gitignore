@@ -65,4 +65,8 @@ failed.txt
 parse_out.txt
 .idea/
 
+/_skbuild/
 /Testing/
+/dist/
+*.egg-info/
+/MANIFEST
