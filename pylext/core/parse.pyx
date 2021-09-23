@@ -355,6 +355,7 @@ cdef class ParseContext:
     cdef set imported_modules
     cdef dict global_vars
     cdef object parent_context
+    cdef bool allow_rule_override
 
     def __cinit__(self):
         """Create pointer to C++ class PythonParseContext"""
@@ -375,6 +376,7 @@ cdef class ParseContext:
         global_vars : dict
             Predefined global variables.
         """
+        self.allow_rule_override = False
         self.syntax_rules = {}
         self.macro_rules = {}
         self.token_rules = {}
@@ -615,7 +617,8 @@ cdef class ParseContext:
         cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
 
         if rule_id in self.macro_rules or rule_id in self.syntax_rules:
-            raise Exception(f'Rule already exists: {lhs} -> {" ".join(rhs)}')
+            if not self.allow_rule_override:
+                raise Exception(f'Rule already exists: {lhs} -> {" ".join(rhs)}')
 
         self.macro_rules[rule_id] = apply
         if for_export:
@@ -669,7 +672,8 @@ cdef class ParseContext:
         cdef int rule_id = self.rule_id(lhs, rhs)
 
         if rule_id in self.macro_rules or rule_id in self.syntax_rules:
-            raise Exception(f'Redefinition of rule expansion: {lhs} -> {" ".join(rhs)}')
+            if not self.allow_rule_override:
+                raise Exception(f'Redefinition of rule expansion: {lhs} -> {" ".join(rhs)}')
 
         self.syntax_rules[rule_id] = apply
         if for_export:
@@ -703,7 +707,8 @@ cdef class ParseContext:
         cdef int rule_id = self._add_rule(lhs, rhs, lpriority, rpriority)
 
         if rule_id in self.macro_rules or rule_id in self.syntax_rules:
-            raise Exception(f'Rule already exists: {lhs} -> {" ".join(rhs)}')
+            if not self.allow_rule_override:
+                raise Exception(f'Rule already exists: {lhs} -> {" ".join(rhs)}')
 
         self.syntax_rules[rule_id] = apply
         if for_export:
@@ -804,6 +809,9 @@ def _import_grammar(module_name=None):
             ID of added rule.
         """
         return self._ptr.grammar().addRule(lhs, rhs, -1, lpr, rpr)
+
+    def rule_override(self, allow):
+        self.allow_rule_override = allow
 
 
 cdef class ParseIterator:
