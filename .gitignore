@@ -70,3 +70,6 @@ parse_out.txt
 /dist/
 *.egg-info/
 /MANIFEST
+/docs/build/
+cmake-build-*/
+.ipynb_checkpoints/
