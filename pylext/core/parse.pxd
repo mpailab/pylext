@@ -15,6 +15,7 @@ cdef extern from "Parser.h":
             int id, 
             int lpr, 
             int rpr)
+        string sprint_rules() const
 
     cdef cppclass CParseContext "ParseContext":
         GrammarState& grammar()

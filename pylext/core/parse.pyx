@@ -813,6 +813,17 @@ def _import_grammar(module_name=None):
     def rule_override(self, allow):
         self.allow_rule_override = allow
 
+    def sprint_rules(self):
+        """
+        Prints grammar rules to string
+
+        Returns
+        -------
+        string
+            All rules printed in text format
+        """
+        return self._ptr.grammar().sprint_rules()
+
 
 cdef class ParseIterator:
     """

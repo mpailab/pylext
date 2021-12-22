@@ -299,8 +299,14 @@ bool reduce(SStack &ss, PStack& sp, LexIterator& lit, int a, ParseContext &pt) {
 				if (!k) {
 					u1 = u;
 					int r = g.tf.inv[A0].intersects(u->finalNT, &Bb);
-					if(r > 1)
-					    throw RRConflict("at {} conflict : 2 different ways to reduce by {}: 3"_fmt(lit.get_cpos(), g.ts[a]), prstack(g, ss, sp));
+					if(r > 1) {
+					    auto variants = g.tf.inv[A0] & u->finalNT;
+					    std::string vars_str;
+					    for(int ntnum : variants)
+					        (vars_str += g.nts[ntnum]) += ", ";
+					    vars_str.resize(vars_str.size()-2);
+					    throw RRConflict("at {} conflict : 2 different ways to reduce by {}: 3: {}"_fmt(lit.get_cpos(), g.ts[a], vars_str), prstack(g, ss, sp));
+					}
 				} else {
 					auto &tinv = g.tf.inv[A0];
 					for (int A : F[k]) {

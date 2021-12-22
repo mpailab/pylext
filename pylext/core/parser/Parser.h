@@ -415,6 +415,11 @@ public:
             s << "\n";
         }
     }
+    std::string sprint_rules()const {
+        std::stringstream s;
+        print_rules(s);
+        return s.str();
+    }
     void addNewNTAction(const NewNTAction& action) {
         on_new_nt_actions.push_back(action);
     }
