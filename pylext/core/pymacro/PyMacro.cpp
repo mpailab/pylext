@@ -14,7 +14,9 @@ enum MacroRule {
 	MacroArg,
 	MacroArgExpand,
 	MacroConstStr,
-	MacroArgToken
+	MacroArgToken,
+    QQSingle,
+    QQMany,
 };
 
 /** Заменяет листья с rule_id=QExpr, на соответствующие поддеревья */
@@ -78,7 +80,7 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm, st
 		for (auto& arg : expand) {
 		    qq+="{}=syn_expand({})\n"_fmt(arg, arg);
 		}
-		qq+="${} $$DEDENT"_fmt(px.grammar().nts[stmts->nt]);
+		qq+="*${} $$DEDENT"_fmt(px.grammar().nts[stmts->nt]);
         stmts = px.quasiquote("suite", qq, { stmts }, QExpr, QStarExpr);
 		n->ch[off+2] = stmts; //px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
 	}
@@ -110,7 +112,7 @@ string& tostr(string &res, const string& str, char c) {
  * Преобразуется в вызов функции quasiquote("nt", [f"s0",f"s1",...,f"sN"],[arg1,...,argN])
  * Таким образом, в квазицитате можно будет использовать выражения, как в f string
  */
-void make_qqir(ParseContext& px, ParseNodePtr& root, ParseNode* n, const std::string& nt, const char*pref=0, const char* suf=0)
+void make_qqir(ParseContext& px, ParseNodePtr& root, ParseNode* n, const std::string& nt, const char*pref=nullptr, const char* suf=nullptr)
 {
     int qqp = len(n->ch) / 2;
     vector<ParseNode *> qargs(qqp);
@@ -174,6 +176,13 @@ void check_quote(ParseContext& px, ParseNodePtr& n){
         throw GrammarError("$<ident> outside of quasiquote");
 }
 
+bool endsWidth(const string &x, const std::string& ptr){
+    if (x.size() < ptr.size())return false;
+    for(size_t i = 0, j = x.size()-ptr.size(); i<ptr.size(); i++, j++)
+        if(x[j]!=ptr[i])return false;
+    return true;
+}
+
 /**
 * Инициализируется начальное состояние системы макрорасширений питона:
 * Оно представляет собой объект класса PyMacroModule, который содержит следующую информацию:
@@ -192,9 +201,13 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt, const string
 	GrammarState& g0 = px0.grammar();
 
     pg->addNewNTAction([](GrammarState* g, const string& ntn, int nt) {
-		addRule(*g, "{} -> '${}'"_fmt(ntn, ntn), check_quote, QExpr);
         // addRule(*g, "{} -> '${}'"_fmt(ntn, ntn), check_quote, QExpr);
-        addRule(*g, "{} -> '${}_many'"_fmt(ntn, ntn), check_quote, QStarExpr);
+   		addRule(*g, "{} -> '${}'"_fmt(ntn, ntn), check_quote, QExpr);
+        if (endsWidth(ntn, "_many")) {
+            std::string ntbase(ntn.begin(), ntn.end() - 5);
+            //if (g->nt.count(ntbase))
+            addRule(*g, "{} -> '*${}'"_fmt(ntbase, ntn), check_quote, QStarExpr);
+        }
         addRule(*g, "qqst -> '{}`' {} '`'"_fmt(ntn, ntn));
 	});
     pg->setWsToken("ws");
@@ -241,7 +254,14 @@ void init_python_grammar(PythonParseContext* px, bool read_by_stmt, const string
     pg->addToken("qqopen", "ident '`'");
     pg->addToken("qqmid", "('\\\\' [^] / [^`$] / '$$')*");
     pg->addToken("qqmidfirst", "!'`' qqmid");
+
+    //addRule(*pg, "qqitem -> ident", QQSingle);
+    //addRule(*pg, "qqitem -> '{' expr '}'", QQSingle);
+    //addRule(*pg, "qqitem -> '*' ident", QQMany);
+    //addRule(*pg, "qqitem -> '*{' expr '}'", QQMany);
+
 	addRule(*pg, "qqst -> qqmidfirst"); // qqmid ");
+	//addRule(*pg, "qqst -> qqst '$' qqitem qqmid", flatten);
 	addRule(*pg, "qqst -> qqst '$' ident qqmid", flatten);
 	addRule(*pg, "qqst -> qqst '${' expr '}' qqmid", flatten);
 	addRule(*pg, "expr -> '`' qqst '`'", make_qq);
