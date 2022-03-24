@@ -74,8 +74,6 @@ bool LexIterator::tryFirstAction(const NTSet &t)
     readWs();
     int y = try_first(lex, s, trypos);
     if (y < 0) return false;
-    // if(!t.has(y))
-    //    throw SyntaxError("Unexpected token `{}`"_fmt(substr(pos, trypos-pos)));
     if(y < len(lex->ctokens) && !lex->ctokens[y].empty()) {
         rdws = true;
         readWs();

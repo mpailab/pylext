@@ -47,9 +47,7 @@ struct S {
 	}
 	S& operator<<(const string& s) {
 		*this << (int)s.size();
-		size_t sz = v.size();
-		v.resize(sz + s.size());
-		memcpy(v.data() + sz, s.c_str(), s.size());
+		v.insert(v.end(), s.begin(), s.end());
 		return *this;
 	}
 	S& operator<<(ParseNode* n) {
@@ -135,6 +133,28 @@ string tree2str(ParseTree& t, GrammarState* g) {
 	stringstream ss;
 	print_tree(ss, t, g);
 	return ss.str();
+}
+
+void remove_double_endl(string &str) {
+    size_t n = str.size();
+    int was_endl = 0;
+    size_t last_ln = 0, j=0;
+    for(size_t i=0; i<n; i++){
+        if(str[i] == '\n') {
+            was_endl++;
+            if(was_endl==2)
+                str[j++] = '\n';
+            last_ln = i;
+        } else if(!was_endl)
+            str[j++] = str[i];
+        else if(!isspace(str[i])){
+            for (auto k = last_ln; k < i; k++)
+                str[j++] = str[k];
+            was_endl = 0;
+            str[j++] = str[i];
+        }
+    }
+    str.resize(j);
 }
 
 string tree2str(ParseNode* pn, GrammarState* g) {

@@ -82,7 +82,7 @@ int conv_macro(ParseContext& px, ParseNodePtr& n, int off, const string &fnm, st
 		}
 		qq+="*${} $$DEDENT"_fmt(px.grammar().nts[stmts->nt]);
         stmts = px.quasiquote("suite", qq, { stmts }, QExpr, QStarExpr);
-		n->ch[off+2] = stmts; //px.quasiquote("suite", "\n $stmts1\n", { stmts }, QExpr);
+		n->ch[off+2] = stmts;
 	}
 	int rule_num = px.grammar().addRule(n[off].term, rhs);
 	string funcdef = R"(@{}("{}",[)"_fmt(decorator_name, n[off].term);
@@ -134,7 +134,6 @@ void make_qqir(ParseContext& px, ParseNodePtr& root, ParseNode* n, const std::st
         if(i==len(n->ch)-1 && suf)
             qq+=suf;
         qq += R"(""")";
-        // tostr(qq, n->ch[i]->term, '"');
     }
 
     qq += "],[";

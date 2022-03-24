@@ -170,6 +170,47 @@ def solve_quadratic(eqn: Eqn):
    eqn.roots = [(-b-d**0.5)/2/a, (-b+d**0.5)/2/a]
 ```
 
+### Using pylext in jupyter notebook
+1. Load jupyter magic commands for pylext
+    ```python
+    %load_ext pylext.magics
+    ```
+2. Running example with new operator in jupyter notebook in context test
+    ```python
+    %%pylext test
+    # Import syntax extension for new operator definition
+    gimport pylext.macros.operator 
+    
+    infixl(0) '/@' (f, data):
+        return [f(x) for x in data]
+    ```
+   New operator `/@` now can be used in any cell executed in context *test*: 
+    ```python
+    %%pylext test
+    from math import *
+    exp /@ range(10)
+    ```
+    ```
+    [1.0,
+     2.718281828459045,
+     7.38905609893065,
+     20.085536923187668,
+     54.598150033144236,
+     148.4131591025766,
+     403.4287934927351,
+     1096.6331584284585,
+     2980.9579870417283,
+     8103.083927575384]
+    ```
+3. Clear context test
+    ```python
+    %pylext clear test
+    ```
+    ```
+    Context `test` deleted
+    ```
+    Usually this is necessary for debugging macro syntax before executing the cell with modified macro   
+
 ## Library usage
 
 To activate the library, add the following command to the main file:
@@ -416,6 +457,25 @@ Importing macros `infixl`, `infixr` and `infix` for defining new operators:
 ```python
 gimport pylext.macros.operator
 ```
+
+### Jupyter notebook support
+
+Jupyter notebook extension implemented in magic commands:
+
+1. Run code in a given parser context:
+   ```
+   %%pylext [-d] [-e] [<context name>]   
+   ```
+   Supported options:
+    - `-d` -- debug print
+    - `-e` -- macro expansion without execution
+
+   If context is not specified, then the context with name `default` is used
+2. Clear one or several contexts  
+   ```
+   %pylext clear <context1> ... <contextN>
+   ```
+   This command removes all syntax extensions from specified contexts
 
 ## How does it work
 
