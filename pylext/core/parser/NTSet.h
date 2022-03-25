@@ -564,14 +564,10 @@ struct NTSetV2 {
 #else
 
 inline __m256i bitmask256(unsigned i) {
-	//auto mask = _mm256_cmpeq_epi32(_mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0), _mm256_set1_epi32(i));
 	return _mm256_and_si256(_mm256_cmpeq_epi32(_mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0), _mm256_set1_epi32(i >> 5)), _mm256_set1_epi32(1U << (i & 31u)));
 }
 inline __m128i bitmask128(unsigned i) {
 	return i & 64u ? _mm_set_epi64x((1ULL << (i & 63u)), 0) : _mm_set_epi64x(0, 1ULL << i);
-	//auto mask = _mm256_cmpeq_epi32(_mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0), _mm256_set1_epi32(i));
-	//return _mm_insert_epi16(_mm_setzero_si128(), 1 << (i & 15), i >> 4);
-	//return _mm256_and_si256(_mm256_cmpeq_epi32(_mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0), _mm256_set1_epi32(i >> 5)), _mm256_set1_epi32(1U << (i & 31)));
 }
 
 struct NTSetV4 {
@@ -747,7 +743,6 @@ struct NTSetV2 {
 	}
 	[[nodiscard]] bool has(int i)const {
 		return (((i & 64 ? _mm_extract_epi64(x, 1) : _mm_extract_epi64(x, 0)) >> (i & 63)) & 1) != 0;
-		//return int(_mm_extract_epi16(x, i >> 4) >> (i & 15)) & 1;
 	}
 	bool add_check(int i) {
 		auto y = x;

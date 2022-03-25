@@ -47,9 +47,7 @@ struct S {
 	}
 	S& operator<<(const string& s) {
 		*this << (int)s.size();
-		size_t sz = v.size();
-		v.resize(sz + s.size());
-		memcpy(v.data() + sz, s.c_str(), s.size());
+		v.insert(v.end(), s.begin(), s.end());
 		return *this;
 	}
 	S& operator<<(ParseNode* n) {
@@ -135,6 +133,28 @@ string tree2str(ParseTree& t, GrammarState* g) {
 	stringstream ss;
 	print_tree(ss, t, g);
 	return ss.str();
+}
+
+void remove_double_endl(string &str) {
+    size_t n = str.size();
+    int was_endl = 0;
+    size_t last_ln = 0, j=0;
+    for(size_t i=0; i<n; i++){
+        if(str[i] == '\n') {
+            was_endl++;
+            if(was_endl==2)
+                str[j++] = '\n';
+            last_ln = i;
+        } else if(!was_endl)
+            str[j++] = str[i];
+        else if(!isspace(str[i])){
+            for (auto k = last_ln; k < i; k++)
+                str[j++] = str[k];
+            was_endl = 0;
+            str[j++] = str[i];
+        }
+    }
+    str.resize(j);
 }
 
 string tree2str(ParseNode* pn, GrammarState* g) {
@@ -299,8 +319,14 @@ bool reduce(SStack &ss, PStack& sp, LexIterator& lit, int a, ParseContext &pt) {
 				if (!k) {
 					u1 = u;
 					int r = g.tf.inv[A0].intersects(u->finalNT, &Bb);
-					if(r > 1)
-					    throw RRConflict("at {} conflict : 2 different ways to reduce by {}: 3"_fmt(lit.get_cpos(), g.ts[a]), prstack(g, ss, sp));
+					if(r > 1) {
+					    auto variants = g.tf.inv[A0] & u->finalNT;
+					    std::string vars_str;
+					    for(int ntnum : variants)
+					        (vars_str += g.nts[ntnum]) += ", ";
+					    vars_str.resize(vars_str.size()-2);
+					    throw RRConflict("at {} conflict : 2 different ways to reduce by {}: 3: {}"_fmt(lit.get_cpos(), g.ts[a], vars_str), prstack(g, ss, sp));
+					}
 				} else {
 					auto &tinv = g.tf.inv[A0];
 					for (int A : F[k]) {

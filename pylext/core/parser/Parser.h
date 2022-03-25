@@ -49,7 +49,6 @@ public:
     int rule=-1;          // Номер правила (-1 => терминал)
     int rule_id = -1;     // Внешний номер правила
     string term;          // Строковое значение (если терминал)
-    //ParseNode* p = 0;     // Ссылка на родительский узел
     int size = 1;
     unsigned lpr = -1, rpr = -1; // Левый и правый приоритеты (если unsigned(-1), то приоритеты не заданы)
     vector<ParseNode*> ch; // Дочерние узлы
@@ -134,14 +133,14 @@ struct ParseTree { // TODO: Нужен ли вообще отдельный та
 template<class T>
 struct Ref : unique_ptr<T> {
     Ref() :unique_ptr<T>(new T) {}
-    Ref(const Ref<T>&r): unique_ptr<T>(r ? new T(*r) : 0) {}
-    Ref(Ref<T>&&) = default;
+    Ref(const Ref<T>&r): unique_ptr<T>(r ? new T(*r) : nullptr) {}
+    Ref(Ref<T>&&)  noexcept = default;
     Ref<T>& operator= (const Ref<T>& r) {
         if(r) this->reset(new T(*r));
         else this->reset();
         return *this;
     }
-    Ref<T>& operator=(Ref<T>&&) = default;
+    Ref<T>& operator=(Ref<T>&&)  noexcept = default;
     ~Ref() = default;
 };
 
@@ -279,14 +278,14 @@ class CacheVec: public vector<unique_ptr<T>> {
 public:
     CacheVec() = default;
     CacheVec(const CacheVec<T>& v) {}
-    CacheVec(CacheVec<T>&&) = default;
+    CacheVec(CacheVec<T>&&) noexcept = default;
     CacheVec& operator=(const CacheVec&) { return *this; }
     CacheVec& operator=(CacheVec&&) { return *this; }
+    ~CacheVec() = default;
 };
 
 class GrammarState {
 public:
-    // any data;
     using NewNTAction = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления нового нетерминала
     using NewTAction  = function<void(GrammarState*, const string&, int)>; // Обработчик события добавления н6ового терминала
 
@@ -341,7 +340,7 @@ public:
     int temp_used = 0;
     CacheVec<Temp> tmp;
     int start = -1;
-    bool finish = false;
+    //bool finish = false;
     TF tf;
     PEGLexer lex;
 
@@ -414,6 +413,11 @@ public:
             print_rule(s, r);
             s << "\n";
         }
+    }
+    std::string sprint_rules()const {
+        std::stringstream s;
+        print_rules(s);
+        return s.str();
     }
     void addNewNTAction(const NewNTAction& action) {
         on_new_nt_actions.push_back(action);

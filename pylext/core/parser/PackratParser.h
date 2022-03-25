@@ -28,7 +28,6 @@ struct PEGExpr {
 	vector<PEGExpr> subexprs;
 	bitset<256> t_mask;
 	mutable string s;
-	//size_t min = 0, max = -1;
 	int num = 0;
 	mutable int id=-1;
 	int _cmplx = -1;
@@ -233,9 +232,7 @@ struct PEGGrammar {
     bool _updated=true;
     int _ops = 0;
     struct HashExpr {
-        //mutable PackratParser *p = 0;
         HashExpr() = default;
-        //explicit HashExpr(PackratParser *ps) :p(ps) {}
         size_t operator()(const PEGExpr *e)const {
             size_t h = std::hash<int>()(e->type);
             switch (e->type) {
@@ -247,8 +244,6 @@ struct PEGGrammar {
                     return h ^ std::hash<int>()(e->num);
                 default:
                     for (auto &x : e->subexprs) {
-                        //Assert(x.id>=0);
-                        //if (x.id < 0)x.id = p->_een[&x];
                         h ^= std::hash<int>()(x.id);
                     }
             }
@@ -325,7 +320,6 @@ struct PackratParser {
 		return acceptedh[(uint64_t(pos) << 32u) | id];
 	}
 	string text;
-	//int pos;
 
     explicit PackratParser(PEGGrammar *p, string t=""): peg(p), text(std::move(t)) {
         lastpos = (int)text.size();

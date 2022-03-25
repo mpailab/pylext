@@ -65,4 +65,11 @@ failed.txt
 parse_out.txt
 .idea/
 
+/_skbuild/
 /Testing/
+/dist/
+*.egg-info/
+/MANIFEST
+/docs/build/
+cmake-build-*/
+.ipynb_checkpoints/

@@ -33,7 +33,6 @@ int addRule(GrammarState& gr, const string& s, SemanticAction act, int id, int l
 		} else throw Exception("Error : unexpected symbol '"s + s[pos] + "'");
 	}
 	return gr.addRule(A, rhs, std::move(act), id, lpr, rpr);
-	//return true;
 }
 
 int addRule(GrammarState& gr, const string& s, int id, int lpr, int rpr) {
@@ -92,7 +91,6 @@ vector<vector<string>> getVariants(ParseNode* n) {
 void flatten(ParseContext&, ParseNodePtr& n) {
     n[0].ch.insert(n[0].ch.end(), n->ch.begin() + 1, n->ch.end());
     n.reset(&n[0]);
-    // n->flattened = true;
 }
 
 void flatten_p(ParseContext&, ParseNodePtr& n, int pos) {
@@ -112,8 +110,7 @@ void flatten_check(ParseContext&, ParseNodePtr& n) {
 
 
 void init_base_grammar(GrammarState& st, GrammarState* target) {
-    //auto target = px->g;
-	st.setStart("text");// , "new_token", "new_rule");
+	st.setStart("text");
 	st.setWsToken("ws");
 	st.addLexerRule("ws", R"(([ \t\n\r] / comment)*)");
 	//st.addLexerRule("comment", "'#' [^\\n]*");

@@ -167,6 +167,46 @@ def _gimport___(module, as_name, global_vars: dict):
             print('_import_grammar finished', flush=True)
 
 
+def exec_in_context(text, return_expanded=False):
+    """
+    Parses text statement by statement and expand macros,
+    then loads it into interpreter. In the end of text adds function
+    _import_grammar() that will be executed if this module will be imported
+    by gimport command.
+
+    Parameters
+    ----------
+    text: str
+        Text to be parsed
+    return_expanded: bool
+        Whether to return expanded macros
+
+    Returns
+    -------
+    str or None
+        Expanded macros if return_expanded = True
+        or None otherwise
+    """
+    res = []
+    px = parse_context()
+    vars = px.globals()
+    #insert_pyg_builtins(vars)
+
+    for stmt_ast in parse(text, px):
+        if _dbg_statements:
+            print(f'\nProcess statement:\n\n{px.ast_to_text(stmt_ast)}\n', flush=True)
+        stmt_ast = macro_expand(px, stmt_ast)
+        if _dbg_statements:
+            print('Expanded :\n')
+        stmt = px.ast_to_text(stmt_ast)
+        if _dbg_statements:
+            print(f'{stmt}\n===========================================\n', flush=True)
+        res.append(stmt)
+        exec(stmt, vars)
+
+    return ''.join(res) if return_expanded else None
+
+
 _module_vars = {
     # internal built-in functions:
     '_syntax_rule' : _syntax_rule,
@@ -182,6 +222,7 @@ _module_vars = {
     'new_token'    : new_token,
     'new_lexer_rule': new_lexer_rule,
     'eval_in_context': eval_in_context,
+    'exec_in_context': exec_in_context,
     'get_rule_id' : get_rule_id,
     'gexport'     : gexport
 }
