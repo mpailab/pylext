@@ -1,5 +1,4 @@
 """Pylext magic command for jupyter notebook"""
-__version__ = '0.1.0'
 
 from .magics import PylextMagics
 

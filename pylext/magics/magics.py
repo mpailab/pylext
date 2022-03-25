@@ -15,7 +15,38 @@ class PylextMagics(Magics):
 
     @line_cell_magic
     def pylext(self, line: str, cell = None):
-        """pylext cell magic"""
+        """
+        Create pylext magic command of the form
+            %pylext type context [context ...]
+        if cell is None and
+            %%pylext [-d] [-e] [context]
+            cell
+        otherwise, where 
+            type is 'clear', 'del', 'delete' or 'erase',
+            context is a context name,
+            -d is option that enables debugging mode,
+            -e is option that enables only expanding mode.
+        
+        Parameters
+        ----------
+        line: str
+            Arguments of pylext magic command, i.e. it is 
+            `type context [context ...]` if cell is None,
+            and is `[-d] [-e] [context]` otherwise.
+        cell: str
+            Jupyter notebook cell content.
+
+        Raises
+        ------
+        UserWarning
+            If %pylext command with no arguments
+            If context doesn't exist
+        UsageError
+            If invalid option in cell mode
+            If more than one context in cell mode
+            If no contexts to delete in line mode
+            If unknown type in line mode
+        """
         if cell is None:
             return self._pylext_line(line)
         name = ''
@@ -29,10 +60,10 @@ class PylextMagics(Magics):
                 elif arg == '-e':
                     expand_only = True
                 else:
-                    raise Exception(f'invalid option {arg}')
+                    raise UsageError(f'invalid option {arg}')
             else:
                 if name:
-                    raise Exception(f'cannot activate more than one context: {name} and {arg}')
+                    raise UsageError(f'cannot activate more than one context: {name} and {arg}')
                 name = arg
         name = name or 'default'
         if expand_only:
