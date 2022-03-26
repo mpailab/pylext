@@ -1,6 +1,6 @@
 name: BuildWheels
 
-on: [push, pull_request]
+on: [release]
 
 jobs:
   build_wheels:
