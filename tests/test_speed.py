@@ -5,6 +5,9 @@ from pylext.core.parse import ParseContext
 from pylext import exec_macros
 from pylext.base import *
 
+curdir = os.path.dirname(__file__)
+if curdir[-1] not in '/\\':
+    curdir+='/'
 
 @pytest.mark.long
 @pytest.mark.benchmark(group="pylext-parser")
@@ -18,7 +21,7 @@ def test_context_creation(benchmark):
 @pytest.mark.long
 @pytest.mark.benchmark(group="pylext-parser", min_rounds=1, warmup=False)
 def test_big_file(benchmark):
-    with open('tests/macros/big_file.pyg') as f:
+    with open(f'{curdir}macros/big_file.pyg') as f:
         text = ''.join(f)
     benchmark(exec_macros, text, {})
 
@@ -26,7 +29,7 @@ def test_big_file(benchmark):
 @pytest.mark.long
 @pytest.mark.benchmark(group="pylext-parser", min_rounds=1)
 def test_small_file(benchmark):
-    with open('tests/macros/match.pyg') as f:
+    with open(f'{curdir}macros/match.pyg') as f:
         text = ''.join(f)
     benchmark(exec_macros, text, {})
 
