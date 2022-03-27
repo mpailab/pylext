@@ -1,7 +1,7 @@
 # PyLExt: PYthon Language EXTension library
 
 [![Python build and test](https://github.com/mpailab/pylext/actions/workflows/python-test.yml/badge.svg)](https://github.com/mpailab/pylext/actions/workflows/python-test.yml)
-[![v](https://img.shields.io/pypi/v/pylext.svg)](https://pypi.python.org/pypi/cpplint)
+[![v](https://img.shields.io/pypi/v/pylext.svg)](https://pypi.python.org/pypi/pylext)
 [![pyversions](https://img.shields.io/pypi/pyversions/pylext.svg)](https://pypi.python.org/pypi/pylext)
 [![status](https://img.shields.io/pypi/status/pylext.svg)](https://pypi.python.org/pypi/pylext)
 [![l](https://img.shields.io/pypi/l/pylext.svg)](https://pypi.python.org/pypi/pylext)
