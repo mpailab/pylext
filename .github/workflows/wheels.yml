@@ -1,4 +1,4 @@
-name: BuildWheels
+name: Build wheels
 
 on: [release]
 
