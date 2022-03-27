@@ -1,7 +1,10 @@
 # PyLExt: PYthon Language EXTension library
 
 [![Python build and test](https://github.com/mpailab/pylext/actions/workflows/python-test.yml/badge.svg)](https://github.com/mpailab/pylext/actions/workflows/python-test.yml)
-[![BuildWheels](https://github.com/mpailab/pylext/actions/workflows/wheels.yml/badge.svg)](https://github.com/mpailab/pylext/actions/workflows/wheels.yml)
+[![v](https://img.shields.io/pypi/v/pylext.svg)](https://pypi.python.org/pypi/pylext)
+[![pyversions](https://img.shields.io/pypi/pyversions/pylext.svg)](https://pypi.python.org/pypi/pylext)
+[![status](https://img.shields.io/pypi/status/pylext.svg)](https://pypi.python.org/pypi/pylext)
+[![l](https://img.shields.io/pypi/l/pylext.svg)](https://pypi.python.org/pypi/pylext)
 
 This library allows to add new syntax into the Python language.
 It is based on LR(1) algorithm implementation that allows dynamically
