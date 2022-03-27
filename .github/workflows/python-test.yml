@@ -15,7 +15,7 @@ on:
 
 jobs:
   build:
-    name: Build wheels on ${{ matrix.os }}
+    name: Run tests on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -31,7 +31,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest pytest-benchmark
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Build and install package
       run: |
         pip install .
