@@ -6,6 +6,10 @@ name: Tests
 on:
   push:
     branches: [ master, develop ]
+    paths-ignore:
+      - 'vscode/**'
+      - '**.md'
+      - 'docs/**'
   pull_request:
     branches: [ master ]
 
