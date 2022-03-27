@@ -34,7 +34,7 @@ jobs:
         python -m pip install flake8 pytest pytest-benchmark
     - name: Build and install package
       run: |
-        pip install . --install-option="--no-intrinsics"
+        pip install .
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names

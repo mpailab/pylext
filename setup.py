@@ -5,9 +5,10 @@ from skbuild import setup
 
 
 extra_cmake_args = ['-DBUILD_PYLEXT=ON']
-if '--no-intrinsics' in sys.argv:
+if '--use-intrinsics' not in sys.argv:
     extra_cmake_args.append('-DNO_INTRINSICS=ON')
-    sys.argv.remove('--no-intrinsics')
+else:
+    sys.argv.remove('--use-intrinsics')
 
 setup(
     packages=find_packages(),

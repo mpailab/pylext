@@ -42,7 +42,7 @@ inline int popcount(uint64_t x){
     return (y += (y>>16)) & 0xFF;
 }
 #else
-inline int countl_lero(uint64_t x) {
+inline int countl_zero(uint64_t x) {
     return (int)_lzcnt_u64(x);
 }
 inline int countr_zero(uint64_t x) {
