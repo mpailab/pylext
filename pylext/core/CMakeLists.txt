@@ -1,17 +1,24 @@
 option(BUILD_PYLEXT "Build package pylext" OFF)
+option(NO_INTRINSICS "Use x64 platform intrinsics" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
 if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    set(CMAKE_CXX_FLAGS "-m64 -mpopcnt -mavx2 -mlzcnt -mbmi -mbmi2")
+    if(NOT NO_INTRINSICS)
+        set(CMAKE_CXX_FLAGS "-m64 -mpopcnt -mavx2 -mlzcnt -mbmi -mbmi2")
+    endif()
     if(UNIX)
         set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fPIC" )
     endif()
 endif()
 
-set(CMAKE_CXX_STANDARD 20)
+if(NO_INTRINSICS)
+    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DNO_INTRINSICS" )
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(format)
 include_directories(parser)

@@ -1,9 +1,9 @@
 #pragma once
-#include <immintrin.h>
 #include <memory>
 #include <utility>
 #include <vector>
 #include "Exception.h"
+#include "BitOperations.h"
 
 template <class T, unsigned bsz = 4, class Alloc = std::allocator<T>>
 class VectorF {
@@ -44,7 +44,7 @@ public:
 
 	[[nodiscard]] int size() const { return _size; }
 	VectorF<T, bsz, Alloc>& reserve(unsigned cap) {
-		cap = 1u << (32u - _lzcnt_u32(cap - 1));
+		cap = 1u << (32u - countl_zero(cap - 1));
 		if (cap <= _cap) return *this;
 		T* ptr = _alloc.allocate(cap);
 		std::uninitialized_move_n(_ptr, _size, ptr);
@@ -136,7 +136,7 @@ public:
 	}
 	explicit VectorF(size_t sz) {
 		if (sz > bsz) {
-			_cap = 1u << (32 - _lzcnt_u32(sz - 1));
+			_cap = 1u << (32 - countl_zero(sz - 1));
 			_ptr = _alloc.allocate(_cap);
 		}
 		std::uninitialized_default_construct_n(_ptr, sz);
@@ -147,7 +147,7 @@ public:
 	VectorF(It fst, It lst): VectorF(lst-fst) {
 		int sz = int(lst - fst);
 		if (sz > bsz) {
-			_cap = 1u << (32 - _lzcnt_u32(sz - 1));
+			_cap = 1u << (32 - countl_zero(sz - 1));
 			_ptr = _alloc.allocate(_cap);
 		}
 		_size = sz;

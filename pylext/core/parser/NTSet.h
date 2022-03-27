@@ -1,20 +1,10 @@
 #pragma once
+#ifndef NO_INTRINSICS
 #include <immintrin.h>
+#endif
 #include <unordered_set>
 #include "Exception.h"
-
-#if defined(__cplusplus) && __cplusplus >= 200202
-#include <bit>
-using std::countr_zero;
-using std::popcount;
-#else
-inline int countr_zero(uint64_t x) {
-    return (int)_tzcnt_u64(x);
-}
-inline int popcount(uint64_t x){
-    return (int)_mm_popcnt_u64(x);
-}
-#endif
+#include "BitOperations.h"
 
 struct NTSetS { // Множество нетерминалов
     static constexpr int max_value = ~(1 << (sizeof(int)*8-1));
@@ -214,7 +204,7 @@ struct NTSetV {
 	[[nodiscard]] iterator begin()const { return iterator(mask.data(), mask.size()); }
 	[[nodiscard]] iterator end()const { return iterator(mask.data() + mask.size(), 0); }
 };
-
+#ifndef NO_INTRINSICS
 inline uint64_t extract64(__m256i x, unsigned i) {
 	switch (i) {
 	case 0: return _mm256_extract_epi64(x, 0);
@@ -900,6 +890,7 @@ struct NTSetV1 {
 	[[nodiscard]] iterator begin()const { return iterator(x); }
 	[[nodiscard]] iterator end()const { return iterator(); }
 };
+#endif
 
 template<class S1, class S2>
 struct NTSetCmp {
@@ -1013,8 +1004,12 @@ struct NTSetCmp {
 	iterator end()const { return s2.end(); }
 };
 
+#ifdef NO_INTRINSICS
+using NTSet = NTSetV;
+#else
 //typedef NTSetCmp<NTSetV1,NTSetV> NTSet;
 //typedef NTSetV8 NTSet;
 using NTSet = NTSetV;
 //typedef NTSetV2 NTSet;
 //typedef NTSetV1 NTSet;
+#endif
