@@ -1,6 +1,8 @@
 name: Build wheels
 
-on: [release]
+on:
+  release:
+    types: [published, released]
 
 jobs:
   build_wheels:

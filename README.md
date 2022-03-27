@@ -19,7 +19,7 @@ so it is possible to define a new syntactical construction and use it in the nex
 ## Requirements
 
 1. C++ compiler supporting c++17:
-   - Visual Studio 2019
+   - Visual Studio 2019 or later
    - gcc 8 or later
    - apple clang 11 or later
 2. CMake 3.8 or later
