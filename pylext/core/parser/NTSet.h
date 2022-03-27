@@ -2,6 +2,20 @@
 #include <immintrin.h>
 #include <unordered_set>
 #include "Exception.h"
+
+#if defined(__cplusplus) && __cplusplus >= 200202
+#include <bit>
+using std::countr_zero;
+using std::popcount;
+#else
+inline int countr_zero(uint64_t x) {
+    return (int)_tzcnt_u64(x);
+}
+inline int popcount(uint64_t x){
+    return (int)_mm_popcnt_u64(x);
+}
+#endif
+
 struct NTSetS { // Множество нетерминалов
     static constexpr int max_value = ~(1 << (sizeof(int)*8-1));
 	std::unordered_set<int> s;
@@ -105,7 +119,7 @@ struct NTSetV {
 			return next();
 		}
 		int operator*() const {
-			return pos + (int)_tzcnt_u64(curr);
+			return pos + (int)countr_zero(curr);
 		}
 		bool operator==(const iterator& i)const {
 			return ptr == i.ptr && curr == i.curr;
@@ -123,8 +137,8 @@ struct NTSetV {
 		int m = 0;
 		for (size_t i = 0, sz = std::min(y.mask.size(), mask.size()); i < sz; i++)
 			if (mask[i] & y.mask[i]) {
-				*B = int((i << 6u) + _tzcnt_u64(mask[i] & y.mask[i]));
-				m += (int)_mm_popcnt_u64(mask[i] & y.mask[i]);
+				*B = int((i << 6u) + countr_zero(mask[i] & y.mask[i]));
+				m += (int)popcount(mask[i] & y.mask[i]);
 				if (m >= 2)return 2;
 			}
 		return m;
@@ -156,7 +170,7 @@ struct NTSetV {
 	[[nodiscard]] int size()const {
 		int r = 0;
 		for (auto x : mask)
-			r += (int)_mm_popcnt_u64(x);
+			r += (int)popcount(x);
 		return r;
 	}
 	[[nodiscard]] bool empty()const {
@@ -256,7 +270,7 @@ struct NTSetV8 { // “ребует поддержки AVX-512
 			return next();
 		}
 		int operator*() const {
-			return (int)_tzcnt_u64(cmask) + pos;
+			return (int)countr_zero(cmask) + pos;
 		}
 		bool operator==(const iterator& i)const {
 			return cmask == i.cmask && pmask == i.pmask;
@@ -306,7 +320,7 @@ struct NTSetV8 { // “ребует поддержки AVX-512
 			__m512 x;
 		} r;
 		_mm512_store_epi64(r.t, x);
-		return (int)_mm512_reduce_add_epi64(_mm512_setr_epi64(_mm_popcnt_u64(r.t[0]), _mm_popcnt_u64(r.t[1]), _mm_popcnt_u64(r.t[2]), _mm_popcnt_u64(r.t[3]), _mm_popcnt_u64(r.t[4]), _mm_popcnt_u64(r.t[5]), _mm_popcnt_u64(r.t[6]),_mm_popcnt_u64(r.t[7])));
+		return (int)_mm512_reduce_add_epi64(_mm512_setr_epi64(popcount(r.t[0]), popcount(r.t[1]), popcount(r.t[2]), popcount(r.t[3]), popcount(r.t[4]), popcount(r.t[5]), popcount(r.t[6]),popcount(r.t[7])));
 	}
 	NTSetV8& clear() { x = _mm512_setzero_si512(); return *this; }
 	NTSetV8() :x(_mm512_setzero_si512()) {};
@@ -369,7 +383,7 @@ struct NTSetV4 {
 			return next();
 		}
 		int operator*() const {
-			return (int)_tzcnt_u64(cmask) + _tzcnt_u32(pmask) * 64;
+			return (int)countr_zero(cmask) + _tzcnt_u32(pmask) * 64;
 		}
 		int* operator->() const {
 			return 0;
@@ -416,8 +430,8 @@ struct NTSetV4 {
 		x = _mm256_mask_or_epi64(x, (1 << (i >> 6)), x, _mm256_set1_epi64x(1ULL << (i & 63)));
 	}
 	int size()const {
-		return int(_mm_popcnt_u64(_mm256_extract_epi64(x, 0)) + _mm_popcnt_u64(_mm256_extract_epi64(x, 1)) +
-			_mm_popcnt_u64(_mm256_extract_epi64(x, 2)) + _mm_popcnt_u64(_mm256_extract_epi64(x, 3)));
+		return int(popcount(_mm256_extract_epi64(x, 0)) + popcount(_mm256_extract_epi64(x, 1)) +
+			popcount(_mm256_extract_epi64(x, 2)) + popcount(_mm256_extract_epi64(x, 3)));
 	}
 	NTSetV4& clear() { x = _mm256_setzero_si256(); return *this; }
 	NTSetV4() :x(_mm256_setzero_si256()) {};
@@ -477,7 +491,7 @@ struct NTSetV2 {
 			return *this;
 		}
 		int operator*() const {
-			return (int)_tzcnt_u64(cmask[pos]) + pos * 64;
+			return (int)countr_zero(cmask[pos]) + pos * 64;
 		}
 		int* operator->() const {
 			return 0;
@@ -525,7 +539,7 @@ struct NTSetV2 {
 		x = _mm_or_si128(x, bitmask128(i));
 	}
 	int size()const {
-		return int(_mm_popcnt_u64(_mm_extract_epi64(x, 0)) + _mm_popcnt_u64(_mm_extract_epi64(x, 1)));
+		return int(popcount(_mm_extract_epi64(x, 0)) + popcount(_mm_extract_epi64(x, 1)));
 	}
 	NTSetV2& clear() { x = _mm_setzero_si128(); return *this; }
 	NTSetV2() :x(_mm_setzero_si128()) {};
@@ -597,7 +611,7 @@ struct NTSetV4 {
 			return next();
 		}
 		int operator*() const {
-			return (int)_tzcnt_u64(cmask) + (int)_tzcnt_u32(pmask)*64;
+			return (int)countr_zero(cmask) + (int)_tzcnt_u32(pmask)*64;
 		}
 		int* operator->() const {
 			return 0;
@@ -644,8 +658,8 @@ struct NTSetV4 {
 		x = _mm256_or_si256(x, bitmask256(i));
 	}
 	[[nodiscard]] int size()const {
-		return int(_mm_popcnt_u64(_mm256_extract_epi64(x, 0)) + _mm_popcnt_u64(_mm256_extract_epi64(x, 1)) + 
-			_mm_popcnt_u64(_mm256_extract_epi64(x, 2)) + _mm_popcnt_u64(_mm256_extract_epi64(x, 3)));
+		return int(popcount((uint64_t)_mm256_extract_epi64(x, 0)) + popcount((uint64_t)_mm256_extract_epi64(x, 1)) +
+			popcount((uint64_t)_mm256_extract_epi64(x, 2)) + popcount((uint64_t)_mm256_extract_epi64(x, 3)));
 	}
 	NTSetV4& clear() { x=_mm256_setzero_si256(); return *this; }
 	NTSetV4() :x(_mm256_setzero_si256()) {};
@@ -706,7 +720,7 @@ struct NTSetV2 {
 			return *this;
 		}
 		int operator*() const {
-			return int(_tzcnt_u64(cmask[pos]) + pos * 64);
+			return int(countr_zero(cmask[pos]) + pos * 64);
 		}
 		int* operator->() const {
 			return 0;
@@ -753,7 +767,7 @@ struct NTSetV2 {
 		x = _mm_or_si128(x, bitmask128(i));
 	}
 	[[nodiscard]] int size()const {
-		return int(_mm_popcnt_u64(_mm_extract_epi64(x, 0)) + _mm_popcnt_u64(_mm_extract_epi64(x, 1)));
+		return int(popcount((uint64_t)_mm_extract_epi64(x, 0)) + popcount((uint64_t)_mm_extract_epi64(x, 1)));
 	}
 	NTSetV2& clear() { x = _mm_setzero_si128(); return *this; }
 	NTSetV2() :x(_mm_setzero_si128()) {};
@@ -807,7 +821,7 @@ struct NTSetV1 {
 			return *this;
 		}
 		int operator*() const {
-			return (int)_tzcnt_u64(cmask);
+			return (int)countr_zero(cmask);
 		}
 		bool operator==(const iterator& i)const {
 			return cmask == i.cmask;
@@ -851,7 +865,7 @@ struct NTSetV1 {
 		x |= 1ULL << i;
 	}
 	[[nodiscard]] int size()const {
-		return (int)_mm_popcnt_u64(x);
+		return (int)popcount(x);
 	}
 	NTSetV1& clear() { x = 0; return *this; }
 	NTSetV1() :x(0) {};
