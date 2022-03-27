@@ -2,7 +2,7 @@ name: Build wheels
 
 on:
   release:
-    types: [published, prereleased]
+    types: [published]
 
 jobs:
   build_wheels:
