@@ -1,24 +1,27 @@
-# coding=pymacro
-
+# Вспомогательные правила для макроса match.
+# Они используются при преобразовании узла дерева в питоновский объект функцией syn_expand:
+# Если узел соответствует правилу, объявленному с ключевым словом syntax, то он раскрывается описанной функцией
+# функция syn_expand применяется к аргументам макроса и других синтаксических расширений, помеченных символом *
 syntax(matchcase, pattern: expr, ':', action: suite):
     #print(f'in matchcase 0')
     return (pattern, None, action)
 syntax(matchcase, pattern: expr, 'if', cond:test, ':', action: suite):
     #print(f'in matchcase 1')
     return (pattern,cond,action)
-syntax(matchcases, x:*matchcase):
+syntax(matchcases, x:*matchcase): # здесь к x применяется syn_expand
     #print(f'x = {x}')
     return [x]
-syntax(matchcases, xs:*matchcases, x:*matchcase):
+syntax(matchcases, xs:*matchcases, x:*matchcase): # здесь к xs и x применяется syn_expand
     if type(xs) is not list:
         xs = [xs]
     #print(f'xs = {xs}, x = {x}')
     xs.append(x)
     return xs
 
+#Максимально упрощённый pattern-matching (просто сравнение на равенство)
 def match2cmp(x, pat):
     #print('in match2cmp')
-    if pat == `_`:
+    if pat == `_`: # должна быть встроенная функция, сравнивающая деревья разбора
         return None
     return comparison`${x} == ${pat}`
 
