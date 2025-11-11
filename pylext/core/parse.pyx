@@ -10,7 +10,7 @@ from libcpp.vector cimport vector
 
 # Internal imports
 from .parse cimport *
-from .grammar.python_3_8 import python_grammar_str
+from .grammar.python_3_13 import python_grammar_str
 
 
 class InvalidParseContext(Exception):

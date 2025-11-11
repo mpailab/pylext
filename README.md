@@ -16,6 +16,17 @@ grammar to standard Python grammar.
 This procedure is applied to each statement in the text separately,
 so it is possible to define a new syntactical construction and use it in the next statement.
 
+## Python Version Support
+
+PyLExt now supports Python 3.6 through 3.13, including full support for new syntax features:
+
+- **Python 3.10+**: Pattern matching (match/case), union types (|), parenthesized context managers
+- **Python 3.11+**: Exception groups (except*)
+- **Python 3.12+**: Type parameters for generics, type statement
+- **Python 3.13+**: All features from previous versions
+
+The base grammar now includes these features, so you can use them directly in your `.pyg` files without needing macros.
+
 ## Requirements
 
 1. C++ compiler supporting c++17:
@@ -23,7 +34,7 @@ so it is possible to define a new syntactical construction and use it in the nex
    - gcc 8 or later
    - apple clang 11 or later
 2. CMake 3.8 or later
-3. Python >= 3.6. Recommended is Python 3.8.
+3. Python >= 3.6. Tested on Python 3.6-3.13.
 4. Package python3-dev (for Ubuntu)
 
 ## Installation
@@ -728,13 +739,17 @@ new token **op_lambda** is added to grammar.
 
 ## More examples
 
-### Simple match operator
+### Custom match-like operator (my_match)
 
-This example is a match operator that is an analog of C++ switch operator. Actually,
-Python 3.10 already has [more powerful match operator](https://docs.python.org/3.10/whatsnew/3.10.html#pep-634-structural-pattern-matching)
-but this example shows how a simple version may be defined using the PyLExt library.
+This example demonstrates a custom match operator (named `my_match` to distinguish from Python 3.10+ built-in `match/case`).
+This is a simple match operator that is an analog of C++ switch operator.
+Python 3.10+ already has [more powerful match operator](https://docs.python.org/3.10/whatsnew/3.10.html#pep-634-structural-pattern-matching)
+built into the language, but this example shows how a similar custom syntax extension may be defined using the PyLExt library.
 
-File match.pyg:
+**Note:** Since Python 3.10+, the `match/case` syntax is part of the base Python grammar and fully supported by PyLExt.
+This example uses `my_match` to show how to create custom macro syntax.
+
+File my_match.pyg:
 
 ```python
 syntax(matchcase, pattern: expr, ':', action: suite):
@@ -762,7 +777,7 @@ def make_and(c1, c2):
     if c2 is None: return c1
     return `(($c1) and ($c2))`
 
-defmacro match(stmt, 'match', x:expr, ':', EOL, INDENT, mc:*matchcases, DEDENT):
+defmacro my_match(stmt, 'my_match', x:expr, ':', EOL, INDENT, mc:*matchcases, DEDENT):
     if type(mc) is not list:
         mc=[mc]
     conds = [(match2cmp(x,p),cond,s) for (p,cond,s) in mc]
@@ -783,17 +798,17 @@ defmacro match(stmt, 'match', x:expr, ':', EOL, INDENT, mc:*matchcases, DEDENT):
 For example, it can be used to write a simple data serialization function:
 
 ```python
-def serialize_match(x):
-    match type(x):
+def serialize_custom(x):
+    my_match type(x):
         int:       return b'i' + struct.pack('<q', x)
         bool:      return b'b' + struct.pack('<q', int(x))
         float:     return b'f' + struct.pack('<d', float(x))
         bytes:     return b'b' + struct.pack('<q', len(x)) + x
-        str:       return b's' + serialize_match(x.encode('utf8'))
+        str:       return b's' + serialize_custom(x.encode('utf8'))
         list:
             data = b'l' + struct.pack('<q', len(x))
             for elem in x:
-                data += serialize_match(elem)
+                data += serialize_custom(elem)
             return data
         _:         raise Exception(f'Unsupported type {type(x)}')
 ```

@@ -15,17 +15,17 @@ on:
 
 jobs:
   build:
-    name: Run tests on ${{ matrix.os }}
+    name: Run tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-latest]
-        python-version: ["3.6", "3.10"]
+        os: [ubuntu-22.04, windows-2022, macos-latest]
+        python-version: ["3.9", "3.10", "3.13"]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies

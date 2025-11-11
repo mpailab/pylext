@@ -4,6 +4,7 @@
 #include <regex>
 #include <functional>
 #include <memory>
+#include <cstring>
 #include "Trie.h"
 #include "Exception.h"
 #include "common.h"
